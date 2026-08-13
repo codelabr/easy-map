@@ -62,6 +62,23 @@ def plain_scalars(block: str) -> list[tuple[str, str]]:
 
 
 class TestItParses(unittest.TestCase):
+    def test_no_byte_order_mark_in_front_of_the_opening_marker(self):
+        """A BOM before `---` hides the frontmatter, and hides it selectively.
+
+        The installer used to introduce one, because `Set-Content -Encoding
+        UTF8` writes a mark on Windows PowerShell 5.1. Codex then did not
+        register the skill at all while Claude Code stripped the mark and gave
+        no sign anything was wrong, so the failure looked like a Codex problem
+        rather than an encoding one. An editor saving as "UTF-8 with BOM" would
+        do the same to the source.
+        """
+        for path in (FRONTMATTER, AGENT_CARD):
+            head = path.read_bytes()[:3]
+            self.assertNotEqual(
+                head, b"\xef\xbb\xbf",
+                f"{path.name} starts with a UTF-8 byte-order mark; the "
+                f"assistant will not see its frontmatter.")
+
     def test_no_plain_scalar_hides_a_mapping(self):
         """The defect itself: an unquoted value carrying ': '."""
         for name, block in (

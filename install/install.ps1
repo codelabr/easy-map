@@ -171,7 +171,20 @@ foreach ($key in $Targets) {
   $engine = (Join-Path $dest 'scripts\easy_map.py') -replace '\\', '/'
   $before = ([regex]::Matches($text, [regex]::Escape("skills/$SkillName/scripts/easy_map.py"))).Count
   $text = $text -replace [regex]::Escape("skills/$SkillName/scripts/easy_map.py"), "`"$engine`""
-  Set-Content -Path $skillFile -Value $text -Encoding UTF8 -NoNewline
+
+  # `Set-Content -Encoding UTF8` writes a byte-order mark on Windows PowerShell
+  # 5.1, and a BOM in front of the opening `---` hides the YAML frontmatter:
+  # Codex then does not register the skill at all, while Claude Code strips the
+  # mark and gives no sign anything is wrong. Write the bytes directly instead.
+  [IO.File]::WriteAllText($skillFile, $text, (New-Object Text.UTF8Encoding $false))
+
+  # That frontmatter is the only reason either assistant opens this file, so
+  # check it survived rather than trusting the encoding flag.
+  $head = [IO.File]::ReadAllBytes($skillFile) | Select-Object -First 3
+  if (($head -join ',') -ne '45,45,45') {
+    throw ("$skillFile does not begin with ---, so the assistant will not see " +
+           "its frontmatter (first bytes: $($head -join ' ')).")
+  }
 
   $files = (Get-ChildItem $dest -Recurse -File).Count
   Write-Host ''
