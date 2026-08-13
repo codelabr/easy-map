@@ -33,11 +33,27 @@ param(
 
   [string] $Shapefiles,
 
-  [switch] $Quiet
+  [switch] $Quiet,
+
+  # Leave the interpreter alone even when there is none. For machines where
+  # Python is managed centrally and an extra copy would be unwelcome.
+  [switch] $SkipPython
 )
 
 $ErrorActionPreference = 'Stop'
 $SkillName = 'easy-map'
+
+#: Nothing in the engine uses syntax newer than this, so an existing 3.10 is
+#: left in place rather than replaced.
+$MinPython  = [Version]'3.10'
+$WantPython = '3.13'
+
+# Windows PowerShell 5.1 still negotiates TLS 1.0, which the download hosts
+# refuse; the failure reads as a connection error rather than a protocol one.
+if ([Net.ServicePointManager]::SecurityProtocol -notmatch 'Tls12') {
+  [Net.ServicePointManager]::SecurityProtocol =
+    [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+}
 
 if ($Targets) {
   $Targets = @($Targets -split ',' | ForEach-Object { $_.Trim().ToLower() } |
@@ -118,6 +134,110 @@ if (-not $Targets) {
     }
     if (-not $Targets) { throw "Nothing selected." }
   }
+}
+
+# --- python ----------------------------------------------------------------
+# The skill is Python. Without an interpreter the folder installs cleanly and
+# then does nothing, which is a worse outcome than saying so here.
+
+function Find-Python {
+  <#
+    The newest usable interpreter, or $null. `py -3` is checked as well as the
+    two names because the Windows launcher often knows about an installation
+    that never made it onto PATH.
+  #>
+  $best = $null
+
+  # Two PowerShell traps live in these four lines.
+  #
+  # The snippet carries NO quote characters: PowerShell strips quotes when it
+  # hands an argument to a native program, so `print("%d.%d" % ...)` reaches
+  # Python as `print(%d.%d % ...)` and every interpreter on the machine looks
+  # like a syntax error, which reads as "no Python installed".
+  #
+  # And a native program's stderr becomes a terminating error while
+  # $ErrorActionPreference is 'Stop', so the version check has to run relaxed
+  # and be judged by its exit code.
+  $snippet = 'import sys;print(sys.version.split()[0])'
+  $prior = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    foreach ($candidate in @(
+        @{ Exe = 'python3'; Pre = @() },
+        @{ Exe = 'python';  Pre = @() },
+        @{ Exe = 'py';      Pre = @('-3') })) {
+      if (-not (Get-Command $candidate.Exe -ErrorAction SilentlyContinue)) { continue }
+      # A bare `python` on Windows is often the Store stub, which prints
+      # nothing and exits non-zero. Asking for a version weeds that out.
+      $printed = & $candidate.Exe @($candidate.Pre + @('-c', $snippet)) 2>$null
+      if ($LASTEXITCODE -ne 0 -or -not $printed) { continue }
+      $parsed = $null
+      if (-not [Version]::TryParse(("$printed" -split '\r?\n')[0].Trim(), [ref]$parsed)) { continue }
+      if (-not $best -or $parsed -gt $best.Version) {
+        $best = [pscustomobject]@{ Command = $candidate.Exe; Version = $parsed }
+      }
+    }
+  } finally {
+    $ErrorActionPreference = $prior
+  }
+  return $best
+}
+
+function Resolve-Uv {
+  <# The uv executable, installing it first if it is not there yet. #>
+  $found = Get-Command uv -ErrorAction SilentlyContinue
+  if ($found) { return $found.Source }
+
+  Write-Host "  installing uv, which fetches the Python build"
+  Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression
+
+  # A freshly installed uv is not on this process's PATH, so look where its
+  # installer puts it rather than re-reading PATH.
+  $guess = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.local\bin\uv.exe'
+  if (Test-Path $guess) { return $guess }
+  $found = Get-Command uv -ErrorAction SilentlyContinue
+  if ($found) { return $found.Source }
+  throw "uv was installed but could not be located afterwards."
+}
+
+if (-not $SkipPython) {
+  $python = Find-Python
+  if ($python -and $python.Version -ge $MinPython) {
+    Write-Host ("  [found]     Python {0} ({1})" -f $python.Version, $python.Command) -ForegroundColor Green
+  } else {
+    if ($python) {
+      $why = "Python $($python.Version) is older than $MinPython"
+    } else {
+      $why = "No Python was found on this machine"
+    }
+    Write-Host ("  [missing]   {0}. The skill cannot draw anything without one." -f $why) -ForegroundColor Yellow
+
+    $install = $true
+    if (-not $Quiet) {
+      $answer = Read-Host "Install Python $WantPython now? [Y/n]"
+      $install = [string]::IsNullOrWhiteSpace($answer) -or $answer -match '^\s*[Yy]'
+    }
+
+    if ($install) {
+      # uv downloads a standalone build into the user's own folder: no
+      # administrator rights, no package manager to install first, and the same
+      # two commands on Windows and macOS. The skill's own commands already run
+      # through uv, so this adds no dependency that was not there already.
+      try {
+        $uv = Resolve-Uv
+        Write-Host ("  installing Python {0}" -f $WantPython)
+        & $uv python install $WantPython
+        if ($LASTEXITCODE -ne 0) { throw "uv python install exited with $LASTEXITCODE" }
+        Write-Host ("  [ok]        Python {0} installed" -f $WantPython) -ForegroundColor Green
+      } catch {
+        Write-Host ("  could not install Python automatically: {0}" -f $_.Exception.Message) -ForegroundColor Yellow
+        Write-Host "  Install Python $WantPython yourself from https://www.python.org/downloads/ and run this again."
+      }
+    } else {
+      Write-Host "  Skipped. The skill will install, but cannot run until a Python is present." -ForegroundColor Yellow
+    }
+  }
+  Write-Host ''
 }
 
 # --- boundaries ------------------------------------------------------------

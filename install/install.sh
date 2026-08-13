@@ -28,12 +28,21 @@ SOURCE="$ROOT/skills/$SKILL_NAME"
 TARGETS=""
 SHAPEFILES=""
 QUIET=0
+SKIP_PYTHON=0
+
+# Nothing in the engine uses syntax newer than this, so an existing 3.10 is
+# left in place rather than replaced.
+MIN_PYTHON_MAJOR=3
+MIN_PYTHON_MINOR=10
+WANT_PYTHON="3.13"
+
 while [ $# -gt 0 ]; do
   case "$1" in
-    --targets)    TARGETS="$2"; shift 2 ;;
-    --shapefiles) SHAPEFILES="$2"; shift 2 ;;
-    --quiet)      QUIET=1; shift ;;
-    -h|--help)    sed -n '2,20p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    --targets)     TARGETS="$2"; shift 2 ;;
+    --shapefiles)  SHAPEFILES="$2"; shift 2 ;;
+    --quiet)       QUIET=1; shift ;;
+    --skip-python) SKIP_PYTHON=1; shift ;;
+    -h|--help)     sed -n '2,20p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -100,6 +109,100 @@ if [ -z "$TARGETS" ]; then
     fi
     [ -n "$TARGETS" ] || { echo "Nothing selected." >&2; exit 1; }
   fi
+fi
+
+# --- python ----------------------------------------------------------------
+# The skill is Python. Without an interpreter the folder installs cleanly and
+# then does nothing, which is a worse outcome than saying so here.
+
+# Prints "<command> <version>" for the newest usable interpreter, or nothing.
+find_python() {
+  local best_cmd="" best_major=0 best_minor=-1 exe path version major minor
+  for exe in python3 python; do
+    command -v "$exe" >/dev/null 2>&1 || continue
+    path="$(command -v "$exe")"
+    # On macOS /usr/bin/python3 is a stub for the Command Line Tools. Running
+    # it when they are absent pops up an install dialog and blocks the script,
+    # so ask xcode-select first and treat the stub as missing.
+    if [ "$path" = "/usr/bin/python3" ] || [ "$path" = "/usr/bin/python" ]; then
+      xcode-select -p >/dev/null 2>&1 || continue
+    fi
+    version="$("$exe" -c 'import sys;print(sys.version.split()[0])' 2>/dev/null)" || continue
+    [ -n "$version" ] || continue
+    major="${version%%.*}"
+    minor="${version#*.}"; minor="${minor%%.*}"
+    case "$major$minor" in *[!0-9]*|"") continue ;; esac
+    if [ "$major" -gt "$best_major" ] ||
+       { [ "$major" -eq "$best_major" ] && [ "$minor" -gt "$best_minor" ]; }; then
+      best_cmd="$exe"; best_major="$major"; best_minor="$minor"
+    fi
+  done
+  [ -n "$best_cmd" ] && printf '%s %s.%s\n' "$best_cmd" "$best_major" "$best_minor"
+}
+
+# Echoes the uv executable, installing it first if it is not there yet.
+resolve_uv() {
+  if command -v uv >/dev/null 2>&1; then command -v uv; return 0; fi
+  printf '  installing uv, which fetches the Python build\n' >&2
+  curl -LsSf https://astral.sh/uv/install.sh | sh >&2 || return 1
+  # A freshly installed uv is not on this shell's PATH, so look where its
+  # installer puts it rather than re-reading PATH.
+  for guess in "$HOME/.local/bin/uv" "$HOME/.cargo/bin/uv"; do
+    [ -x "$guess" ] && { echo "$guess"; return 0; }
+  done
+  command -v uv 2>/dev/null || return 1
+}
+
+if [ "$SKIP_PYTHON" = 0 ]; then
+  FOUND="$(find_python || true)"
+  PY_CMD="${FOUND%% *}"; PY_VER="${FOUND##* }"
+  PY_MAJOR="${PY_VER%%.*}"; PY_MINOR="${PY_VER#*.}"
+
+  SUITABLE=0
+  if [ -n "$FOUND" ] && { [ "$PY_MAJOR" -gt "$MIN_PYTHON_MAJOR" ] ||
+     { [ "$PY_MAJOR" -eq "$MIN_PYTHON_MAJOR" ] && [ "$PY_MINOR" -ge "$MIN_PYTHON_MINOR" ]; }; }; then
+    SUITABLE=1
+  fi
+
+  if [ "$SUITABLE" = 1 ]; then
+    printf '  [found]     Python %s (%s)\n' "$PY_VER" "$PY_CMD"
+  else
+    if [ -n "$FOUND" ]; then
+      printf '  [missing]   Python %s is older than %s.%s. ' \
+             "$PY_VER" "$MIN_PYTHON_MAJOR" "$MIN_PYTHON_MINOR"
+    else
+      printf '  [missing]   No Python was found on this machine. '
+    fi
+    printf 'The skill cannot draw anything without one.\n'
+
+    INSTALL=1
+    if [ "$QUIET" = 0 ]; then
+      read -r -p "Install Python $WANT_PYTHON now? [Y/n] " answer
+      case "$answer" in [Nn]*) INSTALL=0 ;; esac
+    fi
+
+    if [ "$INSTALL" = 1 ]; then
+      # uv downloads a standalone build into the user's own folder: no
+      # administrator rights, no Homebrew or Xcode to install first, and the
+      # same two commands as on Windows. The skill's own commands already run
+      # through uv, so this adds no dependency that was not there already.
+      if UV="$(resolve_uv)" && [ -n "$UV" ]; then
+        printf '  installing Python %s\n' "$WANT_PYTHON"
+        if "$UV" python install "$WANT_PYTHON"; then
+          printf '  [ok]        Python %s installed\n' "$WANT_PYTHON"
+        else
+          printf '  could not install Python automatically.\n'
+          printf '  Install Python %s yourself from https://www.python.org/downloads/ and run this again.\n' "$WANT_PYTHON"
+        fi
+      else
+        printf '  could not install uv, so Python was not installed either.\n'
+        printf '  Install Python %s yourself from https://www.python.org/downloads/ and run this again.\n' "$WANT_PYTHON"
+      fi
+    else
+      printf '  Skipped. The skill will install, but cannot run until a Python is present.\n'
+    fi
+  fi
+  printf '\n'
 fi
 
 # --- boundaries ------------------------------------------------------------

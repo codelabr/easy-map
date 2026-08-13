@@ -56,6 +56,12 @@ and rewrites the commands inside the installed copy to point at the engine
 beside it. The skill then works from **any** working folder. The download is
 deleted afterwards; only the installed copy remains.
 
+It also checks for **Python 3.10 or newer**, and offers to install 3.13 when
+there is none. That install goes through `uv`, which fetches a standalone build
+into the user's own folder: no administrator rights and no system package
+manager, the same on both platforms. Pass `-SkipPython` / `--skip-python` where
+the interpreter is managed centrally.
+
 Both commands run a script fetched over the network. If you would rather read
 it first, open the URL in a browser — or clone the repository and run the
 installer it contains directly:
