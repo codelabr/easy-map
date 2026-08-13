@@ -858,10 +858,9 @@ file worth opening, each with `tên`, `đường_dẫn` and a finished `liên_k�
 `liên_kết` exactly. Do not prepend a scheme, do not convert separators, do not
 translate a drive letter into a mount point.
 
-The reason is specific. A real Codex run turned
-`D:\temp\agentic-gis\output\...\ban_do_tuong_tac.html` into
-`file:///C:/mnt/d/temp/agentic-gis/output/...` — the wrong drive, and a mount
-point that does not exist on the machine holding the file. It had assumed a
-Linux sandbox it was not running in. The link opened nothing, and the user had
-no way to tell that from a map that had failed to render. `mở_tệp` is computed
-on the machine the file is actually on, so there is nothing left to assume.
+The reason is specific. A real run rewrote the Windows path it had been handed
+into a `file:///` URL on a different drive, under a mount point that does not
+exist on the machine holding the file: it had assumed a Linux sandbox it was not
+running in. The link opened nothing, and the user had no way to tell that from a
+map that had failed to render. `mở_tệp` is computed on the machine the file is
+actually on, so there is nothing left to assume.

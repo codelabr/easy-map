@@ -511,11 +511,11 @@ def slugify(value: str, fallback: str = "ban-do") -> str:
 def link(path: Path | str) -> str:
     """A finished ``file://`` address for something the person is meant to open.
 
-    The engine has always returned real paths — ``D:\\temp\\...\\ban_do.html`` —
-    and left the agent to make a link out of one. A real Codex run made
-    ``file:///C:/mnt/d/temp/...``: the wrong drive, and a mount point that does
-    not exist on the machine the file is on. It had guessed at a Linux sandbox
-    it was not running in, and the link opened nothing.
+    The engine has always returned real paths and left the agent to make a link
+    out of one. A real run rewrote such a path into a ``file://`` URL on a
+    different drive, under a mount point that does not exist on the machine the
+    file is on: it had guessed at a Linux sandbox it was not running in, and the
+    link opened nothing.
 
     Guessing is not the agent's job here. ``as_uri`` knows the platform it is on,
     escapes the spaces and the Vietnamese in a folder name, and is right on
