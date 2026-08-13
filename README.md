@@ -35,7 +35,30 @@ arithmetic lives in `skills/easy-map/scripts/emap/` and is covered by
 ## Installing the skill
 
 The skill runs under **ChatGPT Codex** and **Claude Code**. Both read skills
-from the same shape of folder, so one script serves both:
+from the same shape of folder, so one command serves both. Nothing needs to be
+cloned.
+
+**Windows** (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/codelabr/easy-map/main/install/web.ps1 | iex
+```
+
+**macOS**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/codelabr/easy-map/main/install/web.sh | bash
+```
+
+It reports which assistants it found, asks which to install for, copies the
+whole package into `~/.codex/skills/easy-map/` and `~/.claude/skills/easy-map/`,
+and rewrites the commands inside the installed copy to point at the engine
+beside it. The skill then works from **any** working folder. The download is
+deleted afterwards; only the installed copy remains.
+
+Both commands run a script fetched over the network. If you would rather read
+it first, open the URL in a browser — or clone the repository and run the
+installer it contains directly:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File install\install.ps1
@@ -45,22 +68,23 @@ powershell -ExecutionPolicy Bypass -File install\install.ps1
 ./install/install.sh
 ```
 
-It reports which assistants it found, asks which to install for, copies the
-whole package into `~/.codex/skills/easy-map/` and `~/.claude/skills/easy-map/`,
-and rewrites the commands inside the installed copy to point at the engine
-beside it. The skill then works from **any** working folder, not only inside a
-clone of this repository.
-
 Boundaries are not installed: they are ~135 MB and their terms of use are yours
 to accept. The script asks where they are and records the answer in
 `EASY_MAP_SHAPEFILES`, which the engine reads when the working folder has no
 `shapefiles/` of its own.
 
-Non-interactive:
+Non-interactive, answering everything up front:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/codelabr/easy-map/main/install/web.ps1))) -Targets codex,claude -Shapefiles D:\gis\boundaries -Quiet
+```
 
 ```bash
-./install/install.sh --targets codex,claude --shapefiles ~/gis/boundaries --quiet
+curl -fsSL https://raw.githubusercontent.com/codelabr/easy-map/main/install/web.sh | bash -s -- --targets codex,claude --shapefiles ~/gis/boundaries --quiet
 ```
+
+Both accept a branch or tag (`-Ref` / `--ref`) if you would rather pin a version
+than take whatever `main` holds.
 
 ## Getting started
 
