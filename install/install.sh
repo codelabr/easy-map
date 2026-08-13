@@ -154,6 +154,10 @@ resolve_uv() {
 }
 
 if [ "$SKIP_PYTHON" = 0 ]; then
+  # Announce the step before doing it. On a machine that already has Python the
+  # whole check is one line, which is indistinguishable from the assistant
+  # detection above it and reads as though nothing happened.
+  printf 'Checking for Python...\n'
   FOUND="$(find_python || true)"
   PY_CMD="${FOUND%% *}"; PY_VER="${FOUND##* }"
   PY_MAJOR="${PY_VER%%.*}"; PY_MINOR="${PY_VER#*.}"
@@ -165,7 +169,7 @@ if [ "$SKIP_PYTHON" = 0 ]; then
   fi
 
   if [ "$SUITABLE" = 1 ]; then
-    printf '  [found]     Python %s (%s)\n' "$PY_VER" "$PY_CMD"
+    printf '  [found]     Python %s (%s) - nothing to install\n' "$PY_VER" "$PY_CMD"
   else
     if [ -n "$FOUND" ]; then
       printf '  [missing]   Python %s is older than %s.%s. ' \

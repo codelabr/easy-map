@@ -201,9 +201,13 @@ function Resolve-Uv {
 }
 
 if (-not $SkipPython) {
+  # Announce the step before doing it. On a machine that already has Python the
+  # whole check is one line, which is indistinguishable from the assistant
+  # detection above it and reads as though nothing happened.
+  Write-Host "Checking for Python..."
   $python = Find-Python
   if ($python -and $python.Version -ge $MinPython) {
-    Write-Host ("  [found]     Python {0} ({1})" -f $python.Version, $python.Command) -ForegroundColor Green
+    Write-Host ("  [found]     Python {0} ({1}) - nothing to install" -f $python.Version, $python.Command) -ForegroundColor Green
   } else {
     if ($python) {
       $why = "Python $($python.Version) is older than $MinPython"
