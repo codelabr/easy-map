@@ -30,7 +30,7 @@ This boundary is the most important thing about the project:
 
 **Not one figure on the map comes from the language model.** All of the
 arithmetic lives in `skills/easy-map/scripts/emap/` and is covered by
-**553 automated tests**.
+**557 automated tests**.
 
 ## Installing the skill
 
@@ -111,7 +111,7 @@ of this repository.
 
 ```text
 skills/easy-map/     the skill: SKILL.md, the emap/ engine, fonts, references
-tests/               553 tests in 21 files
+tests/               557 tests in 22 files
 tools/               scripts that regenerate the sample data in input/
 input/               empty; build sample data with tools/generate_*.py
 shapefiles/          empty; see the README inside

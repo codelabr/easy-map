@@ -1,6 +1,6 @@
 ---
 name: easy-map
-description: Turn an Excel dataset in a project's input folder into a print-ready Vietnam GIS map using the project's province and commune shapefiles. Vietnam only, and only the two tiers that exist after the 2025 reform to a two-tier local government model: province and commune, with no district tier. Use when a user wants a map of Vietnamese administrative data and does not know GIS - the skill reads and interprets the dataset first, recommends a scientifically sound map in plain language, matches place names without requiring admin codes, warns about misleading choices, and renders print-ready PNG maps plus a self-contained interactive HTML page into a timestamped output folder. Also use when an experienced user states directly what map they want.
+description: "Turn an Excel dataset in a project's input folder into a print-ready Vietnam GIS map using the project's province and commune shapefiles. Vietnam only, and only the two tiers that exist after the 2025 reform to a two-tier local government model: province and commune, with no district tier. Use when a user wants a map of Vietnamese administrative data and does not know GIS - the skill reads and interprets the dataset first, recommends a scientifically sound map in plain language, matches place names without requiring admin codes, warns about misleading choices, and renders print-ready PNG maps plus a self-contained interactive HTML page into a timestamped output folder. Also use when an experienced user states directly what map they want."
 ---
 
 # Easy Map
