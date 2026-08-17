@@ -6,7 +6,10 @@ recommends how to show it, warns about choices that would mislead, and draws
 nothing until you have agreed to a numbered plan.
 
 <p align="center">
-  <img src="assets/example-map.png" width="430"
+  <!-- Absolute URL rather than a relative one: both work on github.com, but
+       the absolute form also survives being mirrored or rendered outside the
+       repository. Update the branch here if main is ever renamed. -->
+  <img src="https://raw.githubusercontent.com/codelabr/easy-map/main/assets/example-map.png" width="430"
        alt="Province-level map of Vietnam, provinces shaded by positivity rate with proportional circles for new diagnoses, an inset for Hoang Sa and Truong Sa, scale bar and legend.">
   <br>
   <sub>One request, drawn from <b>simulated</b> data.</sub>
