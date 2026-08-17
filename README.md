@@ -6,11 +6,11 @@ recommends how to show it, warns about choices that would mislead, and draws
 nothing until you have agreed to a numbered plan.
 
 <p align="center">
-  <!-- Served from github.com rather than raw.githubusercontent.com, which is
-       unreachable on some networks in Vietnam - the audience for this. A
-       same-repo image, written relative or absolute, always resolves to that
-       blocked host, so the file is attached here instead. The copy under
-       assets/ is the one a clone gets. -->
+  <!-- Served from github.com rather than raw.githubusercontent.com. A
+       same-repo image resolves to that host however the path is written, and
+       it rate-limits anonymous traffic per IP, so a reader behind a busy
+       address gets a 429 instead of the picture. The copy under assets/ is
+       the one a clone gets. -->
   <img src="https://github.com/user-attachments/assets/4f8ee320-5fb6-4326-bb8d-59ee6fd37e24" width="430"
        alt="Province-level map of Vietnam, provinces shaded by positivity rate with proportional circles for new diagnoses, an inset for Hoang Sa and Truong Sa, scale bar and legend.">
   <br>

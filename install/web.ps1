@@ -55,9 +55,31 @@ try {
   $prior = $ProgressPreference
   $ProgressPreference = 'SilentlyContinue'
   try {
-    Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-  } catch {
-    throw "Could not download $url. $($_.Exception.Message)"
+    # GitHub rate-limits anonymous downloads per IP address and answers 429.
+    # That clears by itself, so wait and try again rather than making somebody
+    # rerun the whole command and guess at how long to leave it.
+    $attempt = 0
+    while ($true) {
+      $attempt++
+      try {
+        Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+        break
+      } catch {
+        $status = 0
+        if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+        if ($status -ne 429) {
+          throw "Could not download $url. $($_.Exception.Message)"
+        }
+        if ($attempt -ge 4) {
+          throw ("GitHub is rate-limiting this address (429) and four tries did not " +
+                 "get through. It clears on its own; try again in a few minutes.")
+        }
+        $wait = 15 * $attempt
+        Write-Host ("  rate-limited by GitHub (429). Waiting {0}s, then attempt {1} of 4." -f
+                    $wait, ($attempt + 1)) -ForegroundColor Yellow
+        Start-Sleep -Seconds $wait
+      }
+    }
   } finally {
     $ProgressPreference = $prior
   }
