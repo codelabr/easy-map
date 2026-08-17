@@ -6,10 +6,12 @@ recommends how to show it, warns about choices that would mislead, and draws
 nothing until you have agreed to a numbered plan.
 
 <p align="center">
-  <!-- Absolute URL rather than a relative one: both work on github.com, but
-       the absolute form also survives being mirrored or rendered outside the
-       repository. Update the branch here if main is ever renamed. -->
-  <img src="https://raw.githubusercontent.com/codelabr/easy-map/main/assets/example-map.png" width="430"
+  <!-- Served from github.com rather than raw.githubusercontent.com, which is
+       unreachable on some networks in Vietnam - the audience for this. A
+       same-repo image, written relative or absolute, always resolves to that
+       blocked host, so the file is attached here instead. The copy under
+       assets/ is the one a clone gets. -->
+  <img src="https://github.com/user-attachments/assets/4f8ee320-5fb6-4326-bb8d-59ee6fd37e24" width="430"
        alt="Province-level map of Vietnam, provinces shaded by positivity rate with proportional circles for new diagnoses, an inset for Hoang Sa and Truong Sa, scale bar and legend.">
   <br>
   <sub>One request, drawn from <b>simulated</b> data.</sub>
