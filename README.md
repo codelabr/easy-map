@@ -1,42 +1,38 @@
 # easy-map
 
-Turns a public-health spreadsheet into a print-ready GIS map, through
-conversation. The user needs to know nothing about GIS: describe what you want,
-and the skill reads the data, recommends how to show it, warns about choices
-that would mislead, and draws nothing until you have agreed to a numbered plan.
+Turn a spreadsheet of Vietnamese health data into a print-ready map, by
+describing what you want. No GIS knowledge needed: the skill reads the data,
+recommends how to show it, warns about choices that would mislead, and draws
+nothing until you have agreed to a numbered plan.
 
-This is a **skill package for an AI coding assistant** (ChatGPT Codex or Claude
-Code), not a library you call from your own code.
+<p align="center">
+  <img src="assets/example-map.png" width="430"
+       alt="Province-level map of Vietnam, provinces shaded by positivity rate with proportional circles for new diagnoses, an inset for Hoang Sa and Truong Sa, scale bar and legend.">
+  <br>
+  <sub>One request, drawn from <b>simulated</b> data.</sub>
+</p>
 
-## Scope
+**Vietnam only**, at the two tiers left by the 2025 reform to a two-tier local
+government model: **province** and **commune**. The district tier the reform
+abolished is not supported; district figures can only be aggregated up to
+province.
 
-**This version maps Vietnam only, at the two tiers that exist after the 2025
-reform to a two-tier local government model: province and commune.** The
-district tier was abolished by that reform and is not supported; district-level
-figures can only be aggregated up to province. Boundaries, projection,
-place-name matching and the crosswalk from the 63 pre-2025 province names to
-the 34 current ones are all built for post-reform Vietnam and for nothing else.
+## What you get
 
-## The division of labour
+One timestamped folder per request, holding:
 
-This boundary is the most important thing about the project:
-
-| The language model | Deterministic Python |
+| | |
 |---|---|
-| Interprets column headings and works out what they mean | Matches place names against the shapefile |
-| Recommends the indicator to map, and says why | Tells a count from a rate, and so how repeated rows combine |
-| Writes the title, the legend headings, the sentence underneath | Computes class breaks, projection and label placement |
-| Asks the questions that are the user's to answer | Runs 21 cartographic checks before drawing |
+| `.png` | Print-quality maps, ready for a report or a slide |
+| `.html` | One interactive page — zoom, search by name, click a unit for its figures. Self-contained, so a single file can be emailed on its own |
+| `.csv` | The numbers actually drawn, after name matching and aggregation, for checking a figure without repeating the work |
 
-**Not one figure on the map comes from the language model.** All of the
-arithmetic lives in `skills/easy-map/scripts/emap/` and is covered by
-**565 automated tests**.
+Time series render as video and as a page with a slider.
 
-## Installing the skill
+## Install
 
-The skill runs under **ChatGPT Codex** and **Claude Code**. Both read skills
-from the same shape of folder, so one command serves both. Nothing needs to be
-cloned.
+It runs under **ChatGPT Codex** and **Claude Code**. Both read skills from the
+same shape of folder, so one command serves both.
 
 **Windows** (PowerShell):
 
@@ -50,114 +46,62 @@ irm https://raw.githubusercontent.com/codelabr/easy-map/main/install/web.ps1 | i
 curl -fsSL https://raw.githubusercontent.com/codelabr/easy-map/main/install/web.sh | bash
 ```
 
-It reports which assistants it found, asks which to install for, copies the
-whole package into `~/.codex/skills/easy-map/` and `~/.claude/skills/easy-map/`,
-and rewrites the commands inside the installed copy to point at the engine
-beside it. The skill then works from **any** working folder. The download is
-deleted afterwards; only the installed copy remains.
+It reports which assistants it found, checks for Python, and asks where your
+administrative boundaries are. Then **start a new assistant session** — one
+already open will not see it.
 
-It also checks for **Python 3.10 or newer**, and offers to install 3.13 when
-there is none. That install goes through `uv`, which fetches a standalone build
-into the user's own folder: no administrator rights and no system package
-manager, the same on both platforms. Pass `-SkipPython` / `--skip-python` where
-the interpreter is managed centrally.
+Boundaries are not shipped: they are ~135 MB, and their terms of use are yours
+to accept. See [`shapefiles/README.md`](shapefiles/README.md) for what is needed
+and where to get it.
 
-Both commands run a script fetched over the network. If you would rather read
-it first, open the URL in a browser — or clone the repository and run the
-installer it contains directly:
+## Using it
 
-```powershell
-powershell -ExecutionPolicy Bypass -File install\install.ps1
-```
+Paste a table into the conversation, attach a spreadsheet, or leave one in
+`input/`. Then say what you want — in Vietnamese or English.
 
-```bash
-./install/install.sh
-```
+The skill stops and asks you three times: after reading the data, to confirm
+what it thinks the table is; before drawing, with a numbered plan that includes
+the defaults it picked for you; and whenever a choice would mislead. A run that
+produces a correct map without ever pausing has failed, because you never got
+to say what you wanted.
 
-Boundaries are not installed: they are ~135 MB and their terms of use are yours
-to accept. The script asks where they are and records the answer in
-`EASY_MAP_SHAPEFILES`, which the engine reads when the working folder has no
-`shapefiles/` of its own.
+The conversation and the map are two separate languages. Somebody writing in
+English often needs a Vietnamese map for a provincial health department.
 
-Non-interactive, answering everything up front:
+## How it works
 
-```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/codelabr/easy-map/main/install/web.ps1))) -Targets codex,claude -Shapefiles D:\gis\boundaries -Quiet
-```
+This boundary is the point of the project:
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/codelabr/easy-map/main/install/web.sh | bash -s -- --targets codex,claude --shapefiles ~/gis/boundaries --quiet
-```
+| The language model | Deterministic Python |
+|---|---|
+| Interprets column headings and works out what they mean | Matches place names against the shapefile |
+| Recommends the indicator to map, and says why | Tells a count from a rate, and so how repeated rows combine |
+| Writes the title, the legend headings, the sentence underneath | Computes class breaks, projection and label placement |
+| Asks the questions that are the user's to answer | Runs 17 cartographic checks before drawing |
 
-Both accept a branch or tag (`-Ref` / `--ref`) if you would rather pin a version
-than take whatever `main` holds.
-
-## Getting started
-
-```bash
-# 1. Administrative boundaries — required. See shapefiles/README.md for
-#    what is needed and where to download it. Not shipped with the
-#    repository: the commune file is over GitHub's 100 MB per-file limit.
-
-# 2. Dependencies
-uv run --with pandas --with openpyxl --with geopandas --with matplotlib \
-       --with mapclassify --with rapidfuzz \
-       python skills/easy-map/scripts/easy_map.py list --project-root .
-
-# 3. Build the simulated sample data, then survey it
-uv run --with pandas --with openpyxl --with geopandas --with rapidfuzz \
-       python tools/generate_hiv_demo.py
-python skills/easy-map/scripts/easy_map.py survey --project-root .
-```
-
-The ChatGPT Codex installation guide is distributed separately and is not part
-of this repository.
-
-## Layout
-
-```text
-skills/easy-map/     the skill: SKILL.md, the emap/ engine, fonts, references
-tests/               565 tests in 24 files
-tools/               scripts that regenerate the sample data in input/
-input/               empty; build sample data with tools/generate_*.py
-shapefiles/          empty; see the README inside
-output/              one timestamped folder per request; not tracked in git
-```
-
-The internal handbook — design decisions with their reasons, the table of fixed
-defects, and the work still outstanding — is not part of this repository.
-
-## Running the tests
-
-```bash
-uv run --with pandas --with openpyxl --with geopandas --with matplotlib \
-       --with mapclassify --with rapidfuzz \
-       python -m unittest discover -s tests -t tests
-```
-
-Most tests need only the standard library; the file-reading layer, the
-long-format slicing and the page capture need the packages above.
-
-## Data in this repository
-
-The repository **ships no data files at all**. `tools/generate_*.py` builds
-**simulated** sample datasets to try the skill on. They are not for reporting or
-programme decisions, and maps drawn from them carry that warning printed on the
-plate itself.
-
-## Licence
-
-The source code is **MIT** (`LICENSE`). The bundled fonts are **not**: they are
-under the **SIL Open Font License 1.1** and stay under it. See
-[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md), which also explains why the
-serif is called *EasyMap Serif* rather than by its upstream name.
+**Not one figure on the map comes from the language model.** All of the
+arithmetic lives in `skills/easy-map/scripts/emap/`, under more than 550
+automated tests.
 
 ## Limitations
 
-- **Post-reform Vietnam only**, province and commune tiers. See *Scope* above.
-  There is no support for any other country, and none for the district tier the
-  2025 reform abolished.
+- **Post-reform Vietnam only.** No other country, and no district tier.
 - **Not evaluated with users.** Everything above is what the tool does, not
   what it has been shown to change.
-- A series that crosses the 2025 boundary needs the `sap_nhap` field in the
+- A series crossing the 2025 boundary needs the `sap_nhap` field in the
   shapefile; without it, older province names will not join.
+- Your spreadsheet is read by an AI assistant, so its contents leave your
+  machine. The drawing itself runs locally.
+
+## Data
+
+The repository ships **no data**. `tools/generate_*.py` builds simulated
+datasets to try the skill on; they are not for reporting or programme
+decisions.
+
+## Licence
+
+Source code is **MIT** (`LICENSE`). The bundled fonts are not: they are under
+the **SIL Open Font License 1.1** and stay under it. See
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md), which also explains why the
+serif is called *EasyMap Serif* rather than by its upstream name.
