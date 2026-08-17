@@ -29,6 +29,7 @@ TARGETS=""
 SHAPEFILES=""
 QUIET=0
 SKIP_PYTHON=0
+SKIP_SHAPEFILES=0
 
 # Nothing in the engine uses syntax newer than this, so an existing 3.10 is
 # left in place rather than replaced.
@@ -42,6 +43,7 @@ while [ $# -gt 0 ]; do
     --shapefiles)  SHAPEFILES="$2"; shift 2 ;;
     --quiet)       QUIET=1; shift ;;
     --skip-python) SKIP_PYTHON=1; shift ;;
+    --skip-shapefiles) SKIP_SHAPEFILES=1; shift ;;
     -h|--help)     sed -n '2,20p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
@@ -210,6 +212,50 @@ if [ "$SKIP_PYTHON" = 0 ]; then
 fi
 
 # --- boundaries ------------------------------------------------------------
+# The package carries the two boundary sets as zips, so an ordinary install
+# needs no separate download and no manual unpacking. A path given on the
+# command line still wins: somebody who already holds them should not be made
+# to keep a second copy.
+BUNDLE_DIR="$ROOT/shapefiles"
+HAS_BUNDLE=0
+if [ "$SKIP_SHAPEFILES" = 0 ] &&
+   [ -f "$BUNDLE_DIR/provinces.zip" ] && [ -f "$BUNDLE_DIR/communes.zip" ]; then
+  HAS_BUNDLE=1
+fi
+
+if [ -z "$SHAPEFILES" ] && [ "$HAS_BUNDLE" = 1 ]; then
+  TARGET="$HOME/.easy-map/shapefiles"
+  READY=0
+  for level in provinces communes; do
+    ls "$TARGET/$level"/*.shp >/dev/null 2>&1 && READY=$((READY+1))
+  done
+
+  if [ "$READY" = 2 ]; then
+    printf '\n  [found]     boundaries already unpacked at %s\n' "$TARGET"
+    SHAPEFILES="$TARGET"
+  else
+    UNPACK=1
+    if [ "$QUIET" = 0 ]; then
+      printf "\nThis package includes Vietnam's administrative boundaries.\n"
+      printf '  Unpacking them takes about 135 MB at %s\n' "$TARGET"
+      read -r -p "Unpack them now? [Y/n] " answer
+      case "$answer" in [Nn]*) UNPACK=0 ;; esac
+    fi
+    if [ "$UNPACK" = 1 ]; then
+      for level in provinces communes; do
+        printf '  unpacking %s\n' "$level"
+        mkdir -p "$TARGET/$level"
+        # python3 rather than unzip: it is already required by the step that
+        # rewrites SKILL.md, so this adds no tool that has to be present.
+        python3 -c "import sys,zipfile;zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" \
+                "$BUNDLE_DIR/$level.zip" "$TARGET/$level"
+      done
+      SHAPEFILES="$TARGET"
+      printf '  [ok]        boundaries unpacked\n'
+    fi
+  fi
+fi
+
 if [ -z "$SHAPEFILES" ] && [ "$QUIET" = 0 ]; then
   printf '\nWhere are the administrative boundary shapefiles?\n'
   printf '  A folder holding provinces/ and communes/. Press Enter to skip;\n'

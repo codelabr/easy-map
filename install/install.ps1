@@ -37,7 +37,11 @@ param(
 
   # Leave the interpreter alone even when there is none. For machines where
   # Python is managed centrally and an extra copy would be unwelcome.
-  [switch] $SkipPython
+  [switch] $SkipPython,
+
+  # Do not unpack the boundaries the package carries. For a machine that
+  # already has them somewhere else, or has no room for another 135 MB.
+  [switch] $SkipShapefiles
 )
 
 $ErrorActionPreference = 'Stop'
@@ -245,6 +249,48 @@ if (-not $SkipPython) {
 }
 
 # --- boundaries ------------------------------------------------------------
+# The package carries the two boundary sets as zips, so an ordinary install
+# needs no separate download and no manual unpacking. A path given on the
+# command line still wins: somebody who already holds them should not be made
+# to keep a second copy.
+$Bundle = @{
+  provinces = Join-Path $Root 'shapefiles\provinces.zip'
+  communes  = Join-Path $Root 'shapefiles\communes.zip'
+}
+$HasBundle = -not $SkipShapefiles -and
+             ($Bundle.Values | Where-Object { Test-Path $_ }).Count -eq $Bundle.Count
+
+if (-not $Shapefiles -and $HasBundle) {
+  $target = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.easy-map\shapefiles'
+  $already = @('provinces', 'communes') |
+             Where-Object { Get-ChildItem (Join-Path $target $_) -Filter *.shp -ErrorAction SilentlyContinue }
+
+  if ($already.Count -eq 2) {
+    Write-Host ''
+    Write-Host ("  [found]     boundaries already unpacked at {0}" -f $target) -ForegroundColor Green
+    $Shapefiles = $target
+  } else {
+    $unpack = $true
+    if (-not $Quiet) {
+      Write-Host ''
+      Write-Host "This package includes Vietnam's administrative boundaries."
+      Write-Host ("  Unpacking them takes about 135 MB at {0}" -f $target)
+      $answer = Read-Host "Unpack them now? [Y/n]"
+      $unpack = [string]::IsNullOrWhiteSpace($answer) -or $answer -match '^\s*[Yy]'
+    }
+    if ($unpack) {
+      foreach ($level in 'provinces', 'communes') {
+        $into = Join-Path $target $level
+        Write-Host ("  unpacking {0}" -f $level)
+        New-Item -ItemType Directory -Force $into | Out-Null
+        Expand-Archive -LiteralPath $Bundle[$level] -DestinationPath $into -Force
+      }
+      $Shapefiles = $target
+      Write-Host "  [ok]        boundaries unpacked" -ForegroundColor Green
+    }
+  }
+}
+
 if (-not $Shapefiles -and -not $Quiet) {
   Write-Host ''
   Write-Host "Where are the administrative boundary shapefiles?"

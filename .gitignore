@@ -6,7 +6,6 @@ output/*
 
 shapefiles/provinces/
 shapefiles/communes/
-shapefiles/*.zip
 
 slidedeck/
 docs/

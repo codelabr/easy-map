@@ -1,29 +1,45 @@
 # Administrative boundaries
 
-This folder is **deliberately empty** in the repository. Without the shapefiles
-the skill cannot draw anything, but they cannot be committed either:
+The two boundary sets ship with this repository, as zips:
 
-| File | Size | Problem |
-|---|---|---|
-| `communes/Việt Nam (phường xã) - 34.shp` | 111.3 MB | over GitHub's **100 MB per-file limit** |
-| `communes/` (zipped) | 74.7 MB | under the limit, but GitHub still warns above 50 MB |
-| `provinces/Việt Nam (tỉnh thành) - 34.shp` | 20.0 MB | committable, but kept with the other for consistency |
+| File | Packed | Unpacked | Contents |
+|---|---|---|---|
+| `provinces.zip` | 13.0 MB | 20.1 MB | 34 provinces and centrally-run cities |
+| `communes.zip` | 74.7 MB | 114.4 MB | 3,321 wards and communes |
 
-## What is needed
+They are zipped because the commune `.shp` is **111.3 MB**, over GitHub's
+100 MB per-file limit. Compressed it fits, though GitHub still warns above
+50 MB.
 
-Two folders, each a complete shapefile set (`.shp`, `.shx`, `.dbf`, `.prj`,
-`.cpg`) on the administrative boundaries **as they stand after the 2025 reform
-to a two-tier local government model**. Those two tiers, province and commune,
-are the only ones the skill draws; the district tier the reform abolished is not
-supported:
+**The installer unpacks them for you** into `~/.easy-map/shapefiles/` and
+records that path in `EASY_MAP_SHAPEFILES`. Nothing here needs doing by hand
+unless you want the boundaries somewhere else. Pass `-SkipShapefiles` /
+`--skip-shapefiles` to leave them packed.
 
-```text
-shapefiles/
-├── provinces/      34 provinces and centrally-run cities
-└── communes/    3,321 wards and communes
+## Unpacking them yourself
+
+```bash
+python -c "import zipfile; zipfile.ZipFile('shapefiles/provinces.zip').extractall('shapefiles/provinces')"
+python -c "import zipfile; zipfile.ZipFile('shapefiles/communes.zip').extractall('shapefiles/communes')"
 ```
 
-Required attribute fields:
+The engine looks for them in this order: the `--shapefile-root` flag, then
+`EASY_MAP_SHAPEFILES`, then `shapefiles/` inside the working folder. Check what
+it resolved:
+
+```bash
+python skills/easy-map/scripts/easy_map.py list --project-root .
+```
+
+The reply carries a `shapefile` block naming the two files it found.
+
+## What the data is
+
+Administrative boundaries **as they stand after the 2025 reform to a two-tier
+local government model**. Those two tiers, province and commune, are the only
+ones the skill draws; the district tier the reform abolished is not supported.
+
+Attribute fields the engine reads:
 
 | Level | Field | Used for |
 |---|---|---|
@@ -36,54 +52,31 @@ Required attribute fields:
 Without that field, a series spanning the 2025 boundary cannot be joined on
 place name.
 
-## Where to get them
+## Provenance and terms of use
 
-One source that publishes Vietnamese administrative boundaries is
-<https://gis.vn/ban-do-hanh-chinh-viet-nam>. At the time of writing it offers
-both a **34-province** set (post-reform) and a 63-province one, with shapefile
-among the formats, and its attribute list includes a merger-status field of the
-kind the crosswalk needs. Take the **34-province** set.
+Downloaded from <https://gis.vn/ban-do-hanh-chinh-viet-nam>, the **34-province**
+set (post-reform). The page states no licence.
 
-Two things to check yourself before relying on it:
+**These files are redistributed here on the judgement of this repository's
+owner, not under any licence granted by the source.** They are not covered by
+the MIT licence that covers the source code — see
+[`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md). If you intend to
+publish maps drawn from them, or to redistribute the data again, settle the
+terms with the provider yourself.
 
-- **Field names.** The skill looks for the names in the table above, spelled
-  exactly that way. A download carrying the same information under different
-  column names has to be renamed first. Print what you actually got:
-
-  ```bash
-  uv run --with geopandas python -c "import geopandas, glob; [print(lvl, list(geopandas.read_file(glob.glob(f'shapefiles/{lvl}/*.shp')[0], rows=1).columns)) for lvl in ('provinces','communes')]"
-  ```
-
-  The set this project was built against reads:
-
-  ```text
-  provinces  ma_tinh ten_tinh sap_nhap quy_mo tru_so loai cap stt dtich_km2 dan_so matdo_km2 geometry
-  communes   ma_xa ten_xa sap_nhap tru_so loai cap stt dtich_km2 dan_so matdo_km2 ma_tinh ten_tinh geometry
-  ```
-- **Terms of use.** The page states no licence, and access may require
-  registration. Whether you may redistribute the files, or use them in published
-  material, is between you and the provider. This repository ships no boundary
-  data and makes no claim about any provider's terms.
+## Using a different source
 
 Any source works as long as the geometry is the post-2025 34-province and
-3,321-commune division and the fields above are present.
-
-## Putting them in place
-
-Put the two folders where the tree above shows. If you keep them zipped — in the
-repository's Releases, or on an internal share — unzip before running:
+3,321-commune division and the fields above are present, spelled that way. Print
+what a download actually contains:
 
 ```bash
-python -c "import zipfile; zipfile.ZipFile('provinces.zip').extractall('shapefiles/provinces')"
-python -c "import zipfile; zipfile.ZipFile('communes.zip').extractall('shapefiles/communes')"
+uv run --with geopandas python -c "import geopandas, glob; [print(lvl, list(geopandas.read_file(glob.glob(f'shapefiles/{lvl}/*.shp')[0], rows=1).columns)) for lvl in ('provinces','communes')]"
 ```
 
-Check that the skill finds them:
+The set this project was built against reads:
 
-```bash
-python skills/easy-map/scripts/easy_map.py list --project-root .
+```text
+provinces  ma_tinh ten_tinh sap_nhap quy_mo tru_so loai cap stt dtich_km2 dan_so matdo_km2 geometry
+communes   ma_xa ten_xa sap_nhap tru_so loai cap stt dtich_km2 dan_so matdo_km2 ma_tinh ten_tinh geometry
 ```
-
-The reply carries a `shapefile` block naming the two files it resolved. That
-confirms the files are in place; it does not check the attribute fields, which
-is what the command in the previous section is for.

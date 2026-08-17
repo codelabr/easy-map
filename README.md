@@ -51,13 +51,15 @@ irm https://raw.githubusercontent.com/codelabr/easy-map/main/install/web.ps1 | i
 curl -fsSL https://raw.githubusercontent.com/codelabr/easy-map/main/install/web.sh | bash
 ```
 
-It reports which assistants it found, checks for Python, and asks where your
-administrative boundaries are. Then **start a new assistant session** — one
+It reports which assistants it found, installs Python if there is none, and
+unpacks Vietnam's administrative boundaries — which ship with the package, so
+there is nothing else to download. Then **start a new assistant session**; one
 already open will not see it.
 
-Boundaries are not shipped: they are ~135 MB, and their terms of use are yours
-to accept. See [`shapefiles/README.md`](shapefiles/README.md) for what is needed
-and where to get it.
+The boundaries take about 135 MB unpacked. Pass `-SkipShapefiles` /
+`--skip-shapefiles` to leave them alone. They are third-party data and are
+**not** under this repository's licence — see
+[`shapefiles/README.md`](shapefiles/README.md).
 
 ## Using it
 

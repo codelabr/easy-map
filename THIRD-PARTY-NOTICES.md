@@ -1,9 +1,24 @@
 # Third-party notices
 
 The source code in this repository is under the **MIT License** (see `LICENSE`).
-The font files shipped with it are **not**: they are under the **SIL Open Font
-License 1.1** and remain under it, modified or not. OFL 1.1 clause 5 requires
-that.
+Two kinds of file shipped with it are **not**: the fonts, and the boundary data.
+
+## Administrative boundary data
+
+`shapefiles/provinces.zip` and `shapefiles/communes.zip` hold Vietnam's
+post-2025 province and commune boundaries, downloaded from
+<https://gis.vn/ban-do-hanh-chinh-viet-nam>.
+
+**The source page states no licence.** These files are therefore redistributed
+here on the judgement of this repository's owner rather than under any grant
+from the provider, and the MIT licence above does not extend to them. Anyone
+redistributing them again, or publishing maps drawn from them, should settle
+the terms with the provider directly.
+
+## Fonts
+
+The font files are under the **SIL Open Font License 1.1** and remain under it,
+modified or not. OFL 1.1 clause 5 requires that.
 
 Everything below was read out of the `name` table inside the `.ttf` files
 themselves (IDs 0, 7, 13 and 14) rather than written from memory.
