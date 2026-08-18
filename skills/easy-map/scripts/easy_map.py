@@ -55,6 +55,26 @@ PROVINCE_SERIES_THRESHOLD = 5
 
 
 # --------------------------------------------------------------------------
+def speak_utf8() -> None:
+    """Print in UTF-8 whatever the console was set to.
+
+    Every reply this engine writes carries Vietnamese - place names at the very
+    least - and on Windows Python encodes stdout with the machine's legacy
+    codepage rather than UTF-8, for a pipe as much as for a console. One
+    accented character then ends the command in UnicodeEncodeError before the
+    agent has read anything, and the traceback points at ``json.dumps`` rather
+    than at the setting that caused it.
+
+    Guarded rather than assumed: a caller may have replaced the stream with one
+    that has no ``reconfigure``, which is what happens when tests capture it.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def emit(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
 
@@ -2050,6 +2070,7 @@ def _explicit(argv: list[str]) -> set[str]:
 
 
 def main(argv: list[str] | None = None) -> None:
+    speak_utf8()
     raw = list(sys.argv[1:] if argv is None else argv)
     args = build_parser().parse_args(argv)
     args.chosen_explicitly = _explicit(raw)

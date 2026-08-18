@@ -779,7 +779,7 @@ uv run --with pandas --with openpyxl --with geopandas --with matplotlib --with m
 On Windows, keep uv's cache inside the project if it lacks permissions elsewhere:
 
 ```powershell
-$env:UV_CACHE_DIR = "$PWD\.uv-cache"; $env:UV_PYTHON_INSTALL_DIR = "$PWD\.uv-python"; $env:PYTHONUTF8 = "1"
+$env:UV_CACHE_DIR = "$PWD\.uv-cache"; $env:UV_PYTHON_INSTALL_DIR = "$PWD\.uv-python"
 ```
 
 Where `uv` is unavailable but the six packages are already installed, call the script directly — it needs nothing else on `sys.path`:
