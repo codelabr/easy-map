@@ -22,13 +22,13 @@
 		<SimpleData name="GID_0">XFA</SimpleData>
 		<SimpleData name="COUNTRY">Fictavia</SimpleData>
 		<SimpleData name="NAME_1">Ardenne</SimpleData>
-		<SimpleData name="VARNAME_1"></SimpleData>
-		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="VARNAME_1">Ardenne</SimpleData>
+		<SimpleData name="NL_NAME_1">NA</SimpleData>
 		<SimpleData name="TYPE_1">Regiune</SimpleData>
 		<SimpleData name="ENGTYPE_1">Region</SimpleData>
 		<SimpleData name="CC_1">01</SimpleData>
 		<SimpleData name="HASC_1">XF.AR</SimpleData>
-		<SimpleData name="ISO_1"></SimpleData>
+		<SimpleData name="ISO_1">NA</SimpleData>
 	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>18.75,47.5 18.75,51.0 12,51 12.0,47.5 18.75,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
@@ -39,13 +39,13 @@
 		<SimpleData name="GID_0">XFA</SimpleData>
 		<SimpleData name="COUNTRY">Fictavia</SimpleData>
 		<SimpleData name="NAME_1">Beluar</SimpleData>
-		<SimpleData name="VARNAME_1"></SimpleData>
-		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="VARNAME_1">Beluar</SimpleData>
+		<SimpleData name="NL_NAME_1">NA</SimpleData>
 		<SimpleData name="TYPE_1">Regiune</SimpleData>
 		<SimpleData name="ENGTYPE_1">Region</SimpleData>
 		<SimpleData name="CC_1">02</SimpleData>
 		<SimpleData name="HASC_1">XF.BE</SimpleData>
-		<SimpleData name="ISO_1"></SimpleData>
+		<SimpleData name="ISO_1">NA</SimpleData>
 	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>25.5,47.5 25.5,51.0 18.75,51.0 18.75,47.5 25.5,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
@@ -56,13 +56,13 @@
 		<SimpleData name="GID_0">XFA</SimpleData>
 		<SimpleData name="COUNTRY">Fictavia</SimpleData>
 		<SimpleData name="NAME_1">Corvin</SimpleData>
-		<SimpleData name="VARNAME_1"></SimpleData>
-		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="VARNAME_1">Corvin</SimpleData>
+		<SimpleData name="NL_NAME_1">NA</SimpleData>
 		<SimpleData name="TYPE_1">Regiune</SimpleData>
 		<SimpleData name="ENGTYPE_1">Region</SimpleData>
 		<SimpleData name="CC_1">03</SimpleData>
 		<SimpleData name="HASC_1">XF.CO</SimpleData>
-		<SimpleData name="ISO_1"></SimpleData>
+		<SimpleData name="ISO_1">NA</SimpleData>
 	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>32.25,47.5 32.25,51.0 25.5,51.0 25.5,47.5 32.25,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
@@ -73,13 +73,13 @@
 		<SimpleData name="GID_0">XFA</SimpleData>
 		<SimpleData name="COUNTRY">Fictavia</SimpleData>
 		<SimpleData name="NAME_1">Dunmar</SimpleData>
-		<SimpleData name="VARNAME_1"></SimpleData>
-		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="VARNAME_1">Dunmar</SimpleData>
+		<SimpleData name="NL_NAME_1">NA</SimpleData>
 		<SimpleData name="TYPE_1">Regiune</SimpleData>
 		<SimpleData name="ENGTYPE_1">Region</SimpleData>
 		<SimpleData name="CC_1">04</SimpleData>
 		<SimpleData name="HASC_1">XF.DU</SimpleData>
-		<SimpleData name="ISO_1"></SimpleData>
+		<SimpleData name="ISO_1">NA</SimpleData>
 	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>39.0,47.5 39,51 32.25,51.0 32.25,47.5 39.0,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
@@ -90,13 +90,13 @@
 		<SimpleData name="GID_0">XFA</SimpleData>
 		<SimpleData name="COUNTRY">Fictavia</SimpleData>
 		<SimpleData name="NAME_1">Estrel</SimpleData>
-		<SimpleData name="VARNAME_1"></SimpleData>
-		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="VARNAME_1">Estrel</SimpleData>
+		<SimpleData name="NL_NAME_1">NA</SimpleData>
 		<SimpleData name="TYPE_1">Regiune</SimpleData>
 		<SimpleData name="ENGTYPE_1">Region</SimpleData>
 		<SimpleData name="CC_1">05</SimpleData>
 		<SimpleData name="HASC_1">XF.ES</SimpleData>
-		<SimpleData name="ISO_1"></SimpleData>
+		<SimpleData name="ISO_1">NA</SimpleData>
 	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>18.75,44.0 18.75,47.5 12.0,47.5 12,44 18.75,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
@@ -107,13 +107,13 @@
 		<SimpleData name="GID_0">XFA</SimpleData>
 		<SimpleData name="COUNTRY">Fictavia</SimpleData>
 		<SimpleData name="NAME_1">Fanolt</SimpleData>
-		<SimpleData name="VARNAME_1"></SimpleData>
-		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="VARNAME_1">Fanolt</SimpleData>
+		<SimpleData name="NL_NAME_1">NA</SimpleData>
 		<SimpleData name="TYPE_1">Regiune</SimpleData>
 		<SimpleData name="ENGTYPE_1">Region</SimpleData>
 		<SimpleData name="CC_1">06</SimpleData>
 		<SimpleData name="HASC_1">XF.FA</SimpleData>
-		<SimpleData name="ISO_1"></SimpleData>
+		<SimpleData name="ISO_1">NA</SimpleData>
 	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>25.5,44.0 25.5,47.5 18.75,47.5 18.75,44.0 25.5,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
@@ -124,13 +124,13 @@
 		<SimpleData name="GID_0">XFA</SimpleData>
 		<SimpleData name="COUNTRY">Fictavia</SimpleData>
 		<SimpleData name="NAME_1">Girene</SimpleData>
-		<SimpleData name="VARNAME_1"></SimpleData>
-		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="VARNAME_1">Girene</SimpleData>
+		<SimpleData name="NL_NAME_1">NA</SimpleData>
 		<SimpleData name="TYPE_1">Regiune</SimpleData>
 		<SimpleData name="ENGTYPE_1">Region</SimpleData>
 		<SimpleData name="CC_1">07</SimpleData>
 		<SimpleData name="HASC_1">XF.GI</SimpleData>
-		<SimpleData name="ISO_1"></SimpleData>
+		<SimpleData name="ISO_1">NA</SimpleData>
 	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>32.25,44.0 32.25,47.5 25.5,47.5 25.5,44.0 32.25,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
@@ -141,13 +141,13 @@
 		<SimpleData name="GID_0">XFA</SimpleData>
 		<SimpleData name="COUNTRY">Fictavia</SimpleData>
 		<SimpleData name="NAME_1">Halvik</SimpleData>
-		<SimpleData name="VARNAME_1"></SimpleData>
-		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="VARNAME_1">Halvik</SimpleData>
+		<SimpleData name="NL_NAME_1">NA</SimpleData>
 		<SimpleData name="TYPE_1">Regiune</SimpleData>
 		<SimpleData name="ENGTYPE_1">Region</SimpleData>
 		<SimpleData name="CC_1">08</SimpleData>
 		<SimpleData name="HASC_1">XF.HA</SimpleData>
-		<SimpleData name="ISO_1"></SimpleData>
+		<SimpleData name="ISO_1">NA</SimpleData>
 	</SchemaData></ExtendedData>
       <MultiGeometry><Polygon><outerBoundaryIs><LinearRing><coordinates>39,44 39.0,47.5 32.25,47.5 32.25,44.0 39,44</coordinates></LinearRing></outerBoundaryIs></Polygon><Polygon><outerBoundaryIs><LinearRing><coordinates>45.7,46.1 45.7,46.6 45.2,46.6 45.2,46.1 45.7,46.1</coordinates></LinearRing></outerBoundaryIs></Polygon><Polygon><outerBoundaryIs><LinearRing><coordinates>46.4,47.0 46.4,47.4 46.0,47.4 46,47 46.4,47.0</coordinates></LinearRing></outerBoundaryIs></Polygon></MultiGeometry>
   </Placemark>

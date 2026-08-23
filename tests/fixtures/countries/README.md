@@ -72,17 +72,41 @@ Not guesses. Read back and checked in `tests/test_boundaries.py`:
     and the reader has to coerce.
 - Geometry, bounds and per-part areas are identical across all three.
 
-## The GADM schema here is not yet verified against a downloaded file
+## The GADM schema was verified against a real download
 
-The column names are written as GADM 4.1 shapefiles are understood to carry
-them — `GID_1`, `GID_0`, `COUNTRY`, `NAME_1`, `VARNAME_1`, `NL_NAME_1`,
-`TYPE_1`, `ENGTYPE_1`, `CC_1`, `HASC_1`, `ISO_1`. GADM's own metadata page
-lists `NAME_0` for the country, which is what version 3.6 used; the level-1 and
-level-2 files are believed to carry `COUNTRY` instead.
+Checked on 2026-08-23 against `gadm41_VNM_1.shp` from
+`geodata.ucdavis.edu/gadm/gadm4.1/shp/`. The fixture's column list was right:
+level-1 and level-2 files carry `GID_1`, `GID_0`, **`COUNTRY`**, `NAME_1`,
+`VARNAME_1`, `NL_NAME_1`, `TYPE_1`, `ENGTYPE_1`, `CC_1`, `HASC_1`, `ISO_1`.
 
-**Both readings cannot be right, and no real GADM file has been opened to
-settle it.** Until one is, a detector must accept either name. The plan records
-this as the first task of the detector work, not of this fixture.
+**`NAME_0` does not appear at any level.** GADM's metadata page lists it, and
+that page describes an older version of the database; the level-0 file itself
+holds only `GID_0` and `COUNTRY`. A detector should still accept `NAME_0`, for
+anyone drawing from a 3.6-era download.
+
+What the check did change is how GADM writes an empty cell: **the two-letter
+string `NA`**, not an empty cell and not a null. `NL_NAME_1` and `CC_1` read
+`NA` in all 63 rows and `ISO_1` in 59 of them. A detector testing for emptiness
+sees a value; one testing for the string sees a gap. The fixture now carries
+that rather than a tidier version of it.
+
+`VARNAME_*` carries an unaccented variant of the name — `Bà Rịa - Vũng Tàu`
+against `Ba Ria - Vung Tau` — which is worth knowing for name matching.
+
+**GADM forbids redistribution**, so no GADM file can ever become a fixture in
+this repository: *"Redistribution or commercial use is not allowed without
+prior permission."* The fixture is written to GADM's shape, not copied from it.
+
+## geoBoundaries, also verified
+
+`geoBoundaries-VNM-ADM1.shp` carries exactly the five columns the plan
+expected: `shapeName`, `shapeISO`, `shapeID`, `shapeGroup`, `shapeType`.
+Licensed ODbL 1.0.
+
+Two things about that file are worth carrying into any detector work: it ships
+**no `.cpg`**, so 58 of its 64 names come back as mojibake to a plain reader —
+the third real download in a row with this fault — and one of its names is
+`'Hà Nội	'`, with a trailing tab.
 
 `XFA` is the country code, taken from the user-assigned `XAA`–`XZZ` range so it
 can never collide with a real one.

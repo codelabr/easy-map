@@ -321,11 +321,52 @@ class TestTheThreeFormatsAgree(unittest.TestCase):
             self.assertEqual(list(shp.columns), list(geojson.columns))
 
     def test_an_empty_string_survives_as_none_in_a_shapefile_and_as_text_in_geojson(self):
-        """Measured, and a trap worth naming: the same absent value reads back
-        as two different things depending on which file the user dropped in, so
-        ``if value:`` and ``if value is not None:`` disagree by format."""
-        self.assertIsNone(fixture("shp", "region")["VARNAME_1"].iloc[0])
-        self.assertEqual(fixture("geojson", "region")["VARNAME_1"].iloc[0], "")
+        """The same absent value reads back as two different things depending
+        on which file the user dropped in, so ``if value:`` and
+        ``if value is not None:`` disagree by format.
+
+        Written here rather than read from the fixture, because the fixture no
+        longer has an empty cell to read: a real GADM download writes the
+        string ``"NA"`` where it has nothing, and the fixture was corrected to
+        match. The format difference is still real — it shows on a genuine US
+        state file as a column with 12 distinct values read one way and 13 the
+        other — so it is kept, on data built to have the gap.
+        """
+        gpd = geopandas_or_skip()
+        import shapely.geometry as sg
+
+        frame = gpd.GeoDataFrame({"note": ["", "here"]},
+                                 geometry=[sg.box(0, 0, 1, 1), sg.box(1, 0, 2, 1)],
+                                 crs="EPSG:4326")
+        with tempfile.TemporaryDirectory() as folder:
+            shp, geojson = Path(folder) / "a.shp", Path(folder) / "a.geojson"
+            frame.to_file(shp)
+            frame.to_file(geojson, driver="GeoJSON")
+            back_shp = gpd.read_file(shp)["note"].iloc[0]
+            back_geojson = gpd.read_file(geojson)["note"].iloc[0]
+
+        # Missing, not empty. Which flavour of missing pandas hands back — None
+        # or NaN — depends on what else is in the column, and asserting one of
+        # them would be pinning the wrong thing. The difference that matters is
+        # that the shapefile lost the distinction and the GeoJSON kept it.
+        import pandas as pd
+
+        self.assertTrue(pd.isna(back_shp), repr(back_shp))
+        self.assertEqual(back_geojson, "")
+
+    def test_the_fixture_carries_gadms_own_way_of_writing_nothing(self):
+        """``NA``, the two-letter string, not an empty cell and not a null.
+
+        Verified against ``gadm41_VNM_1.shp``: ``NL_NAME_1`` and ``CC_1`` read
+        "NA" in all 63 rows and ``ISO_1`` in 59 of them. A detector that tests
+        for emptiness sees a value here; one that tests for the string sees a
+        gap. Either way the fixture has to carry the trap rather than a tidier
+        version of it.
+        """
+        region = fixture("shp", "region")
+        self.assertEqual(set(region["NL_NAME_1"]), {"NA"})
+        self.assertEqual(set(region["ISO_1"]), {"NA"})
+        self.assertEqual(list(region["VARNAME_1"]), list(region["NAME_1"]))
 
     def test_kml_keeps_the_whole_attribute_table(self):
         """Measured against a real KML, and it overturns what the plan assumed.

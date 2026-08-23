@@ -26,6 +26,12 @@ Four properties are deliberate, and each one breaks a pinned constant:
   same reason it is wrong for Vietnam — and by a much wider margin, 3.70 degrees
   against 0.39.
 
+The schema was checked against a real download on 2026-08-23 and matched:
+GADM 4.1 level-1 and level-2 files carry ``COUNTRY``, and ``NAME_0`` does not
+appear at any level — the metadata page that lists it describes an older
+version. What the check did change is the empty cells: GADM writes the string
+``"NA"`` where it has nothing, and the fixture said ``""``.
+
 The name column also repeats across regions, six times out of forty, so that
 guessing the name column by counting distinct values picks the identifier
 instead. Vietnam has the same trap at 2,849 distinct names over 3,321 communes;
@@ -93,6 +99,13 @@ DISTRICTS = [
     "Cadrin", "Dalvik", "Ennor", "Fellorn", "Grismar", "Halloway",
 ]
 
+#: What GADM puts in a cell it has nothing for: the two-letter string, not an
+#: empty cell and not a null. Verified against gadm41_VNM_1.shp, where
+#: ``NL_NAME_1`` and ``CC_1`` read "NA" in all 63 rows and ``ISO_1`` in 59.
+#: A detector that tests for emptiness sees a value here; one that tests for
+#: the string sees a gap. The fixture has to carry the trap either way.
+GADM_NULL = "NA"
+
 #: GADM writes the kind of unit in its own column rather than into the name.
 TYPE_1, ENGTYPE_1 = "Regiune", "Region"
 TYPE_2, ENGTYPE_2 = "Districtul", "District"
@@ -132,13 +145,13 @@ def regions_frame():
             "GID_0": ISO3,
             "COUNTRY": COUNTRY,
             "NAME_1": name,
-            "VARNAME_1": "",
-            "NL_NAME_1": "",
+            "VARNAME_1": name,
+            "NL_NAME_1": GADM_NULL,
             "TYPE_1": TYPE_1,
             "ENGTYPE_1": ENGTYPE_1,
             "CC_1": f"{i:02d}",
             "HASC_1": f"{ISO3[:2]}.{name[:2].upper()}",
-            "ISO_1": "",
+            "ISO_1": GADM_NULL,
         })
         geoms.append(shape)
     return gpd.GeoDataFrame(rows, geometry=geoms, crs="EPSG:4326")
@@ -162,10 +175,10 @@ def districts_frame():
                 "COUNTRY": COUNTRY,
                 "GID_1": f"{ISO3}.{i}_1",
                 "NAME_1": region,
-                "NL_NAME_1": "",
+                "NL_NAME_1": GADM_NULL,
                 "NAME_2": name,
-                "VARNAME_2": "",
-                "NL_NAME_2": "",
+                "VARNAME_2": name,
+                "NL_NAME_2": GADM_NULL,
                 "TYPE_2": TYPE_2,
                 "ENGTYPE_2": ENGTYPE_2,
                 "CC_2": f"{i:02d}{j + 1:02d}",
