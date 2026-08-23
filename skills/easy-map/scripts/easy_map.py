@@ -114,6 +114,22 @@ def _name_coverage(df, column, keys, exclude=frozenset()) -> float:
     return sum(1 for k in names if k in keys and k not in exclude) / len(names)
 
 
+def _fine_tier(deps, root, country, notes=None):
+    """The finer of the two tiers, or nothing.
+
+    A boundary set that stops at states is a complete boundary set, and the old
+    two-folder layout could not express it: both folders had to be there or the
+    lookup failed, so a country with one tier could not be drawn at all — not
+    even at the tier it had.
+    """
+    try:
+        shapes = dataio.load_shapes(deps, root, dataio.FINE, notes=notes,
+                                    country=country)
+    except SystemExit:
+        return None, None
+    return shapes, dataio.shape_fields(shapes, dataio.FINE)
+
+
 def _detect_admin_level(df, provinces, communes) -> str:
     p_keys = {matching.normalize(n) for n in provinces}
     c_keys = {matching.normalize(n) for n in communes}
@@ -151,22 +167,36 @@ def command_list(args: argparse.Namespace) -> None:
             sheets = [f"<không đọc được: {exc}>"]
         workbooks.append({"tệp": str(path.relative_to(root)), "sheet": sheets})
 
+    boundary_root = dataio.shapefile_root(root)
+    moved = dataio.migrate_legacy_layout(boundary_root)
+    available = {}
+    for name in dataio.countries(boundary_root):
+        available[name] = [{k: v for k, v in tier.items() if not k.startswith("__")}
+                           for tier in dataio.tiers(boundary_root, name)]
+
+    # The per-tier paths are only meaningful when there is one country to be
+    # meaningful about. With several installed, "quốc_gia" above already says
+    # what is there, and repeating the same refusal twice under a heading that
+    # promises a file is noise dressed as an error.
     shapefiles = {}
-    for level in ("province", "commune"):
-        try:
-            found = dataio.find_boundaries(root, level)
-            # the boundaries may sit outside the project now, so a path relative
-            # to it is not always expressible
+    if len(available) == 1:
+        for level in (dataio.COARSE, dataio.FINE):
             try:
-                shapefiles[level] = str(found.relative_to(root))
-            except ValueError:
-                shapefiles[level] = str(found)
-        except SystemExit as exc:
-            shapefiles[level] = str(exc)
+                found = dataio.find_boundaries(root, level)
+                # the boundaries may sit outside the project now, so a path
+                # relative to it is not always expressible
+                try:
+                    shapefiles[level] = str(found.relative_to(root))
+                except ValueError:
+                    shapefiles[level] = str(found)
+            except SystemExit as exc:
+                shapefiles[level] = str(exc)
 
     emit({
         "thư_mục_dự_án": str(root),
         "workbook": workbooks,
+        "quốc_gia": available,
+        **({"đã_chuyển_bố_cục": moved} if moved else {}),
         "shapefile": shapefiles,
         "font_thiếu": fonts.missing_files(),
         "lựa_chọn_đã_ghi_nhớ": prefs._load(root / prefs.FOLDER / prefs.CHOICES),
@@ -228,15 +258,18 @@ def _survey_payload(args: argparse.Namespace) -> dict[str, Any]:
         if not books:
             raise SystemExit(messages.text("khao-sat.không-có-workbook"))
 
-    province_shapes = dataio.load_shapes(deps, root, "province")
-    p_field = dataio.shape_fields(province_shapes, "province")["province"]
+    country = getattr(args, "country", None)
+    province_shapes = dataio.load_shapes(deps, root, dataio.COARSE, country=country)
+    p_field = dataio.shape_fields(province_shapes, dataio.COARSE)["province"]
     province_keys = {matching.normalize(v) for v in province_shapes[p_field]}
     province_keys |= {matching.normalize(n) for n in
                       crosswalk.build(province_shapes, name_field=p_field)}
 
-    commune_shapes = dataio.load_shapes(deps, root, "commune")
-    c_field = dataio.shape_fields(commune_shapes, "commune")["commune"]
-    commune_keys = {matching.normalize(v) for v in commune_shapes[c_field]}
+    commune_shapes, c_fields = _fine_tier(deps, root, country)
+    commune_keys = set()
+    if commune_shapes is not None:
+        commune_keys = {matching.normalize(v)
+                        for v in commune_shapes[c_fields["commune"]]}
 
     limit = tabular.SURVEY_ROWS + tabular.MAX_HEADER_SCAN
     files = []
@@ -485,13 +518,15 @@ def command_profile(args: argparse.Namespace) -> None:
     dictionary = dataio.read_data_dictionary(deps, excel, sheets)
 
     boundary_notes: list[dict[str, Any]] = []
-    province_shapes = dataio.load_shapes(deps, root, "province", notes=boundary_notes)
-    p_fields = dataio.shape_fields(province_shapes, "province")
+    country = getattr(args, "country", None)
+    province_shapes = dataio.load_shapes(deps, root, dataio.COARSE,
+                                         notes=boundary_notes, country=country)
+    p_fields = dataio.shape_fields(province_shapes, dataio.COARSE)
     province_names = [str(v) for v in province_shapes[p_fields["province"]]]
 
-    commune_shapes = dataio.load_shapes(deps, root, "commune", notes=boundary_notes)
-    c_fields = dataio.shape_fields(commune_shapes, "commune")
-    commune_names = [str(v) for v in commune_shapes[c_fields["commune"]]]
+    commune_shapes, c_fields = _fine_tier(deps, root, country, boundary_notes)
+    commune_names = ([str(v) for v in commune_shapes[c_fields["commune"]]]
+                     if commune_shapes is not None else [])
 
     admin_level = args.admin_level
     if admin_level in (None, "auto"):
@@ -1220,7 +1255,8 @@ def _review_is_usable(review: list[dict[str, Any]], admin_level: str) -> bool:
 def command_fix_match(args: argparse.Namespace) -> None:
     root = Path(args.project_root).resolve()
     deps = dataio.load(require_geo=True)
-    gdf = dataio.load_shapes(deps, root, args.admin_level)
+    gdf = dataio.load_shapes(deps, root, args.admin_level,
+                             country=getattr(args, "country", None))
     fields = dataio.shape_fields(gdf, args.admin_level)
     field = fields["commune"] if args.admin_level == "commune" else fields["province"]
     row = gdf[gdf["__shape_id"] == int(args.shape_id)]
@@ -1528,13 +1564,16 @@ def command_render(args: argparse.Namespace) -> None:
     # warning should describe the rows actually being drawn, not the whole sheet.
     df, slice_note = _apply_where(df, args.where)
 
-    admin_level = args.admin_level
+    country = getattr(args, "country", None)
+    tier = dataio.resolve_tier(root, args.admin_level, country=country)
+    admin_level = tier["vai_trò"]
     boundary_notes: list[dict[str, Any]] = []
-    shapes = dataio.load_shapes(deps, root, admin_level, notes=boundary_notes)
+    shapes = dataio.load_shapes(deps, root, admin_level, notes=boundary_notes,
+                                country=country)
     fields = dataio.shape_fields(shapes, admin_level)
     # Resolved once, from the province tier, and used for every frame on the
     # page: the map and the locator beside it have to agree.
-    thematic_crs = dataio.run_thematic_crs(deps, root)
+    thematic_crs = dataio.run_thematic_crs(deps, root, country=country)
     name_field = fields["commune"] if admin_level == "commune" else fields["province"]
 
     # --- match ------------------------------------------------------------
@@ -1557,8 +1596,9 @@ def command_render(args: argparse.Namespace) -> None:
         if not _review_is_usable(review, admin_level):
             review = []          # belongs to another dataset; recompute below
     if not review and not coordinates_only:
-        province_shapes = dataio.load_shapes(deps, root, "province")
-        p_fields = dataio.shape_fields(province_shapes, "province")
+        province_shapes = dataio.load_shapes(deps, root, dataio.COARSE,
+                                             country=country)
+        p_fields = dataio.shape_fields(province_shapes, dataio.COARSE)
         index = _province_index(province_shapes, p_fields["province"])
         if admin_level == "province":
             review = matching.review_province(
@@ -1669,7 +1709,7 @@ def command_render(args: argparse.Namespace) -> None:
     scope, contexts = _contexts(args, shapes, fields, review, admin_level)
     thematic = dataio.to_thematic_crs(shapes, thematic_crs)
     provinces_gdf = dataio.to_thematic_crs(
-        dataio.load_shapes(deps, root, "province"), thematic_crs)
+        dataio.load_shapes(deps, root, dataio.COARSE, country=country), thematic_crs)
 
     prepared = []
     for ctx in contexts:
@@ -1952,13 +1992,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     sv = sub.add_parser("survey",
                         help="sheet nào trong workbook vẽ được bản đồ; đọc mẫu nên rất nhanh")
+    sv.add_argument("--country", help="thư mục quốc gia trong shapefiles/; bỏ trống "
+                                      "khi chỉ có một quốc gia")
     sv.add_argument("--excel",
                     help="bỏ trống thì khảo sát mọi workbook trong input/")
 
     p = sub.add_parser("profile", help="phân tích dataset và đề xuất bản đồ")
+    p.add_argument("--country", help="thư mục quốc gia trong shapefiles/; bỏ trống "
+                                     "khi chỉ có một quốc gia")
     p.add_argument("--excel", required=True)
     p.add_argument("--sheet")
-    p.add_argument("--admin-level", choices=["auto", "province", "commune"], default="auto")
+    p.add_argument("--admin-level", default="auto",
+                   help="vai trò (province/commune) hoặc tên thư mục cấp, ví dụ state")
     p.add_argument("--province-column")
     p.add_argument("--commune-column")
     p.add_argument("--run-folder",
@@ -1966,15 +2011,20 @@ def build_parser() -> argparse.ArgumentParser:
                         "start-run đang mở")
 
     f = sub.add_parser("fix-match", help="ghi nhớ một cách ghép tên do người dùng xác nhận")
-    f.add_argument("--admin-level", choices=["province", "commune"], default="commune")
+    f.add_argument("--country")
+    f.add_argument("--admin-level", default="commune",
+                   help="vai trò hoặc tên thư mục cấp")
     f.add_argument("--province")
     f.add_argument("--name", required=True)
     f.add_argument("--shape-id", required=True)
 
     r = sub.add_parser("render", help="vẽ và lưu bản đồ")
+    r.add_argument("--country", help="thư mục quốc gia trong shapefiles/; bỏ trống "
+                                     "khi chỉ có một quốc gia")
     r.add_argument("--excel", required=True)
     r.add_argument("--sheet")
-    r.add_argument("--admin-level", choices=["province", "commune"], required=True)
+    r.add_argument("--admin-level", required=True,
+                   help="vai trò (province/commune) hoặc tên thư mục cấp, ví dụ state")
     r.add_argument("--province-column")
     r.add_argument("--commune-column")
     r.add_argument("--match-review")

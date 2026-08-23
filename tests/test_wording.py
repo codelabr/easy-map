@@ -376,7 +376,11 @@ class TestTheGateRefusesAPlanWithAQuestionStillOpen(unittest.TestCase):
         import contextlib
         import io as _io
 
+        # named because the repository now holds boundaries for more than one
+        # country, and a command that does not say which is refused rather than
+        # answered by guessing
         argv = ["render", "--project-root", str(self.REPO),
+                "--country", "viet-nam",
                 "--run-folder", self.FOLDER,
                 "--excel", "input/chuong_trinh_hiv_tinh.xlsx",
                 "--sheet", "Dữ liệu tỉnh 2026",

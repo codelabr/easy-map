@@ -116,7 +116,8 @@ class TestAgainstTheRealShapefile(unittest.TestCase):
             import geopandas
         except ImportError:                      # pragma: no cover - env-dependent
             raise unittest.SkipTest("geopandas is needed to read the shapefile")
-        folder = Path(__file__).resolve().parents[1] / "shapefiles" / "provinces"
+        folder = (Path(__file__).resolve().parents[1]
+                  / "shapefiles" / "viet-nam" / "province")
         shp = sorted(folder.glob("*.shp"))
         if not shp:                              # pragma: no cover - env-dependent
             raise unittest.SkipTest("the province shapefile is not present")

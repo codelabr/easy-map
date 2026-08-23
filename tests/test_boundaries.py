@@ -47,8 +47,8 @@ FIXTURES = ROOT / "tests" / "fixtures" / "countries"
 #: and are not in the repository, so a fresh clone has none and the Vietnam
 #: measurements skip rather than fail — a missing 135 MB download is not a bug
 #: in the engine.
-VN_TIERS = {"province": ROOT / "shapefiles" / "provinces",
-            "commune": ROOT / "shapefiles" / "communes"}
+VN_TIERS = {"province": ROOT / "shapefiles" / "viet-nam" / "province",
+            "commune": ROOT / "shapefiles" / "viet-nam" / "commune"}
 
 
 def geopandas_or_skip():
@@ -65,7 +65,7 @@ def vietnam(tier: str):
     folder = VN_TIERS[tier]
     found = sorted(glob.glob(str(folder / "*.shp")))
     if not found:
-        raise unittest.SkipTest(f"chưa giải nén {folder.name}/")
+        raise unittest.SkipTest(f"chưa giải nén viet-nam/{folder.name}/")
     return gpd.read_file(found[0])
 
 
@@ -174,12 +174,20 @@ class TestVietnamBoundaryFacts(unittest.TestCase):
 class TestVietnamStaysDrawnTheSameWay(unittest.TestCase):
     """The regression case. These have to hold after every wave."""
 
-    def test_the_two_folder_layout_still_resolves(self):
+    def test_both_tiers_still_resolve_after_the_move(self):
+        """The layout changed under Vietnam and Vietnam still resolves.
+
+        ``provinces/`` and ``communes/`` became ``viet-nam/province/`` and
+        ``viet-nam/commune/``, by rename rather than by copy — 135 MB is not a
+        thing to duplicate in order to reshape a folder. The role names the
+        request uses did not change.
+        """
         for tier, folder in VN_TIERS.items():
             if not sorted(glob.glob(str(folder / "*.shp"))):
-                self.skipTest(f"chưa giải nén {folder.name}/")
-            found = dataio.find_boundaries(ROOT, tier)
+                self.skipTest(f"chưa giải nén viet-nam/{folder.name}/")
+            found = dataio.find_boundaries(ROOT, tier, country="viet-nam")
             self.assertEqual(found.parent.name, folder.name)
+            self.assertEqual(found.parent.parent.name, "viet-nam")
             self.assertEqual(found.suffix, ".shp")
 
     def test_the_vietnamese_name_columns_are_the_ones_found(self):
@@ -237,7 +245,8 @@ class TestVietnamStaysDrawnTheSameWay(unittest.TestCase):
         self.assertNotEqual(province, commune)
 
         deps = dataio.load(require_geo=True)
-        self.assertEqual(dataio.run_thematic_crs(deps, ROOT), province)
+        self.assertEqual(dataio.run_thematic_crs(deps, ROOT, country="viet-nam"),
+                         province)
 
 
 # --------------------------------------------------------------------------
@@ -574,6 +583,155 @@ class TestTheProjectionComesFromTheData(unittest.TestCase):
             projected.geometry.union_all()          # this is what used to die
 
 
+class TestTheFolderLayout(OwnBoundariesOnly):
+    """One folder per country, one folder per tier, and the old shape moved
+    across on the first command rather than left for the user to redo."""
+
+    def root(self, folder):
+        root = Path(folder) / "shapefiles"
+        root.mkdir(parents=True)
+        return root
+
+    def dataset(self, tier: Path, count: int, name="units"):
+        gpd = geopandas_or_skip()
+        import shapely.geometry as sg
+
+        tier.mkdir(parents=True, exist_ok=True)
+        gpd.GeoDataFrame({"ten_tinh": [f"u{i}" for i in range(count)]},
+                         geometry=[sg.box(i, 0, i + 1, 1) for i in range(count)],
+                         crs="EPSG:4326").to_file(tier / f"{name}.shp")
+
+    def test_the_old_two_folder_layout_moves_itself_under_viet_nam(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.root(folder)
+            self.dataset(root / "provinces", 3)
+            self.dataset(root / "communes", 9)
+
+            moved = dataio.migrate_legacy_layout(root)
+
+            self.assertEqual([m["trạng_thái"] for m in moved],
+                             ["đã_chuyển", "đã_chuyển"])
+            self.assertFalse((root / "provinces").exists())
+            self.assertTrue((root / "viet-nam" / "province" / "units.shp").is_file())
+            self.assertTrue((root / "viet-nam" / "commune" / "units.shp").is_file())
+            self.assertEqual(dataio.countries(root), ["viet-nam"])
+
+    def test_a_move_never_overwrites_what_is_already_there(self):
+        """The two could be different data, and only the user knows which is
+        wanted. Reported and left alone rather than resolved by guessing."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.root(folder)
+            self.dataset(root / "provinces", 3, name="old")
+            self.dataset(root / "viet-nam" / "province", 5, name="new")
+
+            moved = dataio.migrate_legacy_layout(root)
+
+            self.assertEqual(moved[0]["trạng_thái"], "bỏ_qua_vì_đích_đã_có")
+            self.assertTrue((root / "provinces" / "old.shp").is_file())
+            self.assertTrue((root / "viet-nam" / "province" / "new.shp").is_file())
+
+    def test_the_tier_order_comes_from_the_counts_not_the_names(self):
+        """``comuna`` sorts before ``judet`` and would be backwards; counting
+        features is right for every country there is."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.root(folder)
+            self.dataset(root / "romania" / "comuna", 40)
+            self.dataset(root / "romania" / "judet", 6)
+
+            order = dataio.tiers(root, "romania")
+
+            self.assertEqual([t["thư_mục"] for t in order], ["judet", "comuna"])
+            self.assertEqual([t["vai_trò"] for t in order],
+                             [dataio.COARSE, dataio.FINE])
+
+    def test_a_country_with_one_tier_can_be_drawn_at_that_tier(self):
+        """The case the old layout could not express at all: both folders had
+        to exist or the lookup failed, so a boundary set that stops at states
+        could not be loaded even to draw the states."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.root(folder)
+            self.dataset(root / "united-states" / "state", 51)
+
+            order = dataio.tiers(root, "united-states")
+            self.assertEqual([t["vai_trò"] for t in order], [dataio.COARSE])
+
+            found = dataio.find_boundaries(Path(folder), "state")
+            self.assertEqual(found.parent.name, "state")
+            self.assertEqual(dataio.find_boundaries(Path(folder), dataio.COARSE),
+                             found)
+            with self.assertRaises(SystemExit):
+                dataio.find_boundaries(Path(folder), dataio.FINE)
+
+    def test_more_than_one_country_is_refused_rather_than_guessed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.root(folder)
+            self.dataset(root / "canada" / "province", 13)
+            self.dataset(root / "viet-nam" / "province", 34)
+
+            with self.assertRaises(SystemExit) as raised:
+                dataio.find_boundaries(Path(folder), dataio.COARSE)
+            self.assertIn("canada", str(raised.exception))
+            self.assertIn("viet-nam", str(raised.exception))
+
+            named = dataio.find_boundaries(Path(folder), dataio.COARSE,
+                                           country="canada")
+            self.assertEqual(named.parent.parent.name, "canada")
+
+    def test_a_folder_name_becomes_a_role_before_anything_else_sees_it(self):
+        """Read out of the source, and here is why that is the honest way.
+
+        Everything downstream asks ``admin_level == "commune"`` to decide how
+        to behave — which name column to use, which index to match against,
+        whether to draw a locator. A request for a folder called ``district``
+        has to become the role ``commune`` at the seam. If the folder name
+        stays in circulation instead, a fine tier goes down every coarse-tier
+        branch and the map comes out wrong in a dozen small ways at once.
+
+        Seven defects were planted in this round's code and six were caught by
+        behaviour. This was the one that was not: every test still passed with
+        the folder name in place, because the fixtures happen to name their
+        tiers ``province`` and ``commune`` and the two coincide.
+        """
+        import ast
+
+        source = ROOT / "skills" / "easy-map" / "scripts" / "easy_map.py"
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        body = next(node for node in ast.walk(tree)
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name == "command_render")
+        assigned = [ast.unparse(node.value) for node in ast.walk(body)
+                    if isinstance(node, ast.Assign)
+                    and any(ast.unparse(t) == "admin_level" for t in node.targets)]
+
+        self.assertTrue(assigned, "command_render no longer sets admin_level")
+        for expression in assigned:
+            self.assertNotIn("thư_mục", expression)
+        self.assertTrue(any("vai_trò" in e for e in assigned), assigned)
+
+    def test_the_two_roles_are_the_words_the_rest_of_the_engine_uses(self):
+        """The roles are not free-form: the whole engine branches on these two
+        strings, so renaming them here would be a silent rewrite of every
+        branch that reads them."""
+        self.assertEqual((dataio.COARSE, dataio.FINE), ("province", "commune"))
+
+    def test_an_unreadable_file_does_not_take_down_the_listing(self):
+        """Counting features runs while saying what is *available*. A boundary
+        file that cannot be opened is a real error, but raising it here would
+        take down the one command whose job is to report what is present."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.root(folder)
+            self.dataset(root / "somewhere" / "state", 4)
+            broken = root / "somewhere" / "rubbish"
+            broken.mkdir()
+            (broken / "not-really.geojson").write_text("{", encoding="utf-8")
+
+            order = dataio.tiers(root, "somewhere")
+
+            self.assertEqual([t["thư_mục"] for t in order], ["state", "rubbish"])
+            self.assertEqual(order[0]["số_đơn_vị"], 4)
+            self.assertIsNone(order[1]["số_đơn_vị"])
+
+
 class TestARepairedCodepage(OwnBoundariesOnly):
 
     def frame_in(self, folder, names, codepage: bool):
@@ -600,8 +758,8 @@ class TestARepairedCodepage(OwnBoundariesOnly):
 
         self.assertEqual(list(frame["ten_tinh"]), names)
         self.assertEqual(len(notes), 1)
-        self.assertEqual(notes[0]["tệp"], "provinces/units.shp")
-        self.assertEqual(notes[0]["cách_sửa"], "provinces/units.cpg")
+        self.assertEqual(notes[0]["tệp"], "province/units.shp")
+        self.assertEqual(notes[0]["cách_sửa"], "province/units.cpg")
         self.assertGreaterEqual(notes[0]["số_giá_trị"], 2)
 
     def test_a_file_that_was_never_broken_is_left_alone_and_unreported(self):
@@ -688,14 +846,26 @@ class TestWhatIsStillPinnedToVietnam(unittest.TestCase):
         found = dataio.shape_fields(fixture("kml", "region"), "province")
         self.assertEqual(found["province"], "Name")
 
-    def test_there_is_no_way_to_ask_for_a_country(self):
-        """``find_boundaries`` takes a tier and nothing else, and turns anything
-        that is not ``province`` into ``communes``. Wave 2 and 3."""
+    def test_a_country_can_now_be_asked_for_by_name(self):
+        """This line used to record the opposite.
+
+        ``find_boundaries`` took a tier and nothing else, and turned anything
+        that was not ``province`` into ``communes``; the fixture could not be
+        reached at all. It is now addressed by country and by tier, and the
+        tier can be named either by its role or by its own folder name.
+        """
         root = str(FIXTURES / "shp")
+        by_folder = dataio.find_boundaries(ROOT, "region", override=root,
+                                           country="fictavia")
+        by_role = dataio.find_boundaries(ROOT, "province", override=root,
+                                         country="fictavia")
+        self.assertEqual(by_folder, by_role)
+        self.assertEqual(by_folder.parent.name, "region")
+
+        self.assertEqual(dataio.countries(Path(root)), ["fictavia"])
         with self.assertRaises(SystemExit):
-            dataio.find_boundaries(ROOT, "province", override=root)
-        with self.assertRaises(SystemExit):
-            dataio.find_boundaries(ROOT, "region", override=root)
+            dataio.find_boundaries(ROOT, "province", override=root,
+                                   country="nowhere")
 
     def test_the_locator_box_would_squash_the_fixture_eightfold(self):
         """``LOCATOR_ASPECT`` is Vietnam's 2.2 tall to wide. Fictavia is 0.26.

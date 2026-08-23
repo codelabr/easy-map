@@ -443,7 +443,7 @@ class TestASheetHoldingTwoTables(unittest.TestCase):
         except ImportError:                    # pragma: no cover - env-dependent
             self.skipTest("geopandas is needed to run a profile")
         repo = Path(__file__).resolve().parents[1]
-        if not sorted((repo / "shapefiles" / "provinces").glob("*.shp")):
+        if not sorted((repo / "shapefiles" / "viet-nam" / "province").glob("*.shp")):
             self.skipTest("the province shapefile is not present")
 
         import contextlib
@@ -453,8 +453,8 @@ class TestASheetHoldingTwoTables(unittest.TestCase):
 
         path = self.workbook({"S": self.TWO})
         folder = "khong-bao-gio-duoc-giu"
-        argv = ["profile", "--project-root", str(repo), "--run-folder", folder,
-                "--excel", str(path), "--sheet", "S"]
+        argv = ["profile", "--project-root", str(repo), "--country", "viet-nam",
+                "--run-folder", folder, "--excel", str(path), "--sheet", "S"]
         args = self.cli.build_parser().parse_args(argv)
         out = _io.StringIO()
         try:

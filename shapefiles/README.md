@@ -19,13 +19,44 @@ unless you want the boundaries somewhere else. Pass `-SkipShapefiles` /
 ## Unpacking them yourself
 
 ```bash
-python -c "import zipfile; zipfile.ZipFile('shapefiles/provinces.zip').extractall('shapefiles/provinces')"
-python -c "import zipfile; zipfile.ZipFile('shapefiles/communes.zip').extractall('shapefiles/communes')"
+python -c "import zipfile; zipfile.ZipFile('shapefiles/provinces.zip').extractall('shapefiles/viet-nam/province')"
+python -c "import zipfile; zipfile.ZipFile('shapefiles/communes.zip').extractall('shapefiles/viet-nam/commune')"
 ```
 
-The engine looks for them in this order: the `--shapefile-root` flag, then
+## The layout
+
+One folder per country, one folder per tier inside it:
+
+```text
+shapefiles/
+├── viet-nam/
+│   ├── province/     .shp + .shx + .dbf + .prj, OR one .geojson, OR one .kml
+│   └── commune/
+└── <another-country>/
+    └── <its own tier names>/
+```
+
+**A tier folder holds exactly one dataset**, in any of `.shp`, `.geojson`,
+`.json` or `.kml`. Two datasets in one folder is refused by name rather than
+resolved by sorting, because drawing the wrong one of two files looks like
+nothing at all.
+
+**Tier folder names are yours to choose.** Which is the coarser tier is decided
+by counting features, never by reading the name: `region` sorts before
+`district` and `comuna` sorts before `judet`, and only one of those orders is
+right. A country with a single tier is fine — it is drawn at that tier.
+
+Boundaries left in the old `shapefiles/provinces/` and `shapefiles/communes/`
+are **moved to `viet-nam/province/` and `viet-nam/commune/` on the first
+command**, by rename rather than by copy. Nothing is overwritten: if the new
+place already holds something, the old folder is left alone and reported.
+
+With more than one country present, a command has to say which to draw —
+`--country viet-nam`. With one, it does not.
+
+The engine looks for the root in this order: the `--shapefile-root` flag, then
 `EASY_MAP_SHAPEFILES`, then `shapefiles/` inside the working folder. Check what
-it resolved:
+it resolved, and what countries and tiers it found:
 
 ```bash
 python skills/easy-map/scripts/easy_map.py list --project-root .
@@ -71,12 +102,12 @@ Any source works as long as the geometry is the post-2025 34-province and
 what a download actually contains:
 
 ```bash
-uv run --with geopandas python -c "import geopandas, glob; [print(lvl, list(geopandas.read_file(glob.glob(f'shapefiles/{lvl}/*.shp')[0], rows=1).columns)) for lvl in ('provinces','communes')]"
+uv run --with geopandas python -c "import geopandas, glob; [print(t, list(geopandas.read_file(glob.glob(f'shapefiles/viet-nam/{t}/*')[0], rows=1).columns)) for t in ('province','commune')]"
 ```
 
 The set this project was built against reads:
 
 ```text
-provinces  ma_tinh ten_tinh sap_nhap quy_mo tru_so loai cap stt dtich_km2 dan_so matdo_km2 geometry
-communes   ma_xa ten_xa sap_nhap tru_so loai cap stt dtich_km2 dan_so matdo_km2 ma_tinh ten_tinh geometry
+province   ma_tinh ten_tinh sap_nhap quy_mo tru_so loai cap stt dtich_km2 dan_so matdo_km2 geometry
+commune    ma_xa ten_xa sap_nhap tru_so loai cap stt dtich_km2 dan_so matdo_km2 ma_tinh ten_tinh geometry
 ```

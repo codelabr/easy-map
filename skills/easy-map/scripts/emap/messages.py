@@ -1299,6 +1299,21 @@ TEXT: dict[str, dict[str, str]] = {
         "en": "More than one boundary dataset in {folder}, so there is no way to tell which "
               "to draw: {files}. A tier folder holds exactly one dataset.",
     },
+    "loi.không-có-quốc-gia": {
+        "vi": "Không có dữ liệu ranh giới cho '{country}'. Đang có: {available}",
+        "en": "No boundary data for '{country}'. Available: {available}",
+    },
+    "loi.nhiều-quốc-gia": {
+        "vi": "Có ranh giới của nhiều quốc gia nên phải nói rõ vẽ nước nào: {available}",
+        "en": "Boundaries for more than one country are present, so which to draw has "
+              "to be said: {available}",
+    },
+    "loi.không-có-tầng": {
+        "vi": "Không có cấp '{level}' cho {country}. Các cấp đang có (kèm số đơn vị): "
+              "{available}",
+        "en": "No '{level}' tier for {country}. Tiers present, with unit counts: "
+              "{available}",
+    },
     "loi.thiếu-tệp-đi-kèm": {
         "vi": "Shapefile {path} thiếu tệp đi kèm: {missing}. Một shapefile không phải một "
               "tệp đơn lẻ; thiếu .shx là mất hình học, thiếu .dbf là mất bảng thuộc tính.",

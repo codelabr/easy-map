@@ -183,16 +183,188 @@ def shapefile_root(project_root: Path, override: str | None = None) -> Path:
     return Path(project_root) / "shapefiles"
 
 
+#: The layout the project shipped with, and what each folder becomes. Vietnam
+#: is named here because these two folder names only ever held Vietnam.
+LEGACY_TIERS = {"provinces": ("viet-nam", "province"),
+                "communes": ("viet-nam", "commune")}
+
+#: The two roles a tier can play. Which folder plays which is decided by
+#: counting features, never by reading the folder's name: ``provinces`` sorts
+#: before ``communes`` in English and ``region`` before ``district``, but
+#: ``comuna`` sorts before ``judet`` and that would be backwards.
+COARSE, FINE = "province", "commune"
+
+
+def migrate_legacy_layout(root: Path) -> list[dict[str, Any]]:
+    """Move ``provinces/`` and ``communes/`` under ``viet-nam/``.
+
+    A rename, not a copy: the Vietnamese boundaries are 135 MB and copying them
+    to reshape a folder would be a strange thing to do to somebody's disk.
+
+    Refuses to overwrite. If ``viet-nam/province/`` already holds something,
+    the old folder is left exactly where it is and reported, because the two
+    could be different data and only the user knows which is wanted.
+    """
+    moved = []
+    for legacy, (country, tier) in LEGACY_TIERS.items():
+        source = root / legacy
+        if not source.is_dir():
+            continue
+        target = root / country / tier
+        if target.exists():
+            moved.append({"từ": legacy, "sang": f"{country}/{tier}",
+                          "trạng_thái": "bỏ_qua_vì_đích_đã_có"})
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source.rename(target)
+        moved.append({"từ": legacy, "sang": f"{country}/{tier}",
+                      "trạng_thái": "đã_chuyển"})
+    return moved
+
+
+def _has_boundary(folder: Path) -> bool:
+    return folder.is_dir() and any(
+        f.is_file() and f.suffix.lower() in BOUNDARY_SUFFIXES
+        for f in folder.iterdir())
+
+
+def countries(root: Path) -> list[str]:
+    """Country folder names, in the order they should be offered."""
+    if not root.is_dir():
+        return []
+    return sorted(d.name for d in root.iterdir()
+                  if d.is_dir() and not d.name.startswith(".")
+                  and any(_has_boundary(t) for t in d.iterdir() if t.is_dir()))
+
+
+def resolve_country(root: Path, requested: str | None = None) -> str:
+    if requested:
+        if not _has_boundary_country(root, requested):
+            raise SystemExit(msg.text("loi.không-có-quốc-gia", country=requested,
+                                      available=", ".join(countries(root)) or "-"))
+        return requested
+    found = countries(root)
+    if not found:
+        raise SystemExit(msg.text("loi.thiếu-thư-mục-shapefile", folder=root))
+    if len(found) > 1:
+        raise SystemExit(msg.text("loi.nhiều-quốc-gia",
+                                  available=", ".join(found)))
+    return found[0]
+
+
+def _has_boundary_country(root: Path, name: str) -> bool:
+    folder = root / name
+    return folder.is_dir() and any(_has_boundary(t) for t in folder.iterdir()
+                                   if t.is_dir())
+
+
+def _feature_count(path: Path) -> int | None:
+    """How many features, without reading the geometry, or None.
+
+    The commune layer is 115 MB and 3,321 features; opening it to count them on
+    every command would make the tier order cost more than the map.
+
+    None rather than an exception when the file cannot be opened, because this
+    runs while *listing* what is available. A boundary file that cannot be read
+    is a real error, but the place to raise it is where the map is drawn, with
+    a message about that file — not here, where it would take down the one
+    command whose job is to say what is present.
+    """
+    try:
+        import pyogrio
+
+        return int(pyogrio.read_info(str(path))["features"])
+    except Exception:                      # pragma: no cover - depends on driver
+        try:
+            import geopandas
+
+            return len(geopandas.read_file(path))
+        except Exception:
+            return None
+
+
+def tiers(root: Path, country: str) -> list[dict[str, Any]]:
+    """The country's tiers, coarsest first, with the role each one plays.
+
+    Order comes from the feature count. A country with one tier gets the coarse
+    role and nothing else, which is the case the old two-folder layout could
+    not express at all: a boundary set that only goes down to states could not
+    be loaded, even to draw the states.
+    """
+    folder = root / country
+    if not folder.is_dir():
+        raise SystemExit(msg.text("loi.không-có-quốc-gia", country=country,
+                                  available=", ".join(countries(root)) or "-"))
+    found = []
+    for tier in sorted(folder.iterdir()):
+        if not _has_boundary(tier):
+            continue
+        path = _one_dataset(tier)
+        found.append({"thư_mục": tier.name, "tệp": path.name,
+                      "số_đơn_vị": _feature_count(path), "__path": path})
+    # Unreadable files sort last and keep their order, so one bad file cannot
+    # silently promote itself to the coarse tier and become the country.
+    found.sort(key=lambda t: (t["số_đơn_vị"] is None, t["số_đơn_vị"] or 0))
+    for role, entry in zip((COARSE, FINE), found):
+        entry["vai_trò"] = role
+    for entry in found[2:]:
+        entry["vai_trò"] = None
+    return found
+
+
 def find_boundaries(project_root: Path, admin_level: str,
-                    override: str | None = None) -> Path:
-    """The one boundary file in a tier folder, whatever format it is in.
+                    override: str | None = None,
+                    country: str | None = None) -> Path:
+    """The one boundary file for a tier, whatever format and country.
+
+    ``admin_level`` accepts either the role — ``province`` or ``commune`` — or
+    the tier folder's own name, so a United States boundary set can be asked
+    for as ``state`` and a Vietnamese one as ``province``, and both work.
+    """
+    root = shapefile_root(project_root, override)
+    migrate_legacy_layout(root)
+    name = resolve_country(root, country)
+    available = tiers(root, name)
+    if not available:
+        raise SystemExit(msg.text("loi.thiếu-thư-mục-shapefile", folder=root / name))
+
+    for entry in available:
+        if admin_level in (entry["thư_mục"], entry.get("vai_trò")):
+            return entry["__path"]
+    raise SystemExit(msg.text(
+        "loi.không-có-tầng", level=admin_level, country=name,
+        available=", ".join(f"{t['thư_mục']} ({t['số_đơn_vị']})" for t in available)))
+
+
+def resolve_tier(project_root: Path, admin_level: str,
+                 override: str | None = None,
+                 country: str | None = None) -> dict[str, Any]:
+    """The tier entry a request names, whether by role or by folder name.
+
+    Everything downstream asks ``admin_level == "commune"`` to decide how to
+    behave, so a request for a folder called ``district`` has to become the
+    role ``commune`` here and not somewhere later. Leaving the folder name in
+    circulation would send a fine tier down every coarse-tier branch, quietly.
+    """
+    root = shapefile_root(project_root, override)
+    migrate_legacy_layout(root)
+    name = resolve_country(root, country)
+    for entry in tiers(root, name):
+        if admin_level in (entry["thư_mục"], entry.get("vai_trò")):
+            return {**entry, "quốc_gia": name}
+    raise SystemExit(msg.text(
+        "loi.không-có-tầng", level=admin_level, country=name,
+        available=", ".join(f"{t['thư_mục']} ({t['số_đơn_vị']})"
+                            for t in tiers(root, name))))
+
+
+def _one_dataset(folder: Path) -> Path:
+    """The single boundary dataset in a tier folder.
 
     A tier folder holds exactly one dataset. Two datasets in one folder is the
     kind of mistake that draws the wrong map without anyone noticing, so it is
     refused by name rather than resolved by sorting.
     """
-    folder = shapefile_root(project_root, override) / (
-        "provinces" if admin_level == "province" else "communes")
     if not folder.exists():
         raise SystemExit(msg.text("loi.thiếu-thư-mục-shapefile", folder=folder))
 
@@ -478,7 +650,8 @@ def _encoding_repair(gdf, path: Path) -> dict[str, Any] | None:
 
 
 def load_shapes(deps: Deps, project_root: Path, admin_level: str,
-                override: str | None = None, notes: list | None = None):
+                override: str | None = None, notes: list | None = None,
+                country: str | None = None):
     """The boundary frame for one tier, in whatever format it was supplied.
 
     Reading is the same call for all three formats — the driver is chosen from
@@ -486,7 +659,7 @@ def load_shapes(deps: Deps, project_root: Path, admin_level: str,
     shapefile whose codepage was never recorded. A repair is never silent: it
     is appended to ``notes`` so the caller can say what it changed.
     """
-    path = find_boundaries(project_root, admin_level, override)
+    path = find_boundaries(project_root, admin_level, override, country)
     gdf = deps.gpd.read_file(path)
 
     repair = _encoding_repair(gdf, path)
@@ -605,17 +778,18 @@ _CRS_CACHE: dict[str, str] = {}
 
 
 def run_thematic_crs(deps: Deps, project_root: Path,
-                     override: str | None = None) -> str:
+                     override: str | None = None,
+                     country: str | None = None) -> str:
     """The projection for this run, taken from the province tier.
 
     The province tier rather than whichever tier is being drawn, because a map
     of the communes of one province must sit in the same projection as the
     national locator beside it.
     """
-    key = str(find_boundaries(project_root, "province", override))
+    key = str(find_boundaries(project_root, COARSE, override, country))
     if key not in _CRS_CACHE:
-        _CRS_CACHE[key] = thematic_crs(load_shapes(deps, project_root, "province",
-                                                   override))
+        _CRS_CACHE[key] = thematic_crs(
+            load_shapes(deps, project_root, COARSE, override, country=country))
     return _CRS_CACHE[key]
 
 
