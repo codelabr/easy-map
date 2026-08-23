@@ -1299,6 +1299,21 @@ TEXT: dict[str, dict[str, str]] = {
         "en": "More than one boundary dataset in {folder}, so there is no way to tell which "
               "to draw: {files}. A tier folder holds exactly one dataset.",
     },
+    "liet-ke.chưa-có-geopandas": {
+        "vi": "chưa cài geopandas nên chưa đọc được hồ sơ quốc gia",
+        "en": "geopandas is not installed, so the country profile was not read",
+    },
+    "loi.là-đường-viền-quốc-gia": {
+        "vi": "Tệp này là đường viền của cả quốc gia, không phải một cấp hành chính "
+              "({evidence}). Hãy đặt tệp cấp tỉnh/bang vào thư mục cấp.",
+        "en": "This file is the outline of the whole country, not an administrative "
+              "tier ({evidence}). Put the province- or state-level file in the tier "
+              "folder instead.",
+    },
+    "loi.không-tìm-được-cột-tên": {
+        "vi": "Không tìm được cột tên địa danh cho cấp '{level}'. {evidence}",
+        "en": "No place-name column found for the '{level}' tier. {evidence}",
+    },
     "loi.không-có-quốc-gia": {
         "vi": "Không có dữ liệu ranh giới cho '{country}'. Đang có: {available}",
         "en": "No boundary data for '{country}'. Available: {available}",

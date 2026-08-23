@@ -38,7 +38,7 @@ import unittest
 from pathlib import Path
 
 import context  # noqa: F401  (path bootstrap)
-from emap import dataio, furniture, insets, matching, semantics
+from emap import dataio, detect, furniture, insets, matching, semantics
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "countries"
@@ -773,6 +773,211 @@ class TestTheFolderLayout(OwnBoundariesOnly):
             self.assertIsNone(order[1]["số_đơn_vị"])
 
 
+class TestReadingWhatAFileIs(unittest.TestCase):
+    """Three named schemes and a general path, and what separates them."""
+
+    def frame(self, columns: dict, rows: int | None = None):
+        gpd = geopandas_or_skip()
+        import shapely.geometry as sg
+
+        count = rows if rows is not None else len(next(iter(columns.values())))
+        return gpd.GeoDataFrame(columns,
+                                geometry=[sg.box(i, 0, i + 1, 1) for i in range(count)],
+                                crs="EPSG:4326")
+
+    def test_the_vietnamese_schema_is_read_from_its_own_columns(self):
+        reading = detect.identify(vietnam("commune"))
+        self.assertEqual(reading["bộ"], detect.VIETNAM)
+        self.assertEqual(reading["cột_tên"], "ten_xa")
+        self.assertEqual(reading["cột_cha"], "ten_tinh")
+        self.assertEqual(reading["cột_sáp_nhập"], "sap_nhap")
+        self.assertEqual(reading["độ_tin_cậy"], detect.SURE)
+
+    def test_gadm_is_read_by_its_level_number(self):
+        district = detect.identify(fixture("shp", "district"))
+        self.assertEqual(district["bộ"], detect.GADM)
+        self.assertEqual((district["cột_tên"], district["cột_cha"]), ("NAME_2", "NAME_1"))
+        self.assertEqual(district["cấp"], 2)
+        self.assertEqual(district["quốc_gia"], "Fictavia")
+
+    def test_a_gadm_country_outline_is_not_a_tier(self):
+        """The trap a real download springs.
+
+        A GADM archive holds levels 0 to 3, and level 0 is the outline of the
+        whole country: one feature, no ``NAME_1``, and therefore the *smallest*
+        tier in the set. Ranked by size it takes the coarsest role, and every
+        province in the user's table is then matched against a single shape
+        called "Vietnam".
+        """
+        outline = self.frame({"GID_0": ["XFA"], "COUNTRY": ["Fictavia"]})
+        reading = detect.identify(outline)
+        self.assertEqual(reading["bộ"], detect.GADM)
+        self.assertEqual(reading["cấp"], 0)
+        self.assertTrue(reading["là_đường_viền_quốc_gia"])
+        with self.assertRaises(SystemExit):
+            dataio.shape_fields(outline, dataio.COARSE)
+
+    def test_geoboundaries_is_read_from_shape_name_and_group(self):
+        reading = detect.identify(self.frame({
+            "shapeName": ["An Giang", "Bắc Ninh"], "shapeISO": ["VN-44", "VN-56"],
+            "shapeID": ["a", "b"], "shapeGroup": ["VNM", "VNM"],
+            "shapeType": ["ADM1", "ADM1"]}))
+        self.assertEqual(reading["bộ"], detect.GEOBOUNDARIES)
+        self.assertEqual(reading["cột_tên"], "shapeName")
+        self.assertEqual((reading["quốc_gia"], reading["cấp"]), ("VNM", 1))
+
+    def test_the_general_path_does_not_pick_a_column_of_one_repeated_value(self):
+        """The mistake the first draft of this made, twice over.
+
+        A US state file carries ``TYPE``, reading "Land" for all 53 rows, and a
+        Canadian one carries ``source``, holding the same URL 13 times. Both
+        are text, both are the right length, and the first scoring rule gave
+        them the same perfect mark as the name column beside them.
+        """
+        reading = detect.identify(self.frame({
+            "NAME": ["Arkansas", "Colorado", "Delaware", "Florida"],
+            "TYPE": ["Land"] * 4,
+            "source": ["https://example.invalid"] * 4}))
+        self.assertEqual(reading["cột_tên"], "NAME")
+
+    def test_the_general_path_does_not_pick_a_two_letter_code(self):
+        """``AR`` and ``05`` vary as much as ``Arkansas`` does — every value
+        distinct — so variety cannot separate them. Length can: every real
+        name column measured has a median of 8 or more, every code 4 or less."""
+        reading = detect.identify(self.frame({
+            "STATE_ABBR": ["AR", "CO", "DE", "FL"],
+            "STATE_FIPS": ["05", "08", "10", "12"],
+            "NAME": ["Arkansas", "Colorado", "Delaware", "Florida"]}))
+        self.assertEqual(reading["cột_tên"], "NAME")
+        self.assertEqual(reading["độ_tin_cậy"], detect.LIKELY)
+        self.assertIn("STATE_ABBR", reading["bằng_chứng"])
+
+    def test_a_photo_finish_becomes_a_question_rather_than_a_decision(self):
+        """Picking wrong here labels every unit on the map with the wrong
+        string and nothing downstream notices, so a close call has to reach
+        the user rather than be settled quietly."""
+        reading = detect.identify(self.frame({
+            "ten_a": ["Alpha One", "Beta Two", "Gamma Three"],
+            "ten_b": ["Delta Four", "Epsilon Five", "Zeta Six"]}))
+        self.assertEqual(reading["độ_tin_cậy"], detect.ASK)
+
+    def test_nothing_readable_is_said_so_rather_than_guessed_at(self):
+        reading = detect.identify(self.frame({"a": ["1", "2"], "b": ["3", "4"]}))
+        self.assertIsNone(reading["cột_tên"])
+        self.assertEqual(reading["độ_tin_cậy"], detect.ASK)
+
+    def test_the_parent_link_is_found_by_matching_the_other_tier(self):
+        """The one piece of evidence a code column cannot fake. It is checked
+        against the real files rather than a schema claim, because a schema
+        that does not survive its own check is worth knowing about."""
+        link = detect.link_tiers(vietnam("province"),
+                                 detect.identify(vietnam("province")),
+                                 vietnam("commune"),
+                                 detect.identify(vietnam("commune")))
+        self.assertEqual(link["cột_cha"], "ten_tinh")
+        self.assertEqual(link["độ_tin_cậy"], detect.SURE)
+        self.assertIn("3321/3321", link["bằng_chứng"])
+
+    def test_tiers_that_do_not_line_up_are_reported_rather_than_joined(self):
+        coarse = self.frame({"ten_tinh": ["Hà Nội", "Huế"]})
+        fine = self.frame({"ten_xa": ["Ba Đình", "Cửa Nam"],
+                           "ten_tinh": ["Nowhere", "Elsewhere"]})
+        link = detect.link_tiers(coarse, detect.identify(coarse),
+                                 fine, detect.identify(fine))
+        self.assertEqual(link["độ_tin_cậy"], detect.ASK)
+
+
+class TestTheCountryProfile(OwnBoundariesOnly):
+    """One reading per country, kept beside the boundaries, with its evidence."""
+
+    def country(self, folder, **tiers):
+        gpd = geopandas_or_skip()
+        import shapely.geometry as sg
+
+        root = Path(folder) / "shapefiles"
+        for tier, columns in tiers.items():
+            place = root / "atlantis" / tier
+            place.mkdir(parents=True)
+            count = len(next(iter(columns.values())))
+            gpd.GeoDataFrame(
+                columns,
+                geometry=[sg.box(i, 0, i + 1, 1) for i in range(count)],
+                crs="EPSG:4326").to_file(place / f"{tier}.shp")
+        return root
+
+    def test_it_records_the_reading_the_projection_and_the_link(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.country(
+                folder,
+                region={"NAME_1": ["Ardenne", "Beluar"], "GID_0": ["ATL", "ATL"],
+                        "COUNTRY": ["Atlantis", "Atlantis"]},
+                district={"NAME_2": ["Alder", "Brann", "Calvet", "Dorne"],
+                          "NAME_1": ["Ardenne", "Ardenne", "Beluar", "Beluar"],
+                          "GID_0": ["ATL"] * 4})
+            reading = dataio.read_country(dataio.load(require_geo=True),
+                                          root, "atlantis")
+
+        self.assertEqual(reading["nhận_diện"]["bộ"], detect.GADM)
+        self.assertEqual(reading["tên_quốc_gia"], "Atlantis")
+        self.assertIn("+proj=aea", reading["phép_chiếu"]["crs"])
+        self.assertEqual(reading["cha_con"]["cột_cha"], "NAME_1")
+        self.assertIn("4/4", reading["cha_con"]["bằng_chứng"])
+        self.assertEqual([t["vai_trò"] for t in reading["tầng"]],
+                         [dataio.COARSE, dataio.FINE])
+
+    def test_it_is_written_once_and_read_back(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.country(folder, region={"NAME_1": ["Ardenne", "Beluar"],
+                                                "GID_0": ["ATL", "ATL"]})
+            deps = dataio.load(require_geo=True)
+            first = dataio.read_country(deps, root, "atlantis")
+            self.assertTrue((root / dataio.PROFILE).is_file())
+            again = dataio.read_country(deps, root, "atlantis")
+        self.assertEqual(first, again)
+
+    def test_adding_a_tier_invalidates_it(self):
+        """Kept by file name and size rather than by contents: hashing 135 MB
+        on every command to notice a file nobody touched would cost more than
+        the reading it protects."""
+        gpd = geopandas_or_skip()
+        import shapely.geometry as sg
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.country(folder, region={"NAME_1": ["Ardenne", "Beluar"],
+                                                "GID_0": ["ATL", "ATL"]})
+            deps = dataio.load(require_geo=True)
+            before = dataio.read_country(deps, root, "atlantis")
+            self.assertEqual(len(before["tầng"]), 1)
+
+            place = root / "atlantis" / "district"
+            place.mkdir()
+            gpd.GeoDataFrame(
+                {"NAME_2": ["Alder", "Brann", "Calvet"], "GID_0": ["ATL"] * 3,
+                 "NAME_1": ["Ardenne", "Ardenne", "Beluar"]},
+                geometry=[sg.box(i, 0, i + 1, 1) for i in range(3)],
+                crs="EPSG:4326").to_file(place / "district.shp")
+
+            after = dataio.read_country(deps, root, "atlantis")
+        self.assertEqual(len(after["tầng"]), 2)
+        self.assertNotEqual(before["__nguồn"], after["__nguồn"])
+
+    def test_a_country_outline_dropped_in_beside_the_tiers_takes_no_role(self):
+        """A GADM archive unpacked wholesale is the case this guards."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.country(
+                folder,
+                whole={"GID_0": ["ATL"], "COUNTRY": ["Atlantis"]},
+                region={"NAME_1": ["Ardenne", "Beluar"], "GID_0": ["ATL", "ATL"]})
+            order = dataio.tiers(root, "atlantis")
+            roles = {t["thư_mục"]: t["vai_trò"] for t in order}
+
+            self.assertIsNone(roles["whole"])
+            self.assertEqual(roles["region"], dataio.COARSE)
+            self.assertEqual(
+                dataio.find_boundaries(Path(folder), dataio.COARSE).parent.name,
+                "region")
+
+
 class TestARepairedCodepage(OwnBoundariesOnly):
 
     def frame_in(self, folder, names, codepage: bool):
@@ -869,23 +1074,37 @@ class TestWhatIsStillPinnedToVietnam(unittest.TestCase):
     between a generalisation and a silent return to Vietnam-only.
     """
 
-    def test_the_name_columns_do_not_recognise_gadm(self):
-        """``dataio.shape_fields`` looks for ``ten_tinh`` and four other
-        Vietnamese spellings, so a GADM frame raises. Wave 3."""
-        with self.assertRaises(SystemExit):
-            dataio.shape_fields(fixture("shp", "region"), "province")
-        with self.assertRaises(SystemExit):
-            dataio.shape_fields(fixture("shp", "district"), "commune")
+    def test_the_gadm_schema_is_now_read_rather_than_refused(self):
+        """This line used to record the opposite.
 
-    def test_name_matched_by_accident_would_have_been_worse_than_raising(self):
-        """``name`` is in both lists, and KML gives every feature a ``Name``.
-
-        So the KML fixture does not raise — it matches, on a column that is
-        the right one here purely by luck. Loud failure on the shapefile and
-        quiet success on the KML is the shape of the risk in wave 1.
+        ``shape_fields`` looked ``ten_tinh`` up in a list of five spellings and
+        raised on anything else, so a GADM frame could not be drawn at all. It
+        now asks ``detect`` what the file is, and the two fixed lists are gone
+        from the module.
         """
-        found = dataio.shape_fields(fixture("kml", "region"), "province")
-        self.assertEqual(found["province"], "Name")
+        self.assertEqual(dataio.shape_fields(fixture("shp", "region"), "province"),
+                         {"province": "NAME_1", "commune": None})
+        self.assertEqual(dataio.shape_fields(fixture("shp", "district"), "commune"),
+                         {"province": "NAME_1", "commune": "NAME_2"})
+        self.assertFalse(hasattr(dataio, "PROVINCE_NAME_FIELDS"))
+        self.assertFalse(hasattr(dataio, "COMMUNE_NAME_FIELDS"))
+
+    def test_the_same_answer_comes_back_from_all_three_formats(self):
+        """This line used to record an accident.
+
+        ``name`` was in both fixed lists and KML gives every feature a
+        ``Name``, so the KML fixture matched — on a column that was right
+        there purely by luck, while the shapefile of the same data raised.
+        Loud failure on one format and quiet luck on another was the shape of
+        the risk. The reading is now taken from the schema, so all three
+        formats answer the same.
+        """
+        for tier, role, expected in (
+                ("region", "province", {"province": "NAME_1", "commune": None}),
+                ("district", "commune", {"province": "NAME_1", "commune": "NAME_2"})):
+            for kind in ("shp", "geojson", "kml"):
+                self.assertEqual(dataio.shape_fields(fixture(kind, tier), role),
+                                 expected, f"{kind}/{tier}")
 
     def test_a_country_can_now_be_asked_for_by_name(self):
         """This line used to record the opposite.

@@ -171,8 +171,21 @@ def command_list(args: argparse.Namespace) -> None:
     moved = dataio.migrate_legacy_layout(boundary_root)
     available = {}
     for name in dataio.countries(boundary_root):
-        available[name] = [{k: v for k, v in tier.items() if not k.startswith("__")}
-                           for tier in dataio.tiers(boundary_root, name)]
+        entry = {"tầng": [{k: v for k, v in tier.items() if not k.startswith("__")}
+                          for tier in dataio.tiers(boundary_root, name)]}
+        # Reading a country means opening its boundary files, which needs
+        # geopandas. ``list`` is the command someone runs when something is
+        # wrong, so it answers what it can without it rather than refusing.
+        if deps.gpd is None:
+            entry["hồ_sơ"] = messages.text("liet-ke.chưa-có-geopandas")
+        else:
+            try:
+                reading = dataio.read_country(deps, boundary_root, name)
+                entry.update({k: v for k, v in reading.items()
+                              if k not in ("__nguồn", "tầng")})
+            except Exception as exc:        # a country that cannot be read is
+                entry["không_đọc_được"] = str(exc)   # reported, not fatal
+        available[name] = entry
 
     # The per-tier paths are only meaningful when there is one country to be
     # meaningful about. With several installed, "quốc_gia" above already says

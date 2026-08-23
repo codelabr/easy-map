@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
-from . import messages as msg
+from . import detect, messages as msg
 
 EXCEL_SUFFIXES = (".xlsx", ".xlsm", ".xls")
 
@@ -47,10 +47,6 @@ _FORMAT_ORDER = {suffix: i for i, suffix in enumerate(BOUNDARY_SUFFIXES)}
 #: table is simply absent, and the reader's own message names neither.
 _SHAPEFILE_SIDECARS = (".shx", ".dbf")
 
-PROVINCE_NAME_FIELDS = ["ten_tinh", "province", "ten_tinh_tp", "name"]
-COMMUNE_NAME_FIELDS = ["ten_xa", "commune", "ten_phuong_xa", "name"]
-
-
 @dataclass
 class Deps:
     pd: Any
@@ -66,6 +62,18 @@ def load(require_geo: bool = True, require_plot: bool = False) -> Deps:
         raise SystemExit(msg.text("loi.thiếu-thư-viện", library="pandas")) from exc
 
     deps = Deps(pd=pd)
+    if not require_geo:
+        # Not required is not the same as not wanted. ``list`` runs without
+        # geopandas on purpose — it is the command someone reaches for when
+        # something is broken — but where the library is there, it can say a
+        # great deal more, and refusing to look would be a strange way to keep
+        # a promise about not requiring it.
+        try:
+            import geopandas as gpd
+
+            deps.gpd = gpd
+        except ImportError:
+            pass
     if require_geo:
         try:
             import geopandas as gpd
@@ -305,10 +313,29 @@ def tiers(root: Path, country: str) -> list[dict[str, Any]]:
     # Unreadable files sort last and keep their order, so one bad file cannot
     # silently promote itself to the coarse tier and become the country.
     found.sort(key=lambda t: (t["số_đơn_vị"] is None, t["số_đơn_vị"] or 0))
-    for role, entry in zip((COARSE, FINE), found):
-        entry["vai_trò"] = role
-    for entry in found[2:]:
+
+    # A GADM download holds four files and the first of them is the outline of
+    # the whole country: one feature, and therefore the smallest tier of the
+    # set. Ranked by size it would take the coarsest role and every province
+    # would be matched against a single shape called "Vietnam". The file is
+    # opened only when the count is one, which costs one feature to read.
+    for entry in found:
+        entry["là_đường_viền_quốc_gia"] = False
+        if entry["số_đơn_vị"] == 1:
+            try:
+                import geopandas
+
+                frame = geopandas.read_file(entry["__path"])
+            except Exception:               # pragma: no cover - depends on driver
+                continue
+            entry["là_đường_viền_quốc_gia"] = bool(
+                detect.identify(frame).get("là_đường_viền_quốc_gia"))
+
+    ranked = [t for t in found if not t["là_đường_viền_quốc_gia"]]
+    for entry in found:
         entry["vai_trò"] = None
+    for role, entry in zip((COARSE, FINE), ranked):
+        entry["vai_trò"] = role
     return found
 
 
@@ -329,6 +356,8 @@ def find_boundaries(project_root: Path, admin_level: str,
         raise SystemExit(msg.text("loi.thiếu-thư-mục-shapefile", folder=root / name))
 
     for entry in available:
+        if entry.get("là_đường_viền_quốc_gia"):
+            continue
         if admin_level in (entry["thư_mục"], entry.get("vai_trò")):
             return entry["__path"]
     raise SystemExit(msg.text(
@@ -350,6 +379,8 @@ def resolve_tier(project_root: Path, admin_level: str,
     migrate_legacy_layout(root)
     name = resolve_country(root, country)
     for entry in tiers(root, name):
+        if entry.get("là_đường_viền_quốc_gia"):
+            continue
         if admin_level in (entry["thư_mục"], entry.get("vai_trò")):
             return {**entry, "quốc_gia": name}
     raise SystemExit(msg.text(
@@ -673,15 +704,36 @@ def load_shapes(deps: Deps, project_root: Path, admin_level: str,
     return gdf
 
 
-def shape_fields(gdf, admin_level: str) -> dict[str, str]:
-    cols = {c.lower(): c for c in gdf.columns}
-    province = next((cols[c] for c in PROVINCE_NAME_FIELDS if c in cols), None)
-    commune = next((cols[c] for c in COMMUNE_NAME_FIELDS if c in cols), None)
-    if admin_level == "province" and province is None:
-        raise SystemExit(f"Shapefile tỉnh thiếu cột tên tỉnh. Có: {list(gdf.columns)}")
-    if admin_level == "commune" and commune is None:
-        raise SystemExit(f"Shapefile xã thiếu cột tên xã. Có: {list(gdf.columns)}")
-    return {"province": province, "commune": commune}
+def shape_fields(gdf, admin_level: str) -> dict[str, str | None]:
+    """Where the names are, in the two slots the rest of the engine expects.
+
+    ``province`` is the coarse tier's name column, or — on a fine-tier frame —
+    the column naming its parent. ``commune`` is the fine tier's own name
+    column. The two slots are older than the multi-country work and the names
+    on them are Vietnamese, but they are roles rather than places, and the
+    engine branches on them in a dozen spots; renaming them would be a large
+    change with no reader benefit.
+
+    What is new is that neither is looked up in a fixed list any more. The list
+    held ``ten_tinh`` and four spellings around it, which is right for exactly
+    one dataset in the world.
+    """
+    reading = detect.identify(gdf)
+    if reading.get("là_đường_viền_quốc_gia"):
+        raise SystemExit(msg.text("loi.là-đường-viền-quốc-gia",
+                                  evidence=reading["bằng_chứng"]))
+
+    name = reading.get("cột_tên")
+    if name is None:
+        raise SystemExit(msg.text("loi.không-tìm-được-cột-tên", level=admin_level,
+                                  evidence=reading["bằng_chứng"]))
+    # Two keys and no more. The reading that produced them, with its evidence,
+    # belongs in the country profile where an agent can read it once; carried
+    # back here it would ride along inside a dict a dozen callers index by
+    # name and none of them expect to be a report.
+    if admin_level == FINE:
+        return {"province": reading.get("cột_cha"), "commune": name}
+    return {"province": name, "commune": None}
 
 
 #: Latitude beyond which a standard parallel stops meaning anything.
@@ -786,11 +838,98 @@ def run_thematic_crs(deps: Deps, project_root: Path,
     of the communes of one province must sit in the same projection as the
     national locator beside it.
     """
-    key = str(find_boundaries(project_root, COARSE, override, country))
+    root = shapefile_root(project_root, override)
+    migrate_legacy_layout(root)
+    name = resolve_country(root, country)
+    key = f"{root}|{name}"
     if key not in _CRS_CACHE:
-        _CRS_CACHE[key] = thematic_crs(
-            load_shapes(deps, project_root, COARSE, override, country=country))
+        # Read, not recomputed. The profile already decided this, with its
+        # evidence beside it; deriving it a second time here would be a second
+        # chance to answer differently.
+        _CRS_CACHE[key] = read_country(deps, root, name)["phép_chiếu"]["crs"]
     return _CRS_CACHE[key]
+
+
+#: Where the reading of each country is kept, beside the boundaries it
+#: describes rather than inside any one project, because the boundaries are one
+#: shared set and the reading belongs to them.
+PROFILE = "ho_so_quoc_gia.json"
+
+
+def _profile_key(root: Path, country: str) -> list[str]:
+    """What the profile was read from, so a changed folder invalidates it.
+
+    Names and sizes, not contents: hashing 135 MB on every command to notice a
+    file nobody touched would cost more than the reading it protects.
+    """
+    key = []
+    for tier in sorted((root / country).iterdir()):
+        if not tier.is_dir():
+            continue
+        for f in sorted(tier.iterdir()):
+            if f.is_file():
+                key.append(f"{tier.name}/{f.name}:{f.stat().st_size}")
+    return key
+
+
+def read_country(deps: Deps, root: Path, country: str,
+                 rebuild: bool = False) -> dict[str, Any]:
+    """Everything inferred about one country, computed once and kept.
+
+    Every command needs the same handful of answers — which column holds the
+    names, which tier is which, where to centre the projection — and each is a
+    decision. Made separately in five places they are five chances to disagree
+    by a hundredth of a degree or by one column, which is the kind of
+    difference nobody sees until a map is wrong.
+
+    Each field carries where it came from and what the evidence was. The
+    evidence is not decoration: an agent reading "34/34 of the finer tier's
+    parents are known names" can keep quiet, and one reading "26/34" has to
+    ask, and nothing but the evidence separates those two.
+    """
+    store = root / PROFILE
+    try:
+        saved = json.loads(store.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        saved = {}
+    key = _profile_key(root, country)
+    if not rebuild and saved.get(country, {}).get("__nguồn") == key:
+        return saved[country]
+
+    reading: dict[str, Any] = {"__nguồn": key, "tầng": []}
+    frames = {}
+    for entry in tiers(root, country):
+        gdf = deps.gpd.read_file(entry["__path"])
+        found = detect.identify(gdf)
+        frames[entry["thư_mục"]] = (gdf, found)
+        reading["tầng"].append({
+            "thư_mục": entry["thư_mục"], "tệp": entry["tệp"],
+            "số_đơn_vị": entry["số_đơn_vị"], "vai_trò": entry.get("vai_trò"),
+            "cột_tên": found.get("cột_tên"), "cấp": found.get("cấp"),
+            "là_đường_viền_quốc_gia": bool(found.get("là_đường_viền_quốc_gia")),
+        })
+
+    named = [t for t in reading["tầng"] if not t["là_đường_viền_quốc_gia"]]
+    first = frames.get(named[0]["thư_mục"]) if named else None
+    if first is not None:
+        gdf, found = first
+        reading["nhận_diện"] = {k: found[k] for k in ("bộ", "độ_tin_cậy", "bằng_chứng")}
+        reading["tên_quốc_gia"] = found.get("quốc_gia")
+        reading["phép_chiếu"] = {
+            "crs": thematic_crs(gdf), "nguồn": "suy diễn từ hình học của tầng thô",
+            "bằng_chứng": f"hộp bao {[round(float(v), 4) for v in gdf.total_bounds]}",
+        }
+    if len(named) > 1:
+        coarse, fine = frames[named[0]["thư_mục"]], frames[named[1]["thư_mục"]]
+        reading["cha_con"] = detect.link_tiers(coarse[0], coarse[1], fine[0], fine[1])
+
+    saved[country] = reading
+    try:
+        store.write_text(json.dumps(saved, ensure_ascii=False, indent=1),
+                         encoding="utf-8")
+    except OSError:            # a read-only boundary folder is not an error
+        pass
+    return reading
 
 
 def to_thematic_crs(gdf, crs: str):

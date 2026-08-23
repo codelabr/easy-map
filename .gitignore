@@ -5,6 +5,7 @@ output/*
 !output/.gitkeep
 
 shapefiles/*/
+shapefiles/ho_so_quoc_gia.json
 
 slidedeck/
 easy-map-introduction.html
