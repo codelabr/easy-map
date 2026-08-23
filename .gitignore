@@ -8,9 +8,14 @@ shapefiles/provinces/
 shapefiles/communes/
 
 slidedeck/
+easy-map-introduction.html
+easy-map-introduction.pptx
+easy-map-gioi-thieu.html
+easy-map-gioi-thieu.pptx
 docs/
 tools/build_abstract_docx.py
 tools/check_abstract_pages.py
+tools/build_guide_docx.py
 
 .uv-cache/
 .uv-python/
