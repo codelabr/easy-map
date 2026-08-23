@@ -87,7 +87,7 @@ This boundary is the point of the project:
 | Asks the questions that are the user's to answer | Runs 17 cartographic checks before drawing |
 
 **Not one figure on the map comes from the language model.** All of the
-arithmetic lives in `skills/easy-map/scripts/emap/`, under more than 550
+arithmetic lives in `skills/easy-map/scripts/emap/`, under more than 600
 automated tests.
 
 ## Limitations
