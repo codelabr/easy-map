@@ -204,30 +204,73 @@ class TestWhereTheBoundariesLive(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         self.project = Path(self.tmp) / "work"
         (self.project / "shapefiles" / "provinces").mkdir(parents=True)
-        (self.project / "shapefiles" / "provinces" / "inside.shp").write_text("x")
+        self._shapefile(self.project / "shapefiles" / "provinces" / "inside.shp")
         self.shared = Path(self.tmp) / "boundaries"
         (self.shared / "provinces").mkdir(parents=True)
-        (self.shared / "provinces" / "outside.shp").write_text("x")
+        self._shapefile(self.shared / "provinces" / "outside.shp")
         os.environ.pop(dataio.SHAPEFILE_ENV, None)
         self.addCleanup(os.environ.pop, dataio.SHAPEFILE_ENV, None)
 
+    @staticmethod
+    def _shapefile(path: Path):
+        """A shapefile is four files, not one.
+
+        These tests are about *where* the search looks, so the contents are
+        irrelevant — but the companions have to exist, because a lone ``.shp``
+        is now refused by name instead of being handed on to a reader whose own
+        message explains nothing.
+        """
+        path.write_text("x")
+        for companion in (".shx", ".dbf"):
+            path.with_suffix(companion).write_text("x")
+
     def test_without_a_setting_it_looks_inside_the_project(self):
-        found = dataio.find_shapefile(self.project, "province")
+        found = dataio.find_boundaries(self.project, "province")
         self.assertEqual(found.name, "inside.shp")
 
     def test_the_environment_variable_moves_the_search(self):
         os.environ[dataio.SHAPEFILE_ENV] = str(self.shared)
-        found = dataio.find_shapefile(self.project, "province")
+        found = dataio.find_boundaries(self.project, "province")
         self.assertEqual(found.name, "outside.shp")
 
     def test_an_explicit_override_beats_the_environment(self):
         os.environ[dataio.SHAPEFILE_ENV] = str(Path(self.tmp) / "nowhere")
-        found = dataio.find_shapefile(self.project, "province", override=str(self.shared))
+        found = dataio.find_boundaries(self.project, "province", override=str(self.shared))
         self.assertEqual(found.name, "outside.shp")
 
     def test_a_missing_shared_folder_is_reported_by_its_own_path(self):
         missing = Path(self.tmp) / "gone"
         os.environ[dataio.SHAPEFILE_ENV] = str(missing)
         with self.assertRaises(SystemExit) as raised:
-            dataio.find_shapefile(self.project, "province")
+            dataio.find_boundaries(self.project, "province")
         self.assertIn(str(missing), str(raised.exception))
+
+    def test_a_lone_shp_is_refused_by_name(self):
+        """Without .shx there is no geometry and without .dbf no attributes.
+        The reader's own error for this names neither file."""
+        for companion in (".shx", ".dbf"):
+            (self.shared / "provinces" / "outside").with_suffix(companion).unlink()
+        os.environ[dataio.SHAPEFILE_ENV] = str(self.shared)
+        with self.assertRaises(SystemExit) as raised:
+            dataio.find_boundaries(self.project, "province")
+        self.assertIn(".shx", str(raised.exception))
+        self.assertIn(".dbf", str(raised.exception))
+
+    def test_two_datasets_in_one_folder_is_refused_rather_than_sorted(self):
+        """Picking the alphabetically first of two would draw a map from a file
+        nobody chose, and nothing downstream would look wrong."""
+        (self.shared / "provinces" / "another.geojson").write_text("{}")
+        os.environ[dataio.SHAPEFILE_ENV] = str(self.shared)
+        with self.assertRaises(SystemExit) as raised:
+            dataio.find_boundaries(self.project, "province")
+        self.assertIn("another.geojson", str(raised.exception))
+        self.assertIn("outside.shp", str(raised.exception))
+
+    def test_the_same_data_offered_in_two_formats_is_not_a_conflict(self):
+        """``outside.shp`` beside ``outside.geojson`` is one dataset written
+        twice, which is a reasonable thing for a folder to hold. The shapefile
+        wins because it is the one that keeps its column types."""
+        (self.shared / "provinces" / "outside.geojson").write_text("{}")
+        os.environ[dataio.SHAPEFILE_ENV] = str(self.shared)
+        self.assertEqual(dataio.find_boundaries(self.project, "province").name,
+                         "outside.shp")

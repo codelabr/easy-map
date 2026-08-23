@@ -23,7 +23,7 @@ Four properties are deliberate, and each one breaks a pinned constant:
   all, because GADM carries no population or area.
 * **Detached territory of its own.** Two island squares far to the east, so that
   inferring a central meridian from the whole bounding box is wrong here for the
-  same reason it is wrong for Vietnam — and by a much wider margin, 3.75 degrees
+  same reason it is wrong for Vietnam — and by a much wider margin, 3.70 degrees
   against 0.39.
 
 The name column also repeats across regions, six times out of forty, so that
@@ -33,8 +33,17 @@ a fixture without it would let a wrong heuristic through.
 
 Written three times over — shapefile, GeoJSON, KML — under three separate roots,
 because a tier folder holds exactly one dataset. The three must draw the same
-map; that is what wave 1 is for. KML keeps only a name and a description by
-design, which is the honest thing for the fixture to show rather than hide.
+map; that is what wave 1 is for.
+
+All three carry the whole attribute table, KML included. An earlier version of
+this file threw the columns away before writing the KML and then reported the
+loss as a property of the format; it was a property of this script. A real KML
+declares a ``<Schema>`` of ``SimpleField`` entries and hangs the values off each
+feature, and every column survives. What KML does do is quieter and worth the
+fixture carrying honestly: it adds twelve presentation fields of its own, it
+promotes a column literally called ``NAME`` into its own ``<name>`` element so
+that the column disappears under that heading, and the writer here declares
+every field as ``type="string"`` — so a count read back from KML is text.
 """
 
 from __future__ import annotations
@@ -193,12 +202,6 @@ def write(frame, kind: str, tier: str, log) -> None:
         shutil.rmtree(folder)
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{COUNTRY}_{tier}{suffix}"
-    if kind == "kml":
-        # KML has no place for an attribute table. Handing the writer thirteen
-        # columns produces a file that silently keeps two of them; naming the
-        # loss here means the fixture demonstrates it instead of hiding it.
-        frame = frame[[("NAME_1" if tier == "region" else "NAME_2"), "geometry"]]
-        frame = frame.rename(columns={frame.columns[0]: "Name"})
     frame.to_file(path, driver=driver)
     kept = ", ".join(c for c in frame.columns if c != "geometry")
     print(f"  {path.relative_to(ROOT)}  ({len(frame)} features; {kept})", file=log)

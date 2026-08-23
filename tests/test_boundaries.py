@@ -32,6 +32,8 @@ are in the plan; the values are repeated here so a failure says what it broke.
 from __future__ import annotations
 
 import glob
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -176,7 +178,7 @@ class TestVietnamStaysDrawnTheSameWay(unittest.TestCase):
         for tier, folder in VN_TIERS.items():
             if not sorted(glob.glob(str(folder / "*.shp"))):
                 self.skipTest(f"chưa giải nén {folder.name}/")
-            found = dataio.find_shapefile(ROOT, tier)
+            found = dataio.find_boundaries(ROOT, tier)
             self.assertEqual(found.parent.name, folder.name)
             self.assertEqual(found.suffix, ".shp")
 
@@ -186,24 +188,56 @@ class TestVietnamStaysDrawnTheSameWay(unittest.TestCase):
         self.assertEqual(dataio.shape_fields(vietnam("commune"), "commune"),
                          {"province": "ten_tinh", "commune": "ten_xa"})
 
-    def test_the_thematic_projection_is_the_pinned_string(self):
-        """Written out in full rather than compared to the constant, so that
-        editing the constant fails here and has to be meant."""
-        self.assertEqual(
-            dataio.VIETNAM_EQUAL_AREA,
-            "+proj=aea +lat_1=10 +lat_2=22 +lat_0=16 +lon_0=106 "
-            "+datum=WGS84 +units=m +no_defs")
+    def test_the_thematic_projection_is_now_derived_and_lands_here(self):
+        """Vietnam's projection is no longer written down anywhere.
 
-    def test_the_pinned_meridian_is_0_39_degrees_off_the_measured_one(self):
-        """The plan allows Vietnam's projection to change, from 106.00 to
-        106.39. Until it does, the gap is recorded here so that it is a
-        decision and not a drift; when it changes, this is where the new
-        number gets written down.
+        It used to be the constant ``VIETNAM_EQUAL_AREA``, at
+        ``lat_1=10 lat_2=22 lat_0=16 lon_0=106``, chosen by hand. It is now
+        inferred by the same code every country goes through, and the plan
+        allowed it to move. Where it moved to is written out in full here, so
+        that any further drift is a decision rather than a discovery.
+
+        The hand-picked parallels turn out to have been the two-sixths rule all
+        along, rounded: 9.67 and 20.65 against 10 and 22.
         """
-        pinned = 106.0
-        measured = centre_lon(mainland(vietnam("province"), insets.ARCHIPELAGO_LON))
-        self.assertIn("+lon_0=106 ", dataio.VIETNAM_EQUAL_AREA)
-        self.assertAlmostEqual(measured - pinned, 0.3919, places=3)
+        self.assertEqual(
+            dataio.thematic_crs(vietnam("province")),
+            "+proj=aea +lat_1=9.6747 +lat_2=20.6490 +lat_0=15.1619 "
+            "+lon_0=106.4149 +datum=WGS84 +units=m +no_defs")
+
+    def test_the_meridian_moved_by_0_41_degrees_and_no_further(self):
+        """What the change to Vietnam actually cost, in one number.
+
+        The old value was 106.00, hand-picked. The plan measured 106.39 by
+        dropping everything east of 111 and taking the midpoint of what was
+        left. The rule that shipped is neither: it is an area-weighted mean of
+        directions, because no meridian separates the mainland United States
+        from Alaska and a rule that only works for Vietnam is not a rule. It
+        lands at 106.4149 — 0.02 degrees from the plan's figure and 0.41 from
+        where Vietnam used to be.
+        """
+        old = 106.0
+        by_the_plans_rule = centre_lon(mainland(vietnam("province"),
+                                                insets.ARCHIPELAGO_LON))
+        now = float(dataio.thematic_crs(vietnam("province"))
+                    .split("+lon_0=")[1].split()[0])
+
+        self.assertAlmostEqual(by_the_plans_rule, 106.3919, places=3)
+        self.assertAlmostEqual(now, 106.4149, places=3)
+        self.assertAlmostEqual(now - old, 0.4149, places=3)
+        self.assertLess(abs(now - by_the_plans_rule), 0.03)
+
+    def test_both_vietnamese_tiers_are_drawn_on_one_projection(self):
+        """The two tiers infer meridians 0.0023 degrees apart — small enough to
+        look like nothing, and wrong all the same, because the national locator
+        sits beside a commune map and the two must share a frame. The run
+        resolves one projection from the province tier and reuses it."""
+        province = dataio.thematic_crs(vietnam("province"))
+        commune = dataio.thematic_crs(vietnam("commune"))
+        self.assertNotEqual(province, commune)
+
+        deps = dataio.load(require_geo=True)
+        self.assertEqual(dataio.run_thematic_crs(deps, ROOT), province)
 
 
 # --------------------------------------------------------------------------
@@ -284,18 +318,341 @@ class TestTheThreeFormatsAgree(unittest.TestCase):
         self.assertIsNone(fixture("shp", "region")["VARNAME_1"].iloc[0])
         self.assertEqual(fixture("geojson", "region")["VARNAME_1"].iloc[0], "")
 
-    def test_kml_keeps_the_name_and_throws_the_table_away(self):
-        """Of eleven columns, one survives as content. What comes back instead
-        is KML's own presentation vocabulary. There is nowhere in KML to put a
-        population column, so a map drawn from KML cannot show one — the detail
-        panel has to omit the row rather than print a zero."""
+    def test_kml_keeps_the_whole_attribute_table(self):
+        """Measured against a real KML, and it overturns what the plan assumed.
+
+        KML carries a ``<Schema>`` of ``SimpleField`` declarations and hangs the
+        values off each feature, so every column survives the round trip. The
+        plan expected a name and a description; the truth is the full table. A
+        map drawn from KML can therefore show population like any other.
+
+        What KML *adds* is twelve presentation fields of its own, and those are
+        the ones that look like data and are not.
+        """
         region = fixture("kml", "region")
-        self.assertIn("Name", region.columns)
-        self.assertEqual(region["Name"].iloc[0], "Ardenne")
-        for gone in ("GID_1", "COUNTRY", "NAME_1", "TYPE_1", "HASC_1"):
-            self.assertNotIn(gone, region.columns)
-        for presentation in ("tessellate", "extrude", "visibility"):
+        for kept in ("GID_1", "GID_0", "COUNTRY", "NAME_1", "TYPE_1",
+                     "ENGTYPE_1", "CC_1", "HASC_1"):
+            self.assertIn(kept, region.columns)
+        self.assertEqual(list(region["NAME_1"]), list(fixture("shp", "region")["NAME_1"]))
+        for presentation in ("id", "Name", "description", "timestamp",
+                             "tessellate", "extrude", "visibility", "icon"):
             self.assertIn(presentation, region.columns)
+
+    def test_a_shapefile_without_a_codepage_file_mangles_accented_names(self):
+        """The cheapest way to lose a place name, found on two real downloads.
+
+        A shapefile keeps its attributes in a DBF, and a DBF does not record
+        which encoding it used. The convention is a companion ``.cpg`` file
+        holding the name of the codepage. Without it the reader guesses, and
+        the guess is Latin-1, so UTF-8 bytes come back as mojibake: ``é`` reads
+        as ``Ã©``.
+
+        The damage scales with how many diacritics the language uses. On a
+        Canadian download it cost one name in thirteen — Québec. On a
+        Vietnamese one from the same collection it cost **53 of 63**, because
+        almost every province name carries a mark. The fix is a five-byte file.
+
+        This is not a Vietnam problem and not a foreign-country problem. It is
+        a shapefile problem, and it arrives silently: the names are all still
+        there, they are simply the wrong strings.
+        """
+        gpd = geopandas_or_skip()
+        import shapely.geometry as sg
+
+        frame = gpd.GeoDataFrame(
+            {"name": ["Québec", "Đắk Nông", "Ontario"]},
+            geometry=[sg.box(i, 0, i + 1, 1) for i in range(3)], crs="EPSG:4326")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "accents.shp"
+            frame.to_file(path)
+            self.assertTrue(path.with_suffix(".cpg").exists(),
+                            "the writer is expected to record the codepage")
+            self.assertEqual(list(gpd.read_file(path)["name"]), list(frame["name"]))
+
+            path.with_suffix(".cpg").unlink()
+            without = list(gpd.read_file(path)["name"])
+
+        self.assertEqual(without[2], "Ontario")           # no marks, unharmed
+        self.assertNotEqual(without[0], "Québec")
+        self.assertNotEqual(without[1], "Đắk Nông")
+        self.assertEqual(without[0], "QuÃ©bec")
+
+    def test_kml_swallows_a_column_that_happens_to_be_called_name(self):
+        """The trap underneath the good news.
+
+        A field literally called ``NAME`` is promoted into KML's own ``<name>``
+        element on the way out, so it comes back as ``Name`` and is gone under
+        its original heading. GADM's ``NAME_1`` is not promoted and survives
+        untouched; a source that spells the column ``NAME`` — and a widely used
+        US state boundary file does exactly that — loses it.
+
+        So the same reader, on two files of the same data, has to look for two
+        different column names. Written and read here rather than asserted from
+        the fixture, because the fixture has no column KML would promote.
+        """
+        gpd = geopandas_or_skip()
+        import shapely.geometry as sg
+
+        frame = gpd.GeoDataFrame(
+            {"NAME": ["Alpha", "Beta"], "POP": [10, 20]},
+            geometry=[sg.box(0, 0, 1, 1), sg.box(1, 0, 2, 1)], crs="EPSG:4326")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "promoted.kml"
+            frame.to_file(path, driver="KML")
+            back = gpd.read_file(path)
+
+        self.assertNotIn("NAME", back.columns)
+        self.assertEqual(list(back["Name"]), ["Alpha", "Beta"])
+        # and the second trap in the same round trip: the writer declares every
+        # SimpleField as type="string", so a count comes back as text. A KML
+        # written by some other tool can declare int and float properly — a US
+        # state file to hand does — so the reader cannot trust either way and
+        # has to coerce. A population column read as text is never offered as
+        # something to map.
+        self.assertEqual(list(back["POP"]), ["10", "20"])
+
+
+# --------------------------------------------------------------------------
+# Reading any of the three formats, and choosing a projection to draw them in
+# --------------------------------------------------------------------------
+
+def boxes(spans, crs="EPSG:4326"):
+    """A frame of rectangles given as (lon0, lat0, lon1, lat1)."""
+    gpd = geopandas_or_skip()
+    import shapely.geometry as sg
+
+    return gpd.GeoDataFrame({"name": [f"u{i}" for i in range(len(spans))]},
+                            geometry=[sg.box(*s) for s in spans], crs=crs)
+
+
+def meridian_of(gdf) -> float:
+    return float(dataio.thematic_crs(gdf).split("+lon_0=")[1].split()[0])
+
+
+class OwnBoundariesOnly(unittest.TestCase):
+    """A test that builds its own boundaries has to be sure they are the ones read.
+
+    The installer sets ``EASY_MAP_SHAPEFILES`` at the user level so that a
+    globally installed skill can draw from any working folder, and that setting
+    outranks the project root. On a machine where the skill is installed, a test
+    that hands ``load_shapes`` a temporary project therefore gets the machine's
+    own Vietnamese boundaries and never notices: the call succeeds, the frame is
+    full, and every count is wrong.
+
+    Found by writing a test that expected 40 units and got 34 — the number of
+    Vietnamese provinces. A test asserting something weaker would have passed.
+    """
+
+    def setUp(self):
+        import os
+
+        self._saved = os.environ.pop(dataio.SHAPEFILE_ENV, None)
+        if self._saved is not None:
+            self.addCleanup(os.environ.__setitem__, dataio.SHAPEFILE_ENV, self._saved)
+
+
+class TestAnyOfTheThreeFormatsLoads(OwnBoundariesOnly):
+    """The acceptance test for this round: a tier folder holding a GeoJSON or a
+    KML draws the same map as one holding a shapefile."""
+
+    def load(self, kind: str, tier: str):
+        """The fixture's tier folder, copied under the name the loader expects."""
+        geopandas_or_skip()
+        source = FIXTURES / kind / "fictavia" / tier
+        if not source.exists():
+            self.skipTest("chưa dựng fixture")
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "shapefiles" / "provinces"
+            target.mkdir(parents=True)
+            for path in source.iterdir():
+                shutil.copy(path, target / path.name)
+            return dataio.load_shapes(dataio.load(require_geo=True),
+                                      Path(folder), "province")
+
+    def test_all_three_carry_the_same_geometry_through_the_loader(self):
+        reference = self.load("shp", "region")
+        self.assertEqual(len(reference), 8)
+        for kind in ("geojson", "kml"):
+            frame = self.load(kind, "region")
+            self.assertEqual(len(frame), 8, kind)
+            self.assertEqual(sorted(round(float(a), 9) for a in frame.geometry.area),
+                             sorted(round(float(a), 9) for a in reference.geometry.area),
+                             kind)
+
+    def test_all_three_are_given_the_same_projection(self):
+        """Which is the point of inferring it from the geometry rather than
+        from anything written in the file: the three files disagree about
+        column names and about types, and agree about where the country is."""
+        crs = {kind: dataio.thematic_crs(self.load(kind, "region"))
+               for kind in ("shp", "geojson", "kml")}
+        self.assertEqual(len(set(crs.values())), 1, crs)
+
+    def test_every_format_gets_a_shape_id(self):
+        for kind in ("shp", "geojson", "kml"):
+            frame = self.load(kind, "district")
+            self.assertEqual(list(frame["__shape_id"]), list(range(40)), kind)
+
+
+class TestTheProjectionComesFromTheData(unittest.TestCase):
+
+    def test_the_fixture_lands_where_it_was_measured_by_hand(self):
+        self.assertAlmostEqual(meridian_of(fixture("shp", "region")), 25.54, places=2)
+
+    def test_a_country_across_the_antimeridian_is_not_centred_on_africa(self):
+        """The failure that made this rule necessary.
+
+        Averaging −179 and 179 arithmetically gives 0, which is the Gulf of
+        Guinea. The two are half a degree apart, not 358. On the real United
+        States file the arithmetic mean comes out at 0.32, and the projection
+        then turns valid state outlines into self-intersecting ones.
+        """
+        straddling = boxes([(177.0, 10.0, 179.0, 12.0), (-179.0, 10.0, -177.0, 12.0)])
+        self.assertAlmostEqual(centre_lon(straddling), 0.0, places=6)   # the trap
+        self.assertGreater(abs(meridian_of(straddling)), 179.0)
+
+    def test_a_scatter_of_small_islands_does_not_drag_the_centre_out_to_sea(self):
+        """Vietnam's version of this is Hoàng Sa and Trường Sa; the fixture's is
+        two squares in the east. Weighting by area is what replaces the
+        hard-coded meridian that used to separate them."""
+        mainland_only = boxes([(0.0, 0.0, 10.0, 10.0)])
+        with_islands = boxes([(0.0, 0.0, 10.0, 10.0),
+                              (59.9, 5.0, 60.0, 5.1), (60.4, 5.0, 60.5, 5.1)])
+        self.assertAlmostEqual(centre_lon(with_islands), 30.25, places=2)   # the trap
+        self.assertAlmostEqual(meridian_of(with_islands),
+                               meridian_of(mainland_only), places=1)
+
+    def test_a_country_barely_taller_than_a_point_still_gets_two_parallels(self):
+        """Two standard parallels on top of each other is where a conic stops
+        being a conic. A city state has to come out with a usable projection
+        rather than a division by nothing."""
+        crs = dataio.thematic_crs(boxes([(103.6, 1.25, 104.0, 1.47)]))
+        lat_1 = float(crs.split("+lat_1=")[1].split()[0])
+        lat_2 = float(crs.split("+lat_2=")[1].split()[0])
+        self.assertGreater(lat_2 - lat_1, 0.5)
+
+    def test_the_poles_do_not_produce_a_parallel_past_ninety(self):
+        """A sliver of territory at the pole is where the two guards meet.
+
+        The span is under a degree, so it is padded outwards; the padding
+        pushes the northern edge past 90, and a standard parallel there is not
+        a parallel. The first draft of this test used a territory reaching
+        89.9 and passed with the clamp removed, because the two-sixths rule
+        pulled the parallels inside 89 on its own — it proved nothing.
+        """
+        crs = dataio.thematic_crs(boxes([(-40.0, 89.6, 20.0, 90.0)]))
+        for key in ("+lat_1=", "+lat_2=", "+lat_0="):
+            self.assertLessEqual(abs(float(crs.split(key)[1].split()[0])), 89.0, key)
+
+    def test_the_render_command_resolves_the_projection_once_for_the_run(self):
+        """Read out of the source, because the mistake it guards against is a
+        mistake in the caller rather than in the projection.
+
+        ``thematic_crs(shapes)`` and ``run_thematic_crs(deps, root)`` return
+        almost the same string, and swapping one for the other changes nothing
+        anyone would see: a commune map would simply be centred 0.0023 degrees
+        away from the national locator drawn beside it. Every behavioural test
+        here passes either way, which is why this one reads the call instead.
+        """
+        import ast
+
+        source = (ROOT / "skills" / "easy-map" / "scripts" / "easy_map.py")
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        body = next(node for node in ast.walk(tree)
+                    if isinstance(node, ast.FunctionDef)
+                    and node.name == "command_render")
+        called = {ast.unparse(node.func) for node in ast.walk(body)
+                  if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)}
+
+        self.assertIn("dataio.run_thematic_crs", called)
+        self.assertNotIn("dataio.thematic_crs", called)
+
+    def test_every_projection_it_produces_can_actually_be_used(self):
+        for label, frame in (("fixture", fixture("shp", "region")),
+                             ("vietnam", vietnam("province"))):
+            projected = frame.to_crs(dataio.thematic_crs(frame))
+            self.assertTrue(projected.geometry.is_valid.all(), label)
+            projected.geometry.union_all()          # this is what used to die
+
+
+class TestARepairedCodepage(OwnBoundariesOnly):
+
+    def frame_in(self, folder, names, codepage: bool):
+        gpd = geopandas_or_skip()
+        import shapely.geometry as sg
+
+        tier = folder / "shapefiles" / "provinces"
+        tier.mkdir(parents=True)
+        path = tier / "units.shp"
+        gpd.GeoDataFrame({"ten_tinh": list(names)},
+                         geometry=[sg.box(i, 0, i + 1, 1) for i in range(len(names))],
+                         crs="EPSG:4326").to_file(path)
+        if not codepage:
+            path.with_suffix(".cpg").unlink()
+        return path
+
+    def test_the_names_come_back_right_and_the_repair_is_reported(self):
+        names = ["Québec", "Đắk Nông", "Ontario"]
+        with tempfile.TemporaryDirectory() as folder:
+            self.frame_in(Path(folder), names, codepage=False)
+            notes: list = []
+            frame = dataio.load_shapes(dataio.load(require_geo=True),
+                                       Path(folder), "province", notes=notes)
+
+        self.assertEqual(list(frame["ten_tinh"]), names)
+        self.assertEqual(len(notes), 1)
+        self.assertEqual(notes[0]["tệp"], "provinces/units.shp")
+        self.assertEqual(notes[0]["cách_sửa"], "provinces/units.cpg")
+        self.assertGreaterEqual(notes[0]["số_giá_trị"], 2)
+
+    def test_a_file_that_was_never_broken_is_left_alone_and_unreported(self):
+        names = ["Québec", "Ontario"]
+        with tempfile.TemporaryDirectory() as folder:
+            self.frame_in(Path(folder), names, codepage=True)
+            notes: list = []
+            frame = dataio.load_shapes(dataio.load(require_geo=True),
+                                       Path(folder), "province", notes=notes)
+        self.assertEqual(list(frame["ten_tinh"]), names)
+        self.assertEqual(notes, [])
+
+    def test_a_file_that_declares_its_codepage_is_taken_at_its_word(self):
+        """The guard that stops the repair from becoming the fault.
+
+        Some real string genuinely is "QuÃ©bec" — a column of raw text, a name
+        somebody typed. If it arrives in a file that names its own codepage,
+        there is nothing to infer and nothing to fix, and repairing it anyway
+        would corrupt data on the strength of a guess.
+
+        Without the ``.cpg`` check this passes silently, because the round trip
+        succeeds on that string whether or not anything is wrong.
+        """
+        names = ["QuÃ©bec", "Ontario"]
+        with tempfile.TemporaryDirectory() as folder:
+            self.frame_in(Path(folder), names, codepage=True)
+            notes: list = []
+            frame = dataio.load_shapes(dataio.load(require_geo=True),
+                                       Path(folder), "province", notes=notes)
+        self.assertEqual(list(frame["ten_tinh"]), names)
+        self.assertEqual(notes, [])
+
+    def test_a_genuine_latin_1_name_is_not_mistaken_for_mojibake(self):
+        """The round trip is the test, not the presence of an odd character.
+
+        The mis-read forms below are built from the definition of the fault —
+        UTF-8 bytes decoded as Latin-1 — rather than pasted in, so the test
+        cannot drift from what it claims to be about.
+
+        "Åland" mis-typed as "Ãland" is not a mis-read: 0xC3 followed by an
+        ASCII letter is not a valid UTF-8 sequence. A keyword list of
+        suspicious characters would have corrupted it.
+        """
+        for good in ("Québec", "Đắk Nông", "Hà Nội"):
+            broken = good.encode("utf-8").decode("latin-1")
+            self.assertNotEqual(broken, good)
+            self.assertEqual(dataio.demojibake(broken), good)
+
+        self.assertIsNone(dataio.demojibake("Ãland"))
+        self.assertIsNone(dataio.demojibake("Ontario"))
+        self.assertIsNone(dataio.demojibake("Québec"))
 
 
 # --------------------------------------------------------------------------
@@ -332,13 +689,13 @@ class TestWhatIsStillPinnedToVietnam(unittest.TestCase):
         self.assertEqual(found["province"], "Name")
 
     def test_there_is_no_way_to_ask_for_a_country(self):
-        """``find_shapefile`` takes a tier and nothing else, and turns anything
+        """``find_boundaries`` takes a tier and nothing else, and turns anything
         that is not ``province`` into ``communes``. Wave 2 and 3."""
         root = str(FIXTURES / "shp")
         with self.assertRaises(SystemExit):
-            dataio.find_shapefile(ROOT, "province", override=root)
+            dataio.find_boundaries(ROOT, "province", override=root)
         with self.assertRaises(SystemExit):
-            dataio.find_shapefile(ROOT, "region", override=root)
+            dataio.find_boundaries(ROOT, "region", override=root)
 
     def test_the_locator_box_would_squash_the_fixture_eightfold(self):
         """``LOCATOR_ASPECT`` is Vietnam's 2.2 tall to wide. Fictavia is 0.26.

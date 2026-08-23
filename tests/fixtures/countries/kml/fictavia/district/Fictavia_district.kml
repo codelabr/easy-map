@@ -1,205 +1,780 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
 <Document id="root_doc">
+<Schema name="Fictavia_district" id="Fictavia_district">
+	<SimpleField name="GID_2" type="string"></SimpleField>
+	<SimpleField name="GID_0" type="string"></SimpleField>
+	<SimpleField name="COUNTRY" type="string"></SimpleField>
+	<SimpleField name="GID_1" type="string"></SimpleField>
+	<SimpleField name="NAME_1" type="string"></SimpleField>
+	<SimpleField name="NL_NAME_1" type="string"></SimpleField>
+	<SimpleField name="NAME_2" type="string"></SimpleField>
+	<SimpleField name="VARNAME_2" type="string"></SimpleField>
+	<SimpleField name="NL_NAME_2" type="string"></SimpleField>
+	<SimpleField name="TYPE_2" type="string"></SimpleField>
+	<SimpleField name="ENGTYPE_2" type="string"></SimpleField>
+	<SimpleField name="CC_2" type="string"></SimpleField>
+	<SimpleField name="HASC_2" type="string"></SimpleField>
+</Schema>
 <Folder><name>Fictavia_district</name>
   <Placemark id="Fictavia_district.1">
-	<name>Alder</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.1.1_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.1_1</SimpleData>
+		<SimpleData name="NAME_1">Ardenne</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Alder</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0101</SimpleData>
+		<SimpleData name="HASC_2">XF.AR.AL</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>13.6875,47.5 13.6875,51.0 12,51 12.0,47.5 13.6875,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.2">
-	<name>Brann</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.1.2_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.1_1</SimpleData>
+		<SimpleData name="NAME_1">Ardenne</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Brann</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0102</SimpleData>
+		<SimpleData name="HASC_2">XF.AR.BR</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>15.375,47.5 15.375,51.0 13.6875,51.0 13.6875,47.5 15.375,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.3">
-	<name>Calvet</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.1.3_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.1_1</SimpleData>
+		<SimpleData name="NAME_1">Ardenne</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Calvet</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0103</SimpleData>
+		<SimpleData name="HASC_2">XF.AR.CA</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>17.0625,47.5 17.0625,51.0 15.375,51.0 15.375,47.5 17.0625,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.4">
-	<name>Dorne</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.1.4_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.1_1</SimpleData>
+		<SimpleData name="NAME_1">Ardenne</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Dorne</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0104</SimpleData>
+		<SimpleData name="HASC_2">XF.AR.DO</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>18.75,47.5 18.75,51.0 17.0625,51.0 17.0625,47.5 18.75,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.5">
-	<name>Elmarch</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.2.1_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.2_1</SimpleData>
+		<SimpleData name="NAME_1">Beluar</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Elmarch</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0201</SimpleData>
+		<SimpleData name="HASC_2">XF.BE.EL</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>20.1,47.5 20.1,51.0 18.75,51.0 18.75,47.5 20.1,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.6">
-	<name>Ferro</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.2.2_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.2_1</SimpleData>
+		<SimpleData name="NAME_1">Beluar</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Ferro</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0202</SimpleData>
+		<SimpleData name="HASC_2">XF.BE.FE</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>21.45,47.5 21.45,51.0 20.1,51.0 20.1,47.5 21.45,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.7">
-	<name>Glenmar</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.2.3_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.2_1</SimpleData>
+		<SimpleData name="NAME_1">Beluar</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Glenmar</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0203</SimpleData>
+		<SimpleData name="HASC_2">XF.BE.GL</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>22.8,47.5 22.8,51.0 21.45,51.0 21.45,47.5 22.8,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.8">
-	<name>Harrow</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.2.4_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.2_1</SimpleData>
+		<SimpleData name="NAME_1">Beluar</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Harrow</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0204</SimpleData>
+		<SimpleData name="HASC_2">XF.BE.HA</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>24.15,47.5 24.15,51.0 22.8,51.0 22.8,47.5 24.15,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.9">
-	<name>Ilvenn</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.2.5_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.2_1</SimpleData>
+		<SimpleData name="NAME_1">Beluar</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Ilvenn</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0205</SimpleData>
+		<SimpleData name="HASC_2">XF.BE.IL</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>25.5,47.5 25.5,51.0 24.15,51.0 24.15,47.5 25.5,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.10">
-	<name>Jorund</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.3.1_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.3_1</SimpleData>
+		<SimpleData name="NAME_1">Corvin</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Jorund</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0301</SimpleData>
+		<SimpleData name="HASC_2">XF.CO.JO</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>26.625,47.5 26.625,51.0 25.5,51.0 25.5,47.5 26.625,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.11">
-	<name>Kestrel</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.3.2_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.3_1</SimpleData>
+		<SimpleData name="NAME_1">Corvin</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Kestrel</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0302</SimpleData>
+		<SimpleData name="HASC_2">XF.CO.KE</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>27.75,47.5 27.75,51.0 26.625,51.0 26.625,47.5 27.75,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.12">
-	<name>Lomond</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.3.3_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.3_1</SimpleData>
+		<SimpleData name="NAME_1">Corvin</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Lomond</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0303</SimpleData>
+		<SimpleData name="HASC_2">XF.CO.LO</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>28.875,47.5 28.875,51.0 27.75,51.0 27.75,47.5 28.875,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.13">
-	<name>Marek</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.3.4_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.3_1</SimpleData>
+		<SimpleData name="NAME_1">Corvin</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Marek</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0304</SimpleData>
+		<SimpleData name="HASC_2">XF.CO.MA</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>30.0,47.5 30,51 28.875,51.0 28.875,47.5 30.0,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.14">
-	<name>Norga</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.3.5_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.3_1</SimpleData>
+		<SimpleData name="NAME_1">Corvin</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Norga</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0305</SimpleData>
+		<SimpleData name="HASC_2">XF.CO.NO</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>31.125,47.5 31.125,51.0 30,51 30.0,47.5 31.125,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.15">
-	<name>Oquin</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.3.6_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.3_1</SimpleData>
+		<SimpleData name="NAME_1">Corvin</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Oquin</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0306</SimpleData>
+		<SimpleData name="HASC_2">XF.CO.OQ</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>32.25,47.5 32.25,51.0 31.125,51.0 31.125,47.5 32.25,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.16">
-	<name>Pelmar</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.4.1_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.4_1</SimpleData>
+		<SimpleData name="NAME_1">Dunmar</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Pelmar</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0401</SimpleData>
+		<SimpleData name="HASC_2">XF.DU.PE</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>33.9375,47.5 33.9375,51.0 32.25,51.0 32.25,47.5 33.9375,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.17">
-	<name>Quarn</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.4.2_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.4_1</SimpleData>
+		<SimpleData name="NAME_1">Dunmar</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Quarn</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0402</SimpleData>
+		<SimpleData name="HASC_2">XF.DU.QU</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>35.625,47.5 35.625,51.0 33.9375,51.0 33.9375,47.5 35.625,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.18">
-	<name>Rhoven</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.4.3_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.4_1</SimpleData>
+		<SimpleData name="NAME_1">Dunmar</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Rhoven</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0403</SimpleData>
+		<SimpleData name="HASC_2">XF.DU.RH</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>37.3125,47.5 37.3125,51.0 35.625,51.0 35.625,47.5 37.3125,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.19">
-	<name>Sylde</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.4.4_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.4_1</SimpleData>
+		<SimpleData name="NAME_1">Dunmar</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Sylde</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0404</SimpleData>
+		<SimpleData name="HASC_2">XF.DU.SY</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>39.0,47.5 39,51 37.3125,51.0 37.3125,47.5 39.0,47.5</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.20">
-	<name>Torval</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.5.1_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.5_1</SimpleData>
+		<SimpleData name="NAME_1">Estrel</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Torval</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0501</SimpleData>
+		<SimpleData name="HASC_2">XF.ES.TO</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>13.35,44.0 13.35,47.5 12.0,47.5 12,44 13.35,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.21">
-	<name>Urbek</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.5.2_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.5_1</SimpleData>
+		<SimpleData name="NAME_1">Estrel</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Urbek</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0502</SimpleData>
+		<SimpleData name="HASC_2">XF.ES.UR</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>14.7,44.0 14.7,47.5 13.35,47.5 13.35,44.0 14.7,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.22">
-	<name>Vandel</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.5.3_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.5_1</SimpleData>
+		<SimpleData name="NAME_1">Estrel</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Vandel</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0503</SimpleData>
+		<SimpleData name="HASC_2">XF.ES.VA</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>16.05,44.0 16.05,47.5 14.7,47.5 14.7,44.0 16.05,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.23">
-	<name>Welkin</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.5.4_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.5_1</SimpleData>
+		<SimpleData name="NAME_1">Estrel</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Welkin</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0504</SimpleData>
+		<SimpleData name="HASC_2">XF.ES.WE</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>17.4,44.0 17.4,47.5 16.05,47.5 16.05,44.0 17.4,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.24">
-	<name>Xanthe</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.5.5_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.5_1</SimpleData>
+		<SimpleData name="NAME_1">Estrel</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Xanthe</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0505</SimpleData>
+		<SimpleData name="HASC_2">XF.ES.XA</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>18.75,44.0 18.75,47.5 17.4,47.5 17.4,44.0 18.75,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.25">
-	<name>Ylora</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.6.1_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.6_1</SimpleData>
+		<SimpleData name="NAME_1">Fanolt</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Ylora</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0601</SimpleData>
+		<SimpleData name="HASC_2">XF.FA.YL</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>19.875,44.0 19.875,47.5 18.75,47.5 18.75,44.0 19.875,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.26">
-	<name>Zorenn</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.6.2_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.6_1</SimpleData>
+		<SimpleData name="NAME_1">Fanolt</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Zorenn</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0602</SimpleData>
+		<SimpleData name="HASC_2">XF.FA.ZO</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>21,44 21.0,47.5 19.875,47.5 19.875,44.0 21,44</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.27">
-	<name>Amble</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.6.3_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.6_1</SimpleData>
+		<SimpleData name="NAME_1">Fanolt</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Amble</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0603</SimpleData>
+		<SimpleData name="HASC_2">XF.FA.AM</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>22.125,44.0 22.125,47.5 21.0,47.5 21,44 22.125,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.28">
-	<name>Brisco</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.6.4_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.6_1</SimpleData>
+		<SimpleData name="NAME_1">Fanolt</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Brisco</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0604</SimpleData>
+		<SimpleData name="HASC_2">XF.FA.BR</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>23.25,44.0 23.25,47.5 22.125,47.5 22.125,44.0 23.25,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.29">
-	<name>Cadrin</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.6.5_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.6_1</SimpleData>
+		<SimpleData name="NAME_1">Fanolt</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Cadrin</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0605</SimpleData>
+		<SimpleData name="HASC_2">XF.FA.CA</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>24.375,44.0 24.375,47.5 23.25,47.5 23.25,44.0 24.375,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.30">
-	<name>Dalvik</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.6.6_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.6_1</SimpleData>
+		<SimpleData name="NAME_1">Fanolt</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Dalvik</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0606</SimpleData>
+		<SimpleData name="HASC_2">XF.FA.DA</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>25.5,44.0 25.5,47.5 24.375,47.5 24.375,44.0 25.5,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.31">
-	<name>Ennor</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.7.1_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.7_1</SimpleData>
+		<SimpleData name="NAME_1">Girene</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Ennor</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0701</SimpleData>
+		<SimpleData name="HASC_2">XF.GI.EN</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>26.85,44.0 26.85,47.5 25.5,47.5 25.5,44.0 26.85,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.32">
-	<name>Fellorn</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.7.2_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.7_1</SimpleData>
+		<SimpleData name="NAME_1">Girene</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Fellorn</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0702</SimpleData>
+		<SimpleData name="HASC_2">XF.GI.FE</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>28.2,44.0 28.2,47.5 26.85,47.5 26.85,44.0 28.2,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.33">
-	<name>Grismar</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.7.3_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.7_1</SimpleData>
+		<SimpleData name="NAME_1">Girene</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Grismar</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0703</SimpleData>
+		<SimpleData name="HASC_2">XF.GI.GR</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>29.55,44.0 29.55,47.5 28.2,47.5 28.2,44.0 29.55,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.34">
-	<name>Halloway</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.7.4_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.7_1</SimpleData>
+		<SimpleData name="NAME_1">Girene</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Halloway</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0704</SimpleData>
+		<SimpleData name="HASC_2">XF.GI.HA</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>30.9,44.0 30.9,47.5 29.55,47.5 29.55,44.0 30.9,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.35">
-	<name>Alder</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.7.5_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.7_1</SimpleData>
+		<SimpleData name="NAME_1">Girene</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Alder</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0705</SimpleData>
+		<SimpleData name="HASC_2">XF.GI.AL</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>32.25,44.0 32.25,47.5 30.9,47.5 30.9,44.0 32.25,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.36">
-	<name>Brann</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.8.1_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.8_1</SimpleData>
+		<SimpleData name="NAME_1">Halvik</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Brann</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0801</SimpleData>
+		<SimpleData name="HASC_2">XF.HA.BR</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>33.6,44.0 33.6,47.5 32.25,47.5 32.25,44.0 33.6,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.37">
-	<name>Calvet</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.8.2_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.8_1</SimpleData>
+		<SimpleData name="NAME_1">Halvik</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Calvet</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0802</SimpleData>
+		<SimpleData name="HASC_2">XF.HA.CA</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>34.95,44.0 34.95,47.5 33.6,47.5 33.6,44.0 34.95,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.38">
-	<name>Dorne</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.8.3_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.8_1</SimpleData>
+		<SimpleData name="NAME_1">Halvik</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Dorne</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0803</SimpleData>
+		<SimpleData name="HASC_2">XF.HA.DO</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>36.3,44.0 36.3,47.5 34.95,47.5 34.95,44.0 36.3,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.39">
-	<name>Elmarch</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.8.4_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.8_1</SimpleData>
+		<SimpleData name="NAME_1">Halvik</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Elmarch</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0804</SimpleData>
+		<SimpleData name="HASC_2">XF.HA.EL</SimpleData>
+	</SchemaData></ExtendedData>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>37.65,44.0 37.65,47.5 36.3,47.5 36.3,44.0 37.65,44.0</coordinates></LinearRing></outerBoundaryIs></Polygon>
   </Placemark>
   <Placemark id="Fictavia_district.40">
-	<name>Ferro</name>
 	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#Fictavia_district">
+		<SimpleData name="GID_2">XFA.8.5_1</SimpleData>
+		<SimpleData name="GID_0">XFA</SimpleData>
+		<SimpleData name="COUNTRY">Fictavia</SimpleData>
+		<SimpleData name="GID_1">XFA.8_1</SimpleData>
+		<SimpleData name="NAME_1">Halvik</SimpleData>
+		<SimpleData name="NL_NAME_1"></SimpleData>
+		<SimpleData name="NAME_2">Ferro</SimpleData>
+		<SimpleData name="VARNAME_2"></SimpleData>
+		<SimpleData name="NL_NAME_2"></SimpleData>
+		<SimpleData name="TYPE_2">Districtul</SimpleData>
+		<SimpleData name="ENGTYPE_2">District</SimpleData>
+		<SimpleData name="CC_2">0805</SimpleData>
+		<SimpleData name="HASC_2">XF.HA.FE</SimpleData>
+	</SchemaData></ExtendedData>
       <MultiGeometry><Polygon><outerBoundaryIs><LinearRing><coordinates>39,44 39.0,47.5 37.65,47.5 37.65,44.0 39,44</coordinates></LinearRing></outerBoundaryIs></Polygon><Polygon><outerBoundaryIs><LinearRing><coordinates>45.7,46.1 45.7,46.6 45.2,46.6 45.2,46.1 45.7,46.1</coordinates></LinearRing></outerBoundaryIs></Polygon><Polygon><outerBoundaryIs><LinearRing><coordinates>46.4,47.0 46.4,47.4 46.0,47.4 46,47 46.4,47.0</coordinates></LinearRing></outerBoundaryIs></Polygon></MultiGeometry>
   </Placemark>
 </Folder>

@@ -54,12 +54,23 @@ Not guesses. Read back and checked in `tests/test_boundaries.py`:
 - **Shapefile turns an empty string into `None`; GeoJSON keeps `""`.** Code
   that treats the two as the same value will behave differently depending on
   which file the user dropped in.
-- **KML keeps only the name.** Of thirteen columns, one survives as content;
-  what comes back instead is KML's own presentation fields — `tessellate`,
-  `extrude`, `visibility`, `icon`. There is no place in KML for a `dan_so`
-  column, so a map drawn from KML cannot show population, and the detail panel
-  has to omit the row rather than print a zero.
-- Geometry and bounds are identical across all three.
+- **KML keeps the whole table**, contrary to what the plan assumed. It declares
+  a `<Schema>` of `SimpleField` entries and hangs the values off each feature.
+  A map drawn from KML can show population like any other. Three quieter things
+  do happen, and all three were measured:
+  - it adds twelve presentation fields of its own — `id`, `Name`,
+    `description`, `timestamp`, `tessellate`, `extrude`, `visibility`, `icon`
+    and four more — which look like data and are not;
+  - a column literally called `NAME` is **promoted into KML's own `<name>`
+    element** and disappears under that heading, coming back as `Name`. GADM's
+    `NAME_1` is not promoted; a widely used US state boundary file spells the
+    column `NAME` and does lose it. The same reader therefore has to look for
+    two different headings depending on the file;
+  - the writer used here declares **every field as `type="string"`**, so a count
+    comes back as text. A KML written by another tool can declare `int` and
+    `float` properly — the US file does — so nothing can be trusted either way
+    and the reader has to coerce.
+- Geometry, bounds and per-part areas are identical across all three.
 
 ## The GADM schema here is not yet verified against a downloaded file
 

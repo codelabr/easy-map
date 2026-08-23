@@ -1289,9 +1289,21 @@ TEXT: dict[str, dict[str, str]] = {
         "vi": "Không tìm thấy thư mục shapefile: {folder}",
         "en": "Shapefile folder not found: {folder}",
     },
-    "loi.không-có-shp": {
-        "vi": "Không có file .shp nào trong {folder}",
-        "en": "No .shp file in {folder}",
+    "loi.không-có-ranh-giới": {
+        "vi": "Không có tệp ranh giới nào trong {folder}. Các định dạng nhận được: {accepted}",
+        "en": "No boundary file in {folder}. Accepted formats: {accepted}",
+    },
+    "loi.nhiều-tệp-ranh-giới": {
+        "vi": "Thư mục {folder} có nhiều tệp ranh giới nên không biết vẽ tệp nào: {files}. "
+              "Mỗi thư mục cấp hành chính chỉ được chứa một bộ dữ liệu.",
+        "en": "More than one boundary dataset in {folder}, so there is no way to tell which "
+              "to draw: {files}. A tier folder holds exactly one dataset.",
+    },
+    "loi.thiếu-tệp-đi-kèm": {
+        "vi": "Shapefile {path} thiếu tệp đi kèm: {missing}. Một shapefile không phải một "
+              "tệp đơn lẻ; thiếu .shx là mất hình học, thiếu .dbf là mất bảng thuộc tính.",
+        "en": "The shapefile {path} is missing companion files: {missing}. A shapefile is not "
+              "a single file; without .shx there is no geometry, without .dbf no attributes.",
     },
     "loi.thiếu-font": {
         "vi": "Thiếu font. Dựng lại theo hướng dẫn trong README của thư mục font, "

@@ -4,8 +4,7 @@ input/*
 output/*
 !output/.gitkeep
 
-shapefiles/provinces/
-shapefiles/communes/
+shapefiles/*/
 
 slidedeck/
 easy-map-introduction.html

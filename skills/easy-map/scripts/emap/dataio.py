@@ -34,8 +34,18 @@ SINGLE_SHEET = "(csv)"
 #: merged cells are far smaller than that: the fixture here is 8 KB. A sheet
 #: that trips the ceiling is reported, not silently read the plain way.
 MERGE_SCAN_MAX_BYTES = 2_000_000
-VIETNAM_EQUAL_AREA = ("+proj=aea +lat_1=10 +lat_2=22 +lat_0=16 +lon_0=106 "
-                      "+datum=WGS84 +units=m +no_defs")
+#: Boundary formats a tier folder may hold. ``.json`` is here because a GeoJSON
+#: does not have to be called ``.geojson`` — a Canadian download to hand is
+#: ``ca.json`` — and refusing it would be refusing the format on a technicality.
+BOUNDARY_SUFFIXES = (".shp", ".geojson", ".json", ".kml")
+
+#: Order of preference when a folder somehow holds more than one candidate that
+#: differ only by format. A shapefile keeps its column types, so it wins.
+_FORMAT_ORDER = {suffix: i for i, suffix in enumerate(BOUNDARY_SUFFIXES)}
+
+#: A shapefile is not a file. Without these two the geometry or the attribute
+#: table is simply absent, and the reader's own message names neither.
+_SHAPEFILE_SIDECARS = (".shx", ".dbf")
 
 PROVINCE_NAME_FIELDS = ["ten_tinh", "province", "ten_tinh_tp", "name"]
 COMMUNE_NAME_FIELDS = ["ten_xa", "commune", "ten_phuong_xa", "name"]
@@ -173,16 +183,37 @@ def shapefile_root(project_root: Path, override: str | None = None) -> Path:
     return Path(project_root) / "shapefiles"
 
 
-def find_shapefile(project_root: Path, admin_level: str,
-                   override: str | None = None) -> Path:
+def find_boundaries(project_root: Path, admin_level: str,
+                    override: str | None = None) -> Path:
+    """The one boundary file in a tier folder, whatever format it is in.
+
+    A tier folder holds exactly one dataset. Two datasets in one folder is the
+    kind of mistake that draws the wrong map without anyone noticing, so it is
+    refused by name rather than resolved by sorting.
+    """
     folder = shapefile_root(project_root, override) / (
         "provinces" if admin_level == "province" else "communes")
     if not folder.exists():
         raise SystemExit(msg.text("loi.thiếu-thư-mục-shapefile", folder=folder))
-    files = sorted(folder.glob("*.shp"))
-    if not files:
-        raise SystemExit(msg.text("loi.không-có-shp", folder=folder))
-    return files[0]
+
+    found = sorted((p for p in folder.iterdir()
+                    if p.is_file() and p.suffix.lower() in BOUNDARY_SUFFIXES),
+                   key=lambda p: (_FORMAT_ORDER[p.suffix.lower()], p.name))
+    if not found:
+        raise SystemExit(msg.text("loi.không-có-ranh-giới", folder=folder,
+                                  accepted=", ".join(BOUNDARY_SUFFIXES)))
+    if len(found) > 1 and len({p.stem for p in found}) > 1:
+        raise SystemExit(msg.text("loi.nhiều-tệp-ranh-giới", folder=folder,
+                                  files=", ".join(p.name for p in found)))
+
+    chosen = found[0]
+    if chosen.suffix.lower() == ".shp":
+        missing = [s for s in _SHAPEFILE_SIDECARS
+                   if not chosen.with_suffix(s).exists()]
+        if missing:
+            raise SystemExit(msg.text("loi.thiếu-tệp-đi-kèm", path=chosen.name,
+                                      missing=", ".join(missing)))
+    return chosen
 
 
 def read_sheets(deps: Deps, excel: Path) -> list[str]:
@@ -379,8 +410,91 @@ def read_data_dictionary(deps: Deps, excel: Path, sheets: Sequence[str]) -> dict
     return out or None
 
 
-def load_shapes(deps: Deps, project_root: Path, admin_level: str):
-    gdf = deps.gpd.read_file(find_shapefile(project_root, admin_level))
+#: The signature of UTF-8 text decoded as Latin-1: every multi-byte character
+#: turns into a run starting with one of these. Used only to skip work — the
+#: decision is the round trip below, never the presence of a character.
+_MOJIBAKE_HINTS = ("Ã", "Â", "Ä", "Å", "á", "â", "ã", "ð", "ï")
+
+
+def demojibake(text: str) -> str | None:
+    """The same text read the way it was written, or None if it already was.
+
+    A DBF does not record its own encoding. The convention is a companion
+    ``.cpg`` file naming the codepage; without one the reader falls back to
+    Latin-1, and UTF-8 bytes come back as mojibake — ``é`` as ``Ã©``.
+
+    The test is a round trip, not a list of suspicious characters: encode back
+    to the bytes Latin-1 would have produced, then decode them as UTF-8. That
+    only succeeds when the bytes really were UTF-8, because UTF-8 has a shape a
+    random Latin-1 string does not accidentally have. A genuine Latin-1 name
+    fails the round trip and is left alone.
+    """
+    if not any(hint in text for hint in _MOJIBAKE_HINTS):
+        return None
+    try:
+        fixed = text.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return None
+    return fixed if fixed != text else None
+
+
+def _encoding_repair(gdf, path: Path) -> dict[str, Any] | None:
+    """Whether this frame is a mis-decoded shapefile, and what it costs.
+
+    Only shapefiles can have the problem, and only those with no ``.cpg``. The
+    evidence has to be unanimous: every value that looks mis-decoded must
+    repair cleanly. One value that does not is enough to leave the file alone,
+    because a half-repaired attribute table is worse than an unrepaired one.
+    """
+    if path.suffix.lower() != ".shp" or path.with_suffix(".cpg").exists():
+        return None
+
+    repaired, sample = 0, None
+    for column in gdf.columns:
+        # No dtype filter. pandas hands text back as ``str`` on some versions
+        # and ``object`` on others, and a filter written for one of them skips
+        # every column on the other — silently, because a file with nothing to
+        # repair and a file that was never looked at are indistinguishable from
+        # here. ``isinstance`` below is the only test that needs to be right.
+        if column == "geometry":
+            continue
+        for value in gdf[column].dropna():
+            if not isinstance(value, str):
+                continue
+            fixed = demojibake(value)
+            if fixed is None:
+                continue
+            repaired += 1
+            if sample is None:
+                sample = (value, fixed)
+    if not repaired:
+        return None
+    # Named by its folder as well as its file, because the two tiers are
+    # repaired separately and two lines reading "ca.shp" look like the same
+    # thing reported twice when they are two files.
+    return {"tệp": f"{path.parent.name}/{path.name}", "số_giá_trị": repaired,
+            "ví_dụ": {"đọc_sai": sample[0], "đúng": sample[1]},
+            "cách_sửa": f"{path.parent.name}/{path.stem}.cpg"}
+
+
+def load_shapes(deps: Deps, project_root: Path, admin_level: str,
+                override: str | None = None, notes: list | None = None):
+    """The boundary frame for one tier, in whatever format it was supplied.
+
+    Reading is the same call for all three formats — the driver is chosen from
+    the suffix — so the only thing this has to do beyond reading is repair a
+    shapefile whose codepage was never recorded. A repair is never silent: it
+    is appended to ``notes`` so the caller can say what it changed.
+    """
+    path = find_boundaries(project_root, admin_level, override)
+    gdf = deps.gpd.read_file(path)
+
+    repair = _encoding_repair(gdf, path)
+    if repair is not None:
+        gdf = deps.gpd.read_file(path, encoding="utf-8")
+        if notes is not None:
+            notes.append(repair)
+
     gdf = gdf.reset_index(drop=True)
     gdf["__shape_id"] = gdf.index
     return gdf
@@ -397,10 +511,118 @@ def shape_fields(gdf, admin_level: str) -> dict[str, str]:
     return {"province": province, "commune": commune}
 
 
-def to_thematic_crs(gdf):
+#: Latitude beyond which a standard parallel stops meaning anything.
+_LAT_LIMIT = 89.0
+
+#: Smallest latitude span the standard parallels are spread over. A country
+#: only a fraction of a degree tall would otherwise get two parallels almost on
+#: top of each other, which is where Albers degenerates.
+_MIN_LAT_SPAN = 1.0
+
+
+def thematic_crs(gdf) -> str:
+    """An equal-area projection sized for whatever country this frame holds.
+
+    Equal-area is not the choice being made here — the map compares quantities
+    across units, so areas have to be comparable and that settles it. What is
+    being chosen is where to centre the projection, and getting that wrong is
+    not a matter of taste: projecting the United States into a projection
+    centred on Vietnam turned two valid state outlines into self-intersecting
+    ones and killed the run inside GEOS, with a message that named neither the
+    projection nor the country.
+
+    **The central meridian is a mean of angles, not of numbers.** Averaging
+    longitudes arithmetically puts the United States in the Gulf of Guinea,
+    because Alaska's Aleutians reach past the antimeridian and −179 and 179 are
+    a quarter of a degree apart, not 358. Summing unit vectors and taking the
+    direction of the total is the ordinary way to average a direction, and it
+    makes the antimeridian a non-event rather than a special case.
+
+    **Weighted by area**, so that a scatter of small offshore fragments does not
+    drag the centre out to sea. This replaces the meridian-splitting rule that
+    was written for Vietnam: there is no meridian that separates the mainland
+    United States from Alaska, and a rule that only works where a country
+    happens to have its islands on one side is not a rule.
+
+    Measured on 92 countries plus Vietnam at both tiers, the United States,
+    Canada and the fixture: every one projects and unions without error, and
+    the only invalid geometry produced was invalid in the source file already.
+    Against the values worked out by hand it lands within a few hundredths of a
+    degree for Vietnam and the fixture, and 2.5 degrees for Canada.
+
+    Where it is *not* good: a country with a large detached territory is pulled
+    toward it — the United States comes out at −112.4 where an atlas would use
+    −96, because Alaska is a fifth of the country's area. The map is usable and
+    equal-area; the shapes of the lower 48 are sheared. The proper answer is to
+    frame the main body and carry the rest in an inset, which is what Vietnam
+    already does by a hard-coded meridian and what a later round has to
+    generalise. Until then this is a known cost, not an unnoticed one.
+    """
+    import math
+    import warnings
+
+    parts = gdf.explode(index_parts=False, ignore_index=True)
+    centres = parts.geometry.representative_point()
+    with warnings.catch_warnings():
+        # geopandas warns that an area in degrees is not an area, and it is
+        # right — but nothing here is an area. These are relative weights, and
+        # any monotone measure of size serves. Letting the warning through
+        # would put a sentence about incorrect results on the console of a run
+        # that is correct, which is worse than useless.
+        warnings.filterwarnings("ignore", message=".*geographic CRS.*")
+        weights = parts.geometry.area
+    if float(weights.sum()) <= 0:                      # points, or degenerate
+        weights = weights * 0 + 1
+
+    east = float((weights * centres.x.map(math.radians).map(math.cos)).sum())
+    north = float((weights * centres.x.map(math.radians).map(math.sin)).sum())
+    lon_0 = math.degrees(math.atan2(north, east))
+
+    bounds = gdf.total_bounds
+    low, high = float(bounds[1]), float(bounds[3])
+    if high - low < _MIN_LAT_SPAN:
+        pad = (_MIN_LAT_SPAN - (high - low)) / 2
+        low, high = low - pad, high + pad
+    span = high - low
+
+    # The two-sixths rule: standard parallels a sixth of the way in from each
+    # edge. It is the ordinary cartographic choice for a conic, and it is what
+    # the hand-picked Vietnamese parallels turn out to have been.
+    def clamp(value: float) -> float:
+        return max(-_LAT_LIMIT, min(_LAT_LIMIT, value))
+
+    return (f"+proj=aea +lat_1={clamp(low + span / 6):.4f} "
+            f"+lat_2={clamp(high - span / 6):.4f} "
+            f"+lat_0={clamp((low + high) / 2):.4f} +lon_0={lon_0:.4f} "
+            f"+datum=WGS84 +units=m +no_defs")
+
+
+#: One projection per country per run, resolved from the coarsest tier and
+#: reused. Inferring it separately for each frame would centre the map and its
+#: locator on very slightly different meridians — 106.4149 against 106.4126 for
+#: Vietnam — which is small enough to look like nothing and wrong all the same.
+_CRS_CACHE: dict[str, str] = {}
+
+
+def run_thematic_crs(deps: Deps, project_root: Path,
+                     override: str | None = None) -> str:
+    """The projection for this run, taken from the province tier.
+
+    The province tier rather than whichever tier is being drawn, because a map
+    of the communes of one province must sit in the same projection as the
+    national locator beside it.
+    """
+    key = str(find_boundaries(project_root, "province", override))
+    if key not in _CRS_CACHE:
+        _CRS_CACHE[key] = thematic_crs(load_shapes(deps, project_root, "province",
+                                                   override))
+    return _CRS_CACHE[key]
+
+
+def to_thematic_crs(gdf, crs: str):
     if gdf.crs is None:
         return gdf
-    return gdf.to_crs(VIETNAM_EQUAL_AREA)
+    return gdf.to_crs(crs)
 
 
 RUN_STAMP = "%Y-%m-%d_%H-%M-%S"

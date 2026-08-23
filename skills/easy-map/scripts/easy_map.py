@@ -154,7 +154,7 @@ def command_list(args: argparse.Namespace) -> None:
     shapefiles = {}
     for level in ("province", "commune"):
         try:
-            found = dataio.find_shapefile(root, level)
+            found = dataio.find_boundaries(root, level)
             # the boundaries may sit outside the project now, so a path relative
             # to it is not always expressible
             try:
@@ -484,11 +484,12 @@ def command_profile(args: argparse.Namespace) -> None:
     df = dataio.read_table(deps, excel, args.sheet, notes=reading)
     dictionary = dataio.read_data_dictionary(deps, excel, sheets)
 
-    province_shapes = dataio.load_shapes(deps, root, "province")
+    boundary_notes: list[dict[str, Any]] = []
+    province_shapes = dataio.load_shapes(deps, root, "province", notes=boundary_notes)
     p_fields = dataio.shape_fields(province_shapes, "province")
     province_names = [str(v) for v in province_shapes[p_fields["province"]]]
 
-    commune_shapes = dataio.load_shapes(deps, root, "commune")
+    commune_shapes = dataio.load_shapes(deps, root, "commune", notes=boundary_notes)
     c_fields = dataio.shape_fields(commune_shapes, "commune")
     commune_names = [str(v) for v in commune_shapes[c_fields["commune"]]]
 
@@ -513,6 +514,10 @@ def command_profile(args: argparse.Namespace) -> None:
 
     place_column = commune_column if admin_level == "commune" else province_column
     report["cách_đọc_sheet"] = reading
+    # A repaired codepage changes place names, so it is never left unsaid: the
+    # user has to be able to tell a name the skill corrected from one they typed.
+    if boundary_notes:
+        report["sửa_bảng_mã_ranh_giới"] = boundary_notes
 
     # Before anything else is said about this sheet: can it become a map at all?
     # Without this, a pivot table read with the wrong header row still came back
@@ -1524,8 +1529,12 @@ def command_render(args: argparse.Namespace) -> None:
     df, slice_note = _apply_where(df, args.where)
 
     admin_level = args.admin_level
-    shapes = dataio.load_shapes(deps, root, admin_level)
+    boundary_notes: list[dict[str, Any]] = []
+    shapes = dataio.load_shapes(deps, root, admin_level, notes=boundary_notes)
     fields = dataio.shape_fields(shapes, admin_level)
+    # Resolved once, from the province tier, and used for every frame on the
+    # page: the map and the locator beside it have to agree.
+    thematic_crs = dataio.run_thematic_crs(deps, root)
     name_field = fields["commune"] if admin_level == "commune" else fields["province"]
 
     # --- match ------------------------------------------------------------
@@ -1630,7 +1639,7 @@ def command_render(args: argparse.Namespace) -> None:
             raise SystemExit(f"Không có dòng nào có đủ toạ độ trong '{lon_col}' và '{lat_col}'.")
         located = deps.gpd.GeoSeries(
             deps.gpd.points_from_xy(valid[lon_col], valid[lat_col]), crs="EPSG:4326"
-        ).to_crs(dataio.VIETNAM_EQUAL_AREA)
+        ).to_crs(thematic_crs)
         points = {"x": located.x.tolist(), "y": located.y.tolist(),
                   "bỏ_qua_thiếu_toạ_độ": int(len(joined) - len(valid))}
         _dress_points(points, valid, args, by_name)
@@ -1658,8 +1667,9 @@ def command_render(args: argparse.Namespace) -> None:
 
     # --- what gets drawn --------------------------------------------------
     scope, contexts = _contexts(args, shapes, fields, review, admin_level)
-    thematic = dataio.to_thematic_crs(shapes)
-    provinces_gdf = dataio.to_thematic_crs(dataio.load_shapes(deps, root, "province"))
+    thematic = dataio.to_thematic_crs(shapes, thematic_crs)
+    provinces_gdf = dataio.to_thematic_crs(
+        dataio.load_shapes(deps, root, "province"), thematic_crs)
 
     prepared = []
     for ctx in contexts:
@@ -1814,6 +1824,8 @@ def command_render(args: argparse.Namespace) -> None:
     emit({"thư_mục_kết_quả": str(run_dir), "tệp_ảnh": outputs, "trang_tương_tác": page,
           # ready-made addresses, so nothing is left for the agent to construct
           "mở_tệp": dataio.openable(run_dir),
+          **({"sửa_bảng_mã_ranh_giới": boundary_notes} if boundary_notes else {}),
+          "phép_chiếu": thematic_crs,
           "cảnh_báo": guardrails.summarize(issues)["danh_sách"], "bản_đồ": per_map})
 
 
