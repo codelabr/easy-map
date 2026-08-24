@@ -239,13 +239,36 @@ def north_arrow(ax, *, x_frac: float = 0.96, y_frac: float = 0.93, fs: float = 9
             fontweight="bold", color=INK, zorder=9)
 
 
-#: Vietnam's bounding box is roughly 1 wide to 2.2 tall.
-LOCATOR_ASPECT = 2.2
+#: Shapes a locator box is allowed to take. A country wider than five to one
+#: or taller than five to one would otherwise get a box so thin it reads as a
+#: line, and the caption under it would be wider than the map above it.
+LOCATOR_LIMITS = (0.2, 5.0)
+
+
+def locator_aspect(frame) -> float:
+    """How tall the locator box should be for its width, from the country.
+
+    This was the constant ``LOCATOR_ASPECT = 2.2``, described as Vietnam's
+    bounding box. It was not: Vietnam's frame, in the projection it is drawn
+    in and including the archipelagos the locator shows, is 1.10 tall to wide.
+    The box was therefore twice as tall as its contents even for the country it
+    was measured for, and the map inside floated in it.
+
+    For anywhere else it was simply wrong in the other direction — Fictavia is
+    0.33 and the United States 0.56, so a box of 2.2 is four to seven times too
+    tall and the country inside shrinks to fit the width.
+    """
+    minx, miny, maxx, maxy = (float(v) for v in frame.total_bounds)
+    width = maxx - minx
+    if width <= 0:
+        return 1.0
+    low, high = LOCATOR_LIMITS
+    return max(low, min(high, (maxy - miny) / width))
 
 
 def locator(fig, rect, provinces, highlight: str, *, name_field: str = "ten_tinh",
             fs: float = 7.5, caption: str | None = None):
-    """Small orientation map. ``rect`` must already respect LOCATOR_ASPECT."""
+    """Small orientation map. ``rect`` must already match the frame's shape."""
     ax = fig.add_axes(rect)
     provinces.plot(ax=ax, facecolor="#ccd4d9", edgecolor="white", linewidth=0.3)
     sel = provinces[provinces[name_field] == highlight]
@@ -259,8 +282,9 @@ def locator(fig, rect, provinces, highlight: str, *, name_field: str = "ten_tinh
 
 
 def locator_rect(fig, x: float, top: float, width_frac: float, *,
-                 floor: float = 0.0, caption_frac: float = 0.022) -> list[float] | None:
-    """Size a locator box so Vietnam is not squashed and never crosses ``floor``.
+                 aspect: float, floor: float = 0.0,
+                 caption_frac: float = 0.022) -> list[float] | None:
+    """Size a locator box for the country in it, never crossing ``floor``.
 
     ``floor`` is the bottom of the map band; the caption sits just under the box,
     so the box has to stop short of it. Returns None when there is no usable room
@@ -270,8 +294,8 @@ def locator_rect(fig, x: float, top: float, width_frac: float, *,
     available = top - floor - caption_frac
     if available <= 0.02:
         return None
-    height = width_frac * (fw / fh) * LOCATOR_ASPECT
+    height = width_frac * (fw / fh) * aspect
     if height > available:
         height = available
-        width_frac = height / ((fw / fh) * LOCATOR_ASPECT)
+        width_frac = height / ((fw / fh) * aspect)
     return [x, top - height, width_frac, height]

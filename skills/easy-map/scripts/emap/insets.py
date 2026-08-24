@@ -101,6 +101,84 @@ def _bounds(geometries, box) -> tuple[float, float, float, float] | None:
     return float(minx), float(miny), float(maxx), float(maxy)
 
 
+#: How close two pieces of land have to be to count as one land mass. Small
+#: enough that a strait is a gap; large enough that a border drawn twice with
+#: slightly different vertices is not.
+LAND_LINK_M = 2000.0
+
+def land_masses(frame) -> dict[str, Any]:
+    """The country broken into land masses, and how far the rest sits from the
+    biggest one.
+
+    This exists to *notice* detached territory, not to decide what to do about
+    it. The distinction is the finding of this round: three measurements were
+    made trying to derive Vietnam's split at 111°E from the geometry, and none
+    of them can, because it is not in the geometry. The land masses west of
+    that meridian reach 470 km from the mainland and are 2 to 36 km² in size;
+    the nearest one east of it is 298 km away and 63 km². Neither distance nor
+    area separates them. The meridian is a cartographic decision about which
+    islands the map is *for*, and no amount of measuring recovers a decision.
+
+    What can be measured is that a country has land a long way from its main
+    body, which is exactly the question the United States map raised: it was
+    framed to include Alaska, Hawaii and Puerto Rico, so the lower 48 kept a
+    third of the page, and nothing said a word.
+
+    Grouped with an index tree rather than by buffering every polygon — the
+    buffer-and-union version of this took more than ten minutes on Vietnam's
+    3,321 communes and never finished. This takes about five seconds on the
+    province tier, which is why it is computed once into the country profile
+    and not on every map.
+    """
+    import shapely
+
+    parts = frame.explode(index_parts=False, ignore_index=True)
+    geoms = parts.geometry.to_numpy()
+    if not len(geoms):
+        return {"số_khối": 0, "khối_rời": 0}
+
+    tree = shapely.STRtree(geoms)
+    left, right = tree.query(geoms, predicate="dwithin", distance=LAND_LINK_M)
+    parent = list(range(len(geoms)))
+
+    def root(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for a, b in zip(left, right):
+        ra, rb = root(int(a)), root(int(b))
+        if ra != rb:
+            parent[ra] = rb
+
+    grouped: dict[int, list[int]] = {}
+    for i in range(len(geoms)):
+        grouped.setdefault(root(i), []).append(i)
+
+    areas = parts.geometry.area.to_numpy()
+    masses = sorted(((float(sum(areas[i] for i in ix)), ix)
+                     for ix in grouped.values()), key=lambda t: -t[0])
+
+    minx, miny, maxx, maxy = (float(v) for v in frame.total_bounds)
+    body = shapely.total_bounds(geoms[masses[0][1]])
+    total = sum(area for area, _ in masses) or 1.0
+
+    # Only the width is computed, and only the width is used. Two earlier
+    # versions also measured how far each outlying mass sits from the main
+    # body: unioning the main body and measuring against it took 276 seconds on
+    # Vietnam, and routing the same measurement through an index still took 90.
+    # Neither number reached the warning, which says what the reader loses —
+    # that the main body keeps 47% of the page — and needs no distance to say
+    # it. The cheapest correct thing is the one that was wanted all along.
+    return {
+        "số_khối": len(masses),
+        "phần_diện_tích_khối_chính": round(masses[0][0] / total, 5),
+        "phần_bề_ngang_khối_chính": round(
+            float(body[2] - body[0]) / (maxx - minx), 4) if maxx > minx else 1.0,
+    }
+
+
 def split_bounds(frame, lon: float = ARCHIPELAGO_LON) -> dict[str, Any] | None:
     """Mainland bounds and archipelago bounds, or None if the split is pointless.
 

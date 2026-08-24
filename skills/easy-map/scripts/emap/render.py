@@ -279,6 +279,8 @@ def draw(deps, *, frame, spec: dict[str, Any], fonts: dict[str, str],
             plate.fig, plate.panel_left,
             plate.map_bottom + plate.map_height * max(0.02, y - 0.03),
             plate.panel_width * 0.62, floor=plate.map_bottom,
+            # from the country being drawn, not from a constant measured once
+            aspect=furn.locator_aspect(provinces),
         )
         if rect is not None:
             furn.locator(plate.fig, rect, provinces, locator_name,

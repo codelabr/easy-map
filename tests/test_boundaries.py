@@ -38,7 +38,8 @@ import unittest
 from pathlib import Path
 
 import context  # noqa: F401  (path bootstrap)
-from emap import dataio, detect, furniture, insets, matching, semantics
+from emap import (dataio, detect, furniture, guardrails, insets,
+                  matching, semantics)
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests" / "fixtures" / "countries"
@@ -978,6 +979,68 @@ class TestTheCountryProfile(OwnBoundariesOnly):
                 "region")
 
 
+class TestNoticingLandFarFromTheRest(unittest.TestCase):
+    """The warning that was owed since the United States map came out framed
+    from the Aleutians to Maine with nothing said about it."""
+
+    def test_a_compact_country_keeps_the_whole_frame(self):
+        land = insets.land_masses(boxes([(0, 0, 10, 10), (10, 0, 20, 10)])
+                                  .to_crs("EPSG:3857"))
+        self.assertEqual(land["số_khối"], 1)
+        self.assertAlmostEqual(land["phần_bề_ngang_khối_chính"], 1.0, places=3)
+
+    def test_one_far_piece_costs_the_main_body_most_of_the_width(self):
+        frame = boxes([(0, 0, 10, 10), (90, 0, 92, 2)]).to_crs("EPSG:3857")
+        land = insets.land_masses(frame)
+        self.assertEqual(land["số_khối"], 2)
+        self.assertLess(land["phần_bề_ngang_khối_chính"], 0.2)
+
+    def test_pieces_close_enough_to_touch_are_one_land_mass(self):
+        """Provinces in the shipped Vietnamese data do not share exactly
+        coincident borders, so a union alone leaves 2,666 pieces where there
+        are 218 land masses. Two kilometres of tolerance is what closes the
+        slivers without closing a strait."""
+        self.assertEqual(len(vietnam("province")), 34)
+        projected = vietnam("province").to_crs(
+            dataio.thematic_crs(vietnam("province")))
+        self.assertEqual(insets.land_masses(projected)["số_khối"], 218)
+
+    def test_the_warning_names_what_the_reader_loses(self):
+        land = {"phần_bề_ngang_khối_chính": 0.43, "số_khối": 451}
+        issues = guardrails.check_detached_territory(land, inset_drawn=False,
+                                                     lang="en")
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0]["severity"], guardrails.CRITICAL)
+        self.assertIn("43%", issues[0]["vấn_đề"])
+        self.assertIn("57%", issues[0]["vì_sao"])
+
+    def test_an_inset_answers_the_question_so_nothing_is_said(self):
+        """Vietnam's frame gives its mainland 47% of the width and its map is
+        right, because the archipelagos are in a box. The warning is about the
+        two together — land far away, and nothing done about it."""
+        land = {"phần_bề_ngang_khối_chính": 0.47, "số_khối": 218}
+        self.assertEqual(
+            guardrails.check_detached_territory(land, inset_drawn=True), [])
+
+    def test_a_frame_the_main_body_nearly_fills_is_not_worth_a_warning(self):
+        for width in (0.80, 0.93, 1.0):
+            self.assertEqual(guardrails.check_detached_territory(
+                {"phần_bề_ngang_khối_chính": width}, inset_drawn=False), [],
+                width)
+
+    def test_a_country_measured_end_to_end(self):
+        """Canada keeps 93% and says nothing; the United States keeps 43% and
+        says so. Both read from the country profile the render already builds."""
+        deps = dataio.load(require_geo=True)
+        root = ROOT / "shapefiles"
+        for country, quiet in (("canada", True), ("united-states", False)):
+            if not (root / country).is_dir():
+                self.skipTest(f"chưa có ranh giới {country}")
+            land = dataio.read_country(deps, root, country).get("lãnh_thổ_rời")
+            issues = guardrails.check_detached_territory(land, inset_drawn=False)
+            self.assertEqual(not issues, quiet, country)
+
+
 class TestARepairedCodepage(OwnBoundariesOnly):
 
     def frame_in(self, folder, names, codepage: bool):
@@ -1127,13 +1190,31 @@ class TestWhatIsStillPinnedToVietnam(unittest.TestCase):
             dataio.find_boundaries(ROOT, "province", override=root,
                                    country="nowhere")
 
-    def test_the_locator_box_would_squash_the_fixture_eightfold(self):
-        """``LOCATOR_ASPECT`` is Vietnam's 2.2 tall to wide. Fictavia is 0.26.
-        A country drawn into a box eight times the wrong shape is not a subtle
-        error, and nothing in the code notices it. Wave 4."""
-        land = mainland(fixture("shp", "region"), 42.0)
-        self.assertEqual(furniture.LOCATOR_ASPECT, 2.2)
-        self.assertGreater(furniture.LOCATOR_ASPECT / aspect(land), 8.0)
+    def test_the_locator_box_now_takes_the_shape_of_the_country_in_it(self):
+        """This line used to record the opposite, and it understated the fault.
+
+        ``LOCATOR_ASPECT = 2.2`` was described as Vietnam's bounding box. It was
+        not Vietnam's either: in the projection the map is drawn in, and
+        including the archipelagos the locator shows, Vietnam's frame is 1.10
+        tall to wide. The box was twice as tall as its contents for the one
+        country it was measured for, and four to seven times too tall for the
+        others.
+        """
+        self.assertFalse(hasattr(furniture, "LOCATOR_ASPECT"))
+
+        for label, frame, expected in (
+                ("vietnam", vietnam("province"), 1.10),
+                ("fictavia", fixture("shp", "region"), 0.33)):
+            projected = frame.to_crs(dataio.thematic_crs(frame))
+            self.assertAlmostEqual(furniture.locator_aspect(projected), expected,
+                                   places=2, msg=label)
+
+    def test_a_locator_box_is_never_thinner_than_a_line(self):
+        """A country twenty to one would otherwise get a box whose caption is
+        wider than the map above it."""
+        low, high = furniture.LOCATOR_LIMITS
+        self.assertEqual(furniture.locator_aspect(boxes([(0, 0, 200, 1)])), low)
+        self.assertEqual(furniture.locator_aspect(boxes([(0, 0, 1, 200)])), high)
 
     def test_the_archipelago_meridian_is_vietnams_and_misses_the_islands(self):
         """111.0°E sits east of everything Fictavia has, so its two island
@@ -1144,22 +1225,22 @@ class TestWhatIsStillPinnedToVietnam(unittest.TestCase):
         self.assertEqual(len(mainland(whole, insets.ARCHIPELAGO_LON)),
                          len(whole.explode(index_parts=False, ignore_index=True)))
 
-    def test_the_coordinate_rule_only_recognises_vietnamese_coordinates(self):
-        """A longitude column of Fictavian values is classified as a count, so
-        a point map is never offered. Nothing warns; the column simply stops
-        being a coordinate. Wave 4."""
-        vn = semantics.infer("longitude", [105.8, 106.7, 108.2], True)
-        self.assertEqual(vn["semantic"], semantics.COORDINATE)
+    def test_the_coordinate_rule_now_covers_the_whole_world(self):
+        """This line used to record the opposite.
 
-        fictavia = semantics.infer("longitude", [12.5, 25.5, 38.9], True)
-        self.assertNotEqual(fictavia["semantic"], semantics.COORDINATE)
-
-    def test_latitude_too(self):
-        vn = semantics.infer("latitude", [10.8, 16.5, 21.0], True)
-        self.assertEqual(vn["semantic"], semantics.COORDINATE)
-
-        fictavia = semantics.infer("latitude", [44.5, 47.5, 50.5], True)
-        self.assertNotEqual(fictavia["semantic"], semantics.COORDINATE)
+        The rule read ``lon 100..115`` and ``lat 7..24`` — Vietnam's own
+        extent. A Fictavian coordinate column was classified as a count, so a
+        point map was never offered and nothing warned; the column simply
+        stopped being a coordinate.
+        """
+        for column, values in (("longitude", [105.8, 106.7, 108.2]),
+                               ("longitude", [12.5, 25.5, 38.9]),
+                               ("longitude", [-96.8, -75.2, -122.4]),
+                               ("latitude", [10.8, 16.5, 21.0]),
+                               ("latitude", [44.5, 47.5, 50.5]),
+                               ("latitude", [-33.9, -1.2, 71.4])):
+            self.assertEqual(semantics.infer(column, values, True)["semantic"],
+                             semantics.COORDINATE, (column, values))
 
     def test_english_administrative_words_are_left_on_the_name(self):
         """``matching._PREFIXES`` is Vietnamese, and the plan keeps it that

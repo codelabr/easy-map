@@ -91,9 +91,31 @@ class TestInfer(unittest.TestCase):
         self.assertEqual((lon["semantic"], lon["axis"]), (sem.COORDINATE, "lon"))
         self.assertEqual((lat["semantic"], lat["axis"]), (sem.COORDINATE, "lat"))
 
-    def test_longitude_outside_vietnam_is_not_a_coordinate(self):
-        info = sem.infer("Kinh độ", [3.0, 4.5], is_numeric=True)
-        self.assertNotEqual(info["semantic"], sem.COORDINATE)
+    def test_a_longitude_anywhere_in_the_world_is_a_coordinate(self):
+        """This test used to assert the opposite, and it was right to.
+
+        The rule read ``100 <= abs(v) <= 115`` — Vietnam's own extent, written
+        into the meaning of the word "longitude". A column of Ecuadorean
+        longitudes was quietly reclassified as a count, so a point map was
+        never offered and nothing said why.
+        """
+        for value in (3.0, -78.5, 179.9):
+            info = sem.infer("Kinh độ", [value, value + 0.1], is_numeric=True)
+            self.assertEqual(info["semantic"], sem.COORDINATE, value)
+
+    def test_a_number_that_cannot_be_a_coordinate_still_is_not_one(self):
+        """Widening the range loosened the second half of a two-part test. The
+        first half — the column has to be *called* a longitude — still holds,
+        and so does the ceiling."""
+        self.assertNotEqual(
+            sem.infer("Kinh độ", [190.0, 200.0], is_numeric=True)["semantic"],
+            sem.COORDINATE)
+        self.assertNotEqual(
+            sem.infer("Vĩ độ", [95.0, 100.0], is_numeric=True)["semantic"],
+            sem.COORDINATE)
+        self.assertNotEqual(
+            sem.infer("Số ca mắc", [10.5, 20.5], is_numeric=True)["semantic"],
+            sem.COORDINATE)
 
 
 class TestHelpers(unittest.TestCase):

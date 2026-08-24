@@ -188,6 +188,39 @@ def check_admin_level(summary: dict[str, int], admin_level: str,
                    fmt={"unmatched": unmatched, "total": total, "where": where})]
 
 
+def check_detached_territory(land: dict[str, Any] | None, inset_drawn: bool,
+                             lang: str | None = None) -> list[dict[str, Any]]:
+    """A country with land far from its main body, drawn without an inset.
+
+    The map that made this necessary showed the United States framed to include
+    Alaska, Hawaii and Puerto Rico, so the lower 48 kept about a third of the
+    page and the rest was sea. Nothing was wrong with any figure on it and
+    nothing warned, because the inset mechanism was keyed to a meridian
+    measured for Vietnam and simply never fired anywhere else.
+
+    This does not decide where an inset should go — that is a cartographic
+    judgement the geometry does not contain, and three attempts to derive it
+    are written up in ``insets.land_masses``. It says the question is open.
+    """
+    if not land or inset_drawn:
+        return []
+    width = land.get("phần_bề_ngang_khối_chính", 1.0)
+    if width >= 0.8:            # the far land barely stretches the frame
+        return []
+    # The symptom is the trigger, and it is the only figure in the sentence.
+    # A first draft counted the land masses and their share of the area, and
+    # both misled on the case that made this necessary: the United States came
+    # out as "221 areas covering 0.7% of the land", which sounds like a rounding
+    # error. What is actually wrong is that the lower 48 keep 43% of the page.
+    return [_issue(
+        "lanh-tho-roi-khong-khung-phu",
+        CRITICAL if width < 0.5 else WARNING, lang=lang,
+        fmt={"width": f"{width:.0%}", "lost": f"{1 - width:.0%}"},
+        extra={"phần_bề_ngang_khối_chính": width,
+               "số_khối": land.get("số_khối")},
+    )]
+
+
 def check_matching(summary: dict[str, int],
                    lang: str | None = None) -> list[dict[str, Any]]:
     out = []

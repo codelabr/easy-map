@@ -214,9 +214,18 @@ def infer(column: str, values: Sequence[Any], is_numeric: bool) -> dict[str, Any
         return _pack(TEXT, column, msg.text("y-nghia.văn-bản"))
 
     # numeric from here
-    if _has(name, _LON_WORDS) and nums and all(100 <= abs(v) <= 115 for v in nums):
+    # The world, not one country. These read ``100 <= abs(v) <= 115`` and
+    # ``7 <= abs(v) <= 24`` until the multi-country work: Vietnam's own extent,
+    # written into the meaning of the word "longitude". Everywhere else the
+    # column was quietly reclassified as a count, so a point map was never
+    # offered and nothing said why.
+    #
+    # The column's *name* still has to say what it is — a bare column of
+    # numbers between -180 and 180 is not a longitude — so widening the range
+    # loosens the second half of a two-part test, not the whole of it.
+    if _has(name, _LON_WORDS) and nums and all(abs(v) <= 180 for v in nums):
         return _pack(COORDINATE, column, msg.text("y-nghia.kinh-độ"), axis="lon")
-    if _has(name, _LAT_WORDS) and nums and all(7 <= abs(v) <= 24 for v in nums):
+    if _has(name, _LAT_WORDS) and nums and all(abs(v) <= 90 for v in nums):
         return _pack(COORDINATE, column, msg.text("y-nghia.vĩ-độ"), axis="lat")
     if _has(name, _POINT_WORDS):
         return _pack(POINT, column, msg.text("y-nghia.điểm-phần-trăm"), signed=True)

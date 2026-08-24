@@ -102,6 +102,24 @@ FRAGMENTS: dict[str, dict[str, str]] = {
 #: One entry per warning id. ``{placeholders}`` must match between the two
 #: languages; the test suite enforces that.
 ISSUES: dict[str, dict[str, dict[str, str]]] = {
+    "lanh-tho-roi-khong-khung-phu": {
+        "vi": {
+            WHAT: "Phần đất chính chỉ chiếm {width} bề ngang khung bản đồ.",
+            WHY: "Quốc gia này có đất nằm xa phần đất chính, và khung phải giãn ra để "
+                 "chứa hết, nên {lost} bề ngang trang giấy là biển. Vùng người đọc "
+                 "thực sự nhìn vào bị thu nhỏ lại tương ứng.",
+            FIX: "Cân nhắc vẽ riêng phần đất chính, hoặc giữ khung rộng nếu các vùng "
+                 "xa chính là điều bản đồ muốn nói.",
+        },
+        "en": {
+            WHAT: "The main body of land occupies only {width} of the map frame's width.",
+            WHY: "This country has land far from its main body and the frame has to "
+                 "stretch to hold it, so {lost} of the page width is sea. The part the "
+                 "reader is actually looking at shrinks by the same amount.",
+            FIX: "Consider drawing the main body on its own, or keep the wide frame if "
+                 "the distant land is what the map is about.",
+        },
+    },
     "coverage-thap": {
         "vi": {
             WHAT: "Chỉ {with_data}/{in_frame} đơn vị trong khung bản đồ có số liệu ({share}).",

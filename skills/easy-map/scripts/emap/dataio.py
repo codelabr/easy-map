@@ -915,10 +915,16 @@ def read_country(deps: Deps, root: Path, country: str,
         gdf, found = first
         reading["nhận_diện"] = {k: found[k] for k in ("bộ", "độ_tin_cậy", "bằng_chứng")}
         reading["tên_quốc_gia"] = found.get("quốc_gia")
+        crs = thematic_crs(gdf)
         reading["phép_chiếu"] = {
-            "crs": thematic_crs(gdf), "nguồn": "suy diễn từ hình học của tầng thô",
+            "crs": crs, "nguồn": "suy diễn từ hình học của tầng thô",
             "bằng_chứng": f"hộp bao {[round(float(v), 4) for v in gdf.total_bounds]}",
         }
+        # Grouping the land takes seconds, so it is done here — once, cached —
+        # rather than on every map that might want to mention it.
+        from . import insets
+
+        reading["lãnh_thổ_rời"] = insets.land_masses(gdf.to_crs(crs))
     if len(named) > 1:
         coarse, fine = frames[named[0]["thư_mục"]], frames[named[1]["thư_mục"]]
         reading["cha_con"] = detect.link_tiers(coarse[0], coarse[1], fine[0], fine[1])

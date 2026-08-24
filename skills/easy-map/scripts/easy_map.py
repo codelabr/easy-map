@@ -1701,6 +1701,8 @@ def command_render(args: argparse.Namespace) -> None:
     duplicates = aggregate.duplicate_count(joined, "__shape_id") if not coordinates_only else 0
 
     issues: list[dict[str, Any]] = list(guardrails.check_matching(match_summary))
+    detached = dataio.read_country(
+        deps, dataio.shapefile_root(root), tier["quốc_gia"]).get("lãnh_thổ_rời")
     values = None
     method = "n/a"
     if value_column and args.map_type != "boundary" and not coordinates_only:
@@ -1834,11 +1836,18 @@ def command_render(args: argparse.Namespace) -> None:
         outputs.extend(str(p) for p in written)
         table = _drawn_table(run_dir, base, frame, name_field, value_column,
                              value_info, symbol_info, args, bins)
+        # Whether an inset was drawn is only known once the map is drawn, and
+        # the warning is about the two together: land far from the main body,
+        # and nothing done about it.
+        if scope == "national":
+            issues_ctx = issues_ctx + guardrails.check_detached_territory(
+                detached, result.get("khung_phụ") is not None, lang=args.messages)
         meta = {"tên_bản_đồ": ctx["tên"], "tệp": [str(p) for p in written],
                 "bảng_số_liệu": table,
                 "đơn_vị_có_số_liệu": with_data, "đơn_vị_trong_khung": int(len(frame)),
                 "nhãn": result["labels"], "khung_phụ": result.get("khung_phụ"),
                 "tràn_khung": result.get("tràn_khung") or [],
+                "lãnh_thổ_rời": detached,
                 "cảnh_báo": guardrails.summarize(issues_ctx)}
         dataio.write_json(run_dir / f"{base}_metadata.json", {**meta, "tham_số": vars(args)})
         per_map.append(meta)
