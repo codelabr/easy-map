@@ -248,6 +248,28 @@ def identify(gdf) -> dict[str, Any]:
     }
 
 
+#: Boundary data says which country it is; it does not say which language the
+#: map should be printed in, and for most countries there is no single answer.
+#: This table therefore holds only what can be defended: Vietnam, whose maps are
+#: the reason this project exists and whose one national language is not in
+#: doubt. Anything else returns nothing, and the machine's own setting is then
+#: the only suggestion on offer.
+#:
+#: Adding a row here needs a reason, not a guess. "Canada speaks English" would
+#: be a guess, and a wrong one in Québec — which is precisely the province this
+#: project has already had trouble spelling.
+_COUNTRY_LANGUAGE = {
+    "viet nam": "vi", "vietnam": "vi", "việt nam": "vi", "vnm": "vi", "vn": "vi",
+}
+
+
+def country_language(name: str | None) -> str | None:
+    """The language a country's own maps are usually printed in, or None."""
+    if not name:
+        return None
+    return _COUNTRY_LANGUAGE.get(str(name).strip().lower())
+
+
 def link_tiers(coarse, coarse_reading: dict[str, Any],
                fine, fine_reading: dict[str, Any]) -> dict[str, Any]:
     """Which column of the finer tier names its parent, and how well it fits.

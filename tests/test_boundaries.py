@@ -38,7 +38,7 @@ import unittest
 from pathlib import Path
 
 import context  # noqa: F401  (path bootstrap)
-from emap import (dataio, detect, furniture, guardrails, insets,
+from emap import (dataio, detect, furniture, guardrails, i18n, insets,
                   matching, semantics)
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1039,6 +1039,134 @@ class TestNoticingLandFarFromTheRest(unittest.TestCase):
             land = dataio.read_country(deps, root, country).get("lãnh_thổ_rời")
             issues = guardrails.check_detached_territory(land, inset_drawn=False)
             self.assertEqual(not issues, quiet, country)
+
+
+class TestPrintingAMapInAnyLanguage(unittest.TestCase):
+    """Two languages are built in; any language can be printed."""
+
+    def tearDown(self):
+        i18n.use(None)
+
+    def test_a_supplied_string_replaces_the_built_in_one(self):
+        self.assertEqual(i18n.t("en", "no_data"), "No data")
+        i18n.use({"no_data": "Fără date"})
+        self.assertEqual(i18n.t("en", "no_data"), "Fără date")
+        self.assertEqual(i18n.t("vi", "no_data"), "Fără date")
+
+    def test_a_supplied_string_keeps_its_placeholders(self):
+        i18n.use({"insight_plain": "{with_data} din {total} unități au date."})
+        self.assertEqual(i18n.t("en", "insight_plain", with_data=40, total=40),
+                         "40 din 40 unități au date.")
+
+    def test_strings_not_supplied_stay_in_the_language_asked_for(self):
+        i18n.use({"no_data": "Fără date"})
+        self.assertEqual(i18n.t("en", "north"), "N")
+        self.assertEqual(i18n.t("vi", "north"), "B")
+
+    def test_the_separators_are_named_rather_than_assumed(self):
+        """Vietnamese swaps both; English swaps neither; a language that groups
+        with a space can say so instead of being sorted into one of two camps."""
+        self.assertEqual(semantics.localise_digits("1,234.5", "en"), "1,234.5")
+        self.assertEqual(semantics.localise_digits("1,234.5", "vi"), "1.234,5")
+        i18n.use({"thousands": " ", "decimal": ","})
+        self.assertEqual(semantics.localise_digits("1,234.5", "en"), "1 234,5")
+
+    def test_the_kicker_uses_the_word_the_country_uses(self):
+        """``PROVINCE-LEVEL MAP`` above a map of United States counties tells
+        the reader the wrong thing about what they are looking at."""
+        self.assertEqual(i18n.kicker("en", "province", tier="province"),
+                         "PROVINCE-LEVEL MAP")
+        self.assertEqual(i18n.kicker("en", "commune", tier="district"),
+                         "DISTRICT-LEVEL MAP")
+        self.assertEqual(i18n.kicker("en", "province", tier="state"),
+                         "STATE-LEVEL MAP")
+
+    def test_vietnams_kicker_is_unchanged(self):
+        for level, tier, expected in (("province", "province", "BẢN ĐỒ CẤP TỈNH/THÀNH PHỐ"),
+                                      ("commune", "commune", "BẢN ĐỒ CẤP XÃ/PHƯỜNG")):
+            self.assertEqual(i18n.kicker("vi", level, tier=tier), expected)
+            self.assertEqual(i18n.kicker("vi", level), expected)
+
+    def test_every_key_can_be_replaced_and_only_real_keys(self):
+        keys = i18n.keys()
+        for expected in ("no_data", "north", "source", "thousands", "decimal",
+                         "kicker_tier"):
+            self.assertIn(expected, keys)
+        self.assertNotIn("no_such_key", keys)
+
+
+class TestTheMapTextFlag(unittest.TestCase):
+    """``--map-text KEY=VALUE``, and what it refuses."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cli = context.cli()
+
+    def test_pairs_become_overrides(self):
+        self.assertEqual(
+            self.cli._map_text(["no_data=Fără date", "north=N"]),
+            {"no_data": "Fără date", "north": "N"})
+
+    def test_an_empty_value_is_a_value(self):
+        """Somebody printing a map with no north letter at all is asking for
+        an empty string, not making a mistake."""
+        self.assertEqual(self.cli._map_text(["north="]), {"north": ""})
+
+    def test_a_value_containing_an_equals_sign_survives(self):
+        self.assertEqual(self.cli._map_text(["source=a=b"]), {"source": "a=b"})
+
+    def test_a_key_that_does_not_exist_is_refused_by_name(self):
+        """Accepted silently, a misspelled key would leave the map in the
+        built-in language while the run reported that the text had been set —
+        which is the worst of both, because nobody would look again."""
+        with self.assertRaises(SystemExit) as raised:
+            self.cli._map_text(["no_dataa=Fără date"])
+        self.assertIn("no_dataa", str(raised.exception))
+
+    def test_something_that_is_not_a_pair_is_refused(self):
+        for bad in ("no_data", "=Fără date", ""):
+            with self.assertRaises(SystemExit):
+                self.cli._map_text([bad])
+
+    def test_nothing_supplied_is_not_an_error(self):
+        self.assertEqual(self.cli._map_text(None), {})
+        self.assertEqual(self.cli._map_text([]), {})
+
+
+class TestSuggestingALanguage(unittest.TestCase):
+    """A suggestion, never a decision."""
+
+    def test_the_two_sources_are_reported_separately(self):
+        hint = i18n.suggest("vi")
+        self.assertEqual(hint["quốc_gia"], "vi")
+        self.assertIn("vi", hint["gợi_ý"])
+        self.assertIn("máy", hint)
+
+    def test_agreement_is_judged_on_the_language_not_the_spelling(self):
+        """Windows answers ``English_United States`` where Linux answers
+        ``en_GB``, so the machine's own word is reported as it comes and
+        compared on its first two letters."""
+        self.assertTrue(i18n._same_language("english", "en"))
+        self.assertTrue(i18n._same_language("vietnamese", "vi"))
+        self.assertFalse(i18n._same_language("english", "vi"))
+        self.assertFalse(i18n._same_language(None, "vi"))
+
+    def test_only_a_country_whose_language_is_not_in_doubt_is_claimed(self):
+        """"Canada speaks English" would be a guess, and a wrong one in
+        Québec — the province this project has already had trouble spelling."""
+        self.assertEqual(detect.country_language("Vietnam"), "vi")
+        self.assertEqual(detect.country_language("VNM"), "vi")
+        self.assertEqual(detect.country_language("Việt Nam"), "vi")
+        self.assertIsNone(detect.country_language("Canada"))
+        self.assertIsNone(detect.country_language("Fictavia"))
+        self.assertIsNone(detect.country_language(None))
+
+    def test_nothing_here_narrows_the_map_to_two_languages(self):
+        """The suggestion is about what to offer. What can actually be printed
+        is settled by the override table, which takes any string at all."""
+        hint = i18n.suggest("vi")
+        self.assertNotIn("chỉ_được_chọn", hint)
+        self.assertLessEqual(len(hint["gợi_ý"]), 2)
 
 
 class TestARepairedCodepage(OwnBoundariesOnly):

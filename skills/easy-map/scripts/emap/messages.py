@@ -1321,6 +1321,17 @@ TEXT: dict[str, dict[str, str]] = {
         "vi": "chưa cài geopandas nên chưa đọc được hồ sơ quốc gia",
         "en": "geopandas is not installed, so the country profile was not read",
     },
+    "loi.map-text-sai-dạng": {
+        "vi": "--map-text cần dạng KHOÁ=GIÁ TRỊ, nhận được: {item}",
+        "en": "--map-text needs KEY=VALUE, and got: {item}",
+    },
+    "loi.map-text-khoá-lạ": {
+        # ``name`` rather than ``key``: ``messages.text`` takes the message's
+        # own key as its first argument, and a field of the same name collides
+        # with it — silently at the call site and loudly at run time.
+        "vi": "--map-text không có khoá '{name}'. Các khoá nhận được: {known}",
+        "en": "--map-text has no key '{name}'. Accepted keys: {known}",
+    },
     "loi.là-đường-viền-quốc-gia": {
         "vi": "Tệp này là đường viền của cả quốc gia, không phải một cấp hành chính "
               "({evidence}). Hãy đặt tệp cấp tỉnh/bang vào thư mục cấp.",

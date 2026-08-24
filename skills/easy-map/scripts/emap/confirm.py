@@ -52,7 +52,8 @@ def matches(supplied: str | None, settings: dict[str, Any]) -> bool:
 
 def gate(settings: dict[str, Any], numbered: list[dict[str, Any]],
          warnings: list[dict[str, Any]], must_ask: list[dict[str, Any]],
-         command: str, *, language_stated: bool = True) -> dict[str, Any]:
+         command: str, *, language_stated: bool = True,
+         language_hint: dict[str, Any] | None = None) -> dict[str, Any]:
     """What to print instead of drawing, when the plan has not been agreed yet.
 
     ``numbered`` is the table the agent shows, each row already in plain words
@@ -85,6 +86,7 @@ def gate(settings: dict[str, Any], numbered: list[dict[str, Any]],
         "mã_xác_nhận": None if must_ask else code,
         "phương_án": numbered,
         "phải_hỏi": must_ask,
+        **({"gợi_ý_ngôn_ngữ": language_hint} if language_hint else {}),
         "cảnh_báo": warnings,
         "hướng_dẫn": guidance,
         "lệnh_khi_đã_đồng_ý": None if must_ask else f"{command} --confirmed {code}",

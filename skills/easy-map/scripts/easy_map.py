@@ -44,7 +44,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from emap import (aggregate, animate, classify, confirm, crosswalk, dataio,  # noqa: E402
+from emap import (aggregate, animate, classify, confirm, crosswalk, dataio, detect,  # noqa: E402
                   fonts, furniture, guardrails, i18n, interactive, matching, messages,
                   periods as period_utils,
                   layers, longform, prefs, profile as profiling, render,
@@ -128,6 +128,26 @@ def _fine_tier(deps, root, country, notes=None):
     except SystemExit:
         return None, None
     return shapes, dataio.shape_fields(shapes, dataio.FINE)
+
+
+def _map_text(pairs: list[str] | None) -> dict[str, str]:
+    """``KEY=VALUE`` pairs for strings the engine would otherwise generate.
+
+    Refuses a key it does not know rather than accepting it silently: a
+    misspelled key would leave the map in the built-in language while the run
+    reported that the text had been set.
+    """
+    out: dict[str, str] = {}
+    for item in pairs or []:
+        key, sep, value = str(item).partition("=")
+        key = key.strip()
+        if not sep or not key:
+            raise SystemExit(messages.text("loi.map-text-sai-dạng", item=item))
+        if key not in i18n.keys():
+            raise SystemExit(messages.text("loi.map-text-khoá-lạ", name=key,
+                                           known=", ".join(i18n.keys())))
+        out[key] = value
+    return out
 
 
 def _detect_admin_level(df, provinces, communes) -> str:
@@ -1580,6 +1600,12 @@ def command_render(args: argparse.Namespace) -> None:
     country = getattr(args, "country", None)
     tier = dataio.resolve_tier(root, args.admin_level, country=country)
     admin_level = tier["vai_trò"]
+    # Set before a single string is looked up, so nothing is drawn in one
+    # language and labelled in another.
+    i18n.use(_map_text(getattr(args, "map_text", None)))
+    # carried on args so the plate builder, several calls down, can name the
+    # tier the way the country does without another lookup
+    args.tier_folder = tier["thư_mục"]
     boundary_notes: list[dict[str, Any]] = []
     shapes = dataio.load_shapes(deps, root, admin_level, notes=boundary_notes,
                                 country=country)
@@ -1701,8 +1727,9 @@ def command_render(args: argparse.Namespace) -> None:
     duplicates = aggregate.duplicate_count(joined, "__shape_id") if not coordinates_only else 0
 
     issues: list[dict[str, Any]] = list(guardrails.check_matching(match_summary))
-    detached = dataio.read_country(
-        deps, dataio.shapefile_root(root), tier["quốc_gia"]).get("lãnh_thổ_rời")
+    country_profile = dataio.read_country(
+        deps, dataio.shapefile_root(root), tier["quốc_gia"])
+    detached = country_profile.get("lãnh_thổ_rời")
     values = None
     method = "n/a"
     if value_column and args.map_type != "boundary" and not coordinates_only:
@@ -1774,7 +1801,13 @@ def command_render(args: argparse.Namespace) -> None:
                           guardrails.summarize(issues)["danh_sách"], must_ask,
                           _command_line(),
                           language_stated="messages" in getattr(
-                              args, "chosen_explicitly", set())))
+                              args, "chosen_explicitly", set()),
+                          # what to offer for the text on the map, and why —
+                          # the machine's own setting and the country of the
+                          # boundaries, reported separately because they
+                          # disagree often enough to matter
+                          language_hint=i18n.suggest(detect.country_language(
+                              country_profile.get("tên_quốc_gia")))))
         return
 
     # --- draw -------------------------------------------------------------
@@ -1895,7 +1928,8 @@ def _build_spec(args, ctx, value_column, value_info, symbol_info, bins,
                 symbol_scale, name_field, method, with_data, frame,
                 points_count: int | None = None) -> dict[str, Any]:
     lang = i18n.normalise(args.language)
-    kicker = args.subtitle or i18n.kicker(lang, args.admin_level)
+    kicker = args.subtitle or i18n.kicker(lang, args.admin_level,
+                                          tier=getattr(args, "tier_folder", None))
     if ctx["locator"] and ctx["locator"].upper() not in kicker.upper():
         kicker = f"{kicker}  ·  {ctx['locator'].upper()}"
 
@@ -2073,6 +2107,10 @@ def build_parser() -> argparse.ArgumentParser:
                    help="bản đồ điểm: cột số quyết định cỡ chấm; diện tích tỷ lệ "
                         "với giá trị, cùng thang với chú giải")
     r.add_argument("--aggregate", default="auto", choices=list(aggregate.METHODS))
+    r.add_argument("--map-text", action="append", metavar="KEY=VALUE",
+                   help="thay một chuỗi engine tự sinh trên bản đồ, ví dụ "
+                        "--map-text no_data='ບໍ່ມີຂໍ້ມູນ'. Lặp lại được. "
+                        "Dùng để in bản đồ bằng ngôn ngữ ngoài vi/en")
     r.add_argument("--map-scope", default="auto",
                    choices=["auto", "national", "single-province", "province-series",
                             "matched-only"])

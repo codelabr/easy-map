@@ -462,10 +462,16 @@ def localise_digits(text: str, lang: str | None = None) -> str:
     """
     from . import i18n
 
-    if i18n.normalise(lang) == "en":
-        return text
+    # Named rather than assumed, so a language that groups with a space or
+    # marks the decimal with an apostrophe can say so instead of being sorted
+    # into one of two camps.
+    thousands = i18n.t(lang, "thousands")
+    decimal = i18n.t(lang, "decimal")
+    if (thousands, decimal) == (",", "."):
+        return text                       # already the convention Python used
     # a placeholder, so the two replacements cannot undo each other
-    return text.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+    return (text.replace(",", "\x00").replace(".", decimal)
+                .replace("\x00", thousands))
 
 
 def group_digits(value: float, lang: str | None = None) -> str:
