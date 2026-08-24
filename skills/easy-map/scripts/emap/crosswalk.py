@@ -95,8 +95,8 @@ def summarize(review: list[dict[str, Any]]) -> dict[str, Any]:
     converted = [r for r in review if r.get("match_method") == matching.MERGED]
     targets = {r.get("matched_province") for r in converted if r.get("matched_province")}
     return {
-        "số_tên_cũ_đã_quy_đổi": len(converted),
-        "số_tỉnh_hiện_nay_nhận": len(targets),
-        "ví_dụ": [f"{r['dataset_province']} → {r['matched_province']}"
+        "renamed_count": len(converted),
+        "current_province_count": len(targets),
+        "examples": [f"{r['dataset_province']} → {r['matched_province']}"
                   for r in converted[:6]],
     }

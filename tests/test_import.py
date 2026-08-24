@@ -32,8 +32,8 @@ class TestAdoptFile(unittest.TestCase):
 
     def test_the_file_lands_in_input(self):
         result = dataio.adopt_file(self.root, self.attach("so-lieu.csv"))
-        self.assertEqual(result["tệp"], "input/so-lieu.csv")
-        self.assertEqual(result["trạng_thái"], "đã_chép")
+        self.assertEqual(result["files"], "input/so-lieu.csv")
+        self.assertEqual(result["status"], "copied")
         self.assertTrue((self.root / "input" / "so-lieu.csv").exists())
 
     def test_the_same_file_twice_is_not_copied_twice(self):
@@ -41,14 +41,14 @@ class TestAdoptFile(unittest.TestCase):
         for the user to choose between."""
         dataio.adopt_file(self.root, self.attach("so-lieu.csv"))
         again = dataio.adopt_file(self.root, self.attach("so-lieu.csv"))
-        self.assertEqual(again["trạng_thái"], "đã_có_sẵn")
+        self.assertEqual(again["status"], "already_present")
         self.assertEqual(len(list((self.root / "input").iterdir())), 1)
 
     def test_same_name_but_different_content_keeps_both(self):
         """The older file may be what an earlier map in this conversation used."""
         dataio.adopt_file(self.root, self.attach("so-lieu.csv"))
         changed = dataio.adopt_file(self.root, self.attach("so-lieu.csv", "a,b\n9,9\n"))
-        self.assertEqual(changed["tệp"], "input/so-lieu_02.csv")
+        self.assertEqual(changed["files"], "input/so-lieu_02.csv")
         self.assertEqual(len(list((self.root / "input").iterdir())), 2)
 
     def test_an_unsupported_format_names_what_is_accepted(self):
@@ -130,7 +130,7 @@ class TestReadingPastedTables(unittest.TestCase):
     def test_how_the_file_was_read_is_reported_not_assumed(self):
         notes: list = []
         dataio.read_table(self.deps, self.write("a;b\n1;2\n"), None, notes=notes)
-        detail = " ".join(n.get("chi_tiết", "") for n in notes)
+        detail = " ".join(n.get("detail", "") for n in notes)
         self.assertIn("';'", detail)
 
     def test_a_csv_reports_one_sheet_so_the_survey_can_describe_it(self):

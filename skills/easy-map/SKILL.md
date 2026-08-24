@@ -73,7 +73,7 @@ reply arrives in Vietnamese, including the paragraph of instructions you read
 immediately before writing to the user — and a run that began in English drifts
 into Vietnamese halfway through, which is what happened the first time. When
 `--messages` is absent the gate says so, in both languages, at the end of
-`hướng_dẫn`; treat that line as a defect in your own command and re-run.
+`guidance`; treat that line as a defect in your own command and re-run.
 The map language is question 6 of the interview and defaults to the conversation
 language.
 
@@ -118,16 +118,16 @@ first person.
 ## How to ask a question
 
 You do not compose the questions. Every one this skill needs arrives from the
-engine already built: `survey` returns `chọn_nhanh`, and `render` without
-`--confirmed` returns `phải_hỏi` plus, on each plan row that can still change, a
-`câu_hỏi` with its own `lựa_chọn`. Each option carries:
+engine already built: `survey` returns `quick_pick`, and `render` without
+`--confirmed` returns `must_ask` plus, on each plan row that can still change, a
+`question` with its own `choices`. Each option carries:
 
 | Field | Use it as |
 |---|---|
-| `nhãn` | the option's label |
-| `mô_tả` | one sentence on what choosing it does to the finished map |
-| `khuyến_nghị` | `true` on the recommended one — put it first, mark it `(Recommended)` |
-| `cờ` | the flag to pass on the next run. **For you, not for them** |
+| `label` | the option's label |
+| `description` | one sentence on what choosing it does to the finished map |
+| `recommended` | `true` on the recommended one — put it first, mark it `(Recommended)` |
+| `flag` | the flag to pass on the next run. **For you, not for them** |
 
 **Use the host's own option picker.** On Codex that is `request_user_input`. Pass
 the options through as they are: do not add options, do not reword them, and do
@@ -147,7 +147,7 @@ Two constraints on what any question may contain.
   questions gets one answer, and you will not know which.
 
 The exception is the plan table itself, which is a summary rather than a
-question: print all of it at once, then ask about the rows in `phải_hỏi`.
+question: print all of it at once, then ask about the rows in `must_ask`.
 
 ## Project layout
 
@@ -182,12 +182,12 @@ tier it has.
 Each country carries the reading the engine made of its boundary files, with the
 evidence beside it. Read the evidence, not the confidence word:
 
-- `nhận_diện.bộ` — which scheme the files are in: `viet-nam`, `gadm`,
+- `detected.bộ` — which scheme the files are in: `viet-nam`, `gadm`,
   `geoboundaries`, or `generic` where nothing matched and the name column was
   worked out from the values.
-- `cha_con.bằng_chứng` — how well the finer tier's parent names line up with the
+- `parent_link.evidence` — how well the finer tier's parent names line up with the
   coarser tier. `3321/3321` needs no comment. `26/34` is worth stopping for.
-- `nhận_diện.độ_tin_cậy` of `phải hỏi` means two columns looked equally like the
+- `detected.confidence` of `phải hỏi` means two columns looked equally like the
   name column. Ask which one before drawing; picking wrong labels every unit on
   the map with the wrong string and nothing downstream notices.
 
@@ -195,7 +195,7 @@ evidence beside it. Read the evidence, not the confidence word:
 
 - A shapefile with no `.cpg` has its text decoded wrongly — `Québec` arrives as
   `QuÃ©bec`. The engine detects and repairs this, and reports it under
-  `sửa_bảng_mã_ranh_giới`. **Tell the user it happened**, because place names on
+  `codepage_repair`. **Tell the user it happened**, because place names on
   their map changed.
 - Two datasets in one tier folder is refused by name. So is a `.shp` without its
   `.shx` and `.dbf`.
@@ -228,9 +228,9 @@ overwrites: an identical file already there is reused and reported as
 **2. Did the user paste a table as text?** Write it to `input/` as a `.csv` — one
 row per line, tab or comma separated — with a name describing its content, then
 `import` that file. The skill detects the delimiter and the encoding, and reports
-both under `cách_đọc_sheet`. Read that report out: a pasted table carries no
+both under `sheet_reading`. Read that report out: a pasted table carries no
 types, so the count of cells that could not be read as numbers
-(`số_ô_không_đọc_được`) matters far more here than it does with a real workbook.
+(`unreadable_cells`) matters far more here than it does with a real workbook.
 
 **3. Only if neither** — survey what is already there:
 
@@ -242,9 +242,9 @@ With no `--excel` it reads every file in `input/`; with one, just that file.
 Either way it samples a few hundred rows per sheet — under three seconds for the
 whole folder.
 
-**The question is already written for you.** `survey` returns `chọn_nhanh` as a
-finished question — `câu_hỏi`, then one `lựa_chọn` per mappable sheet with its
-`nhãn` (the file) and `mô_tả` (the sheet, its row count and its administrative
+**The question is already written for you.** `survey` returns `quick_pick` as a
+finished question — `question`, then one `choices` per mappable sheet with its
+`label` (the file) and `description` (the sheet, its row count and its administrative
 level). Hand it to the picker as it is. Making someone copy a file name back to
 you is a poor way to choose between fourteen options, and it is what happened the
 first time this skill met a real user.
@@ -274,7 +274,7 @@ uv run ... python skills/easy-map/scripts/easy_map.py survey --project-root . --
 
 It samples a few hundred rows per sheet — a couple of seconds even for a 6 MB
 workbook — and returns, for each sheet, whether it is usable, which column holds
-place names, the administrative level, and the row count. `nên_dùng` lists the
+place names, the administrative level, and the row count. `preferred` lists the
 sheets worth opening.
 
 Then open with the answer, not the question:
@@ -289,32 +289,32 @@ whose name reads best, which on a real export is the pivot summary rather than
 the data. Ask only when `survey` returns more than one usable sheet, and then
 describe them by what they contain rather than by name alone.
 
-**`số_bảng_trong_sheet` above one means the sheet holds separate tables**, with
-`vị_trí_các_bảng` giving each one's row range. This happens when somebody
+**`tables_in_sheet` above one means the sheet holds separate tables**, with
+`table_positions` giving each one's row range. This happens when somebody
 appends a budget table under a summary table instead of opening a new sheet.
 Read plainly it comes back as one table whose lower half carries the upper
 half's column names — no error, just a second set of rows that means something
 else. The skill only reports this; ask which table is wanted and have the user
 split it into its own sheet before profiling. Do not guess.
 
-If `nên_dùng` is empty, say so plainly and stop. Nothing further is worth doing
+If `preferred` is empty, say so plainly and stop. Nothing further is worth doing
 until a different file or a corrected sheet arrives.
 
 ## Then: can that sheet become a map at all?
 
-`profile` answers `dùng_được` before anything else. When it is `false`, the map
+`profile` answers `usable` before anything else. When it is `false`, the map
 options list is empty and a `sheet-khong-ve-duoc` warning says why — the sheet
 is a pivot table, or has no place-name column, or is empty. Relay the reason and
 offer the other sheets in the workbook. Do not push on: there is nothing there
 to be clever about.
 
-`cách_đọc_sheet` records what had to be adjusted to read the file at all:
+`sheet_reading` records what had to be adjusted to read the file at all:
 
 - **`bỏ_qua_dòng_đầu`** — the column names were not on row 1. Real reports put a
   title, a date and a few pivot filters above the table. Say how many rows were
   skipped; if the number looks wrong, the sheet is probably the wrong one.
 - **`đổi_chữ_thành_số`** — a column of numbers arrived as text, usually because
-  it was typed with thousands separators. Check `số_ô_không_đọc_được`: those
+  it was typed with thousands separators. Check `unreadable_cells`: those
   cells became blanks, and blanks are not zeroes.
 - **`đọc_ô_gộp`** — the sheet had merged cells, so it was read a second time
   honouring them. Two things this fixes, both silent otherwise: a province
@@ -322,7 +322,7 @@ to be clever about.
   first (blank meaning "same as above", not "missing"), and a header whose group
   name spans two columns loses that name while its second tier — "Nam", "Nữ" —
   is read as a row of data. Grouped columns come back joined:
-  `Số ca phát hiện - Nam`. `số_tầng_tiêu_đề` says how many tiers were folded in.
+  `Số ca phát hiện - Nam`. `header_tiers` says how many tiers were folded in.
 - **`bỏ_qua_dò_ô_gộp`** — the sheet looked like it had merged cells but the file
   is over 2 MB, and reading merges costs roughly eleven seconds per megabyte.
   Say so: column names and place names may be incomplete, and splitting the
@@ -356,14 +356,14 @@ stand.
 > circles by cases detected — colour carries the level, circle size carries the
 > scale. Please confirm this reading of the data.
 
-**Show the rows.** `profile` returns `mẫu_dữ_liệu`: five real rows over the
+**Show the rows.** `profile` returns `sample`: five real rows over the
 columns that carry the meaning. Print it as a table under your summary — a claim
 about a dataset is worth more with the dataset under it, and on a long sheet the
 rows *are* the explanation: the reader sees one place on three consecutive rows
 and understands "một dòng là một quan sát" without being told.
 
 Mark what is not shown, with the real numbers. Add a `…` column at the right
-when `số_cột_ẩn` is above zero, and a `…` row underneath for `số_dòng_còn_lại`:
+when `hidden_columns` is above zero, and a `…` row underneath for `remaining_rows`:
 
 ```
 Tỉnh/thành phố   | Indicator Code | Value | Disaggregate  | Quarter | …
@@ -373,7 +373,7 @@ Binh Duong       | TX_CURR        | 5     | By Age - Sex  | Q1      | …
 …  (còn 70.075 dòng, 14 cột nữa)
 ```
 
-Name the hidden columns if the user asks; they are in `tên_cột_ẩn`.
+Name the hidden columns if the user asks; they are in `hidden_column_names`.
 
 If something is genuinely ambiguous — two columns could be the province, a numeric column has no recognisable meaning, the workbook mixes several reporting periods — ask about *that*, one question at a time.
 
@@ -382,7 +382,7 @@ If something is genuinely ambiguous — two columns could be the province, a num
 Some exports are **long**: a single numeric column holds every value and the
 neighbouring columns say what each row is about. A PEPFAR MER extract runs
 70.000 rows and 23 indicators through one `Value` column. The profile detects
-this and answers with a `dữ_liệu_dạng_dài` block instead of the usual map
+this and answers with a `long_form` block instead of the usual map
 options, because listing columns is no longer a useful description of the sheet.
 
 Read that block before you speak. It gives you the value column, the column that
@@ -399,17 +399,17 @@ adds up correctly, while a column carrying a pre-computed total *beside* its
 detail rows does not.
 
 **Every indicator arrives with its slice already worked out.** Each entry under
-`chỉ_số` carries `lát_đề_xuất` — the value to pin on each column with the reason
-measured from that indicator's own rows — plus `tổng_sau_khi_ghăm` and a ready
-`lệnh`. Use it. Working the pins out by hand is how the period gets forgotten,
+`indicator` carries `suggested_slices` — the value to pin on each column with the reason
+measured from that indicator's own rows — plus `total_after_pinning` and a ready
+`command`. Use it. Working the pins out by hand is how the period gets forgotten,
 and forgetting the period on TX_CURR turns 49.706 into 433.681 by counting every
 patient once per quarter.
 
 Two fields there are worth reading out loud rather than skipping:
 
-- `giá_trị_cùng_một_tổng` lists values that add up to the same number. That is
+- `same_total_values` lists values that add up to the same number. That is
   proof they are one population written down twice, not two populations.
-- `chưa_ghăm` lists the axes the recommendation deliberately left open, because
+- `unpinned` lists the axes the recommendation deliberately left open, because
   summing across them is correct — sites and districts inside a province. If
   anything unexpected appears there, stop and look before rendering.
 
@@ -460,7 +460,7 @@ say so, rather than fuzzy-matching district names into the commune list.
 | Instead of | Say |
 |---|---|
 | choropleth | tô màu từng xã theo mức độ, đậm là cao |
-| proportional symbol | vẽ vòng tròn, tròn to là số nhiều |
+| proportional symbol | vẽ vòng tròn, tròn to là số many |
 | choropleth + symbol | màu cho biết mức độ, vòng tròn cho biết số lượng thật |
 | categorized | mỗi nhóm một màu riêng |
 | change map | màu hai chiều: một phía tăng, một phía giảm |
@@ -473,7 +473,7 @@ round — sizing dots by a category invents an order the data does not have.
 Dots use the same scale as their key, so the key is true for its own map.
 
 **Known defect**: with long category labels the colour key runs out of its
-column and lies across the map. `tràn_khung` reports it; shorten the group names
+column and lies across the map. `overflow` reports it; shorten the group names
 in the workbook, or leave `--point-color-column` off, until this is fixed.
 
 **If the user already states what they want** — "vẽ cho tôi bản đồ tỷ lệ tiêm chủng cấp xã của Nghệ An, khổ dọc, chú giải 4 nhóm" — do not walk them through the interview. Confirm the parts you could not infer, note anything scientifically risky, and render.
@@ -493,7 +493,7 @@ Only ask what you cannot settle from the data. Everything else gets a sensible d
    map for a provincial health department. The language of the chat says nothing
    about the language of the audience. This is `--language`; it is a separate
    decision from `--messages`, which does follow the chat and is never asked
-   about. Leave `--language` off and the gate lists it under `phải_hỏi`.
+   about. Leave `--language` off and the gate lists it under `must_ask`.
 
 Questions 5 and 6 arrive from the gate already worded, with their options and
 the recommendation — do not compose your own version of either.
@@ -516,20 +516,20 @@ Nothing is drawn and no folder is written. What comes back is:
 
 | Field | What to do with it |
 |---|---|
-| `phương_án` | The numbered plan. Every row is already in the conversation's language and in plain words — print `mục` and `giá_trị` as they come. `ghi_chú` marks what the skill chose for the person rather than with them |
-| `phương_án[].câu_hỏi` / `.lựa_chọn` | Present on rows that can still change. Do not read them out with the table; keep them for when the person wants that row changed, then hand them to the picker |
-| `phải_hỏi` | Finished questions for the settings that are theirs to decide and that nobody supplied. Ask exactly these, one at a time |
-| `cảnh_báo` | Anything scientifically risky. Say it before they agree, not after |
-| `mã_xác_nhận` | The code that unlocks drawing — `null` while `phải_hỏi` is not empty |
-| `lệnh_khi_đã_đồng_ý` | The same command with the code appended, ready to run |
+| `settings` | The numbered plan. Every row is already in the conversation's language and in plain words — print `item` and `value` as they come. `note` marks what the skill chose for the person rather than with them |
+| `settings[].question` / `.choices` | Present on rows that can still change. Do not read them out with the table; keep them for when the person wants that row changed, then hand them to the picker |
+| `must_ask` | Finished questions for the settings that are theirs to decide and that nobody supplied. Ask exactly these, one at a time |
+| `warnings` | Anything scientifically risky. Say it before they agree, not after |
+| `confirm_code` | The code that unlocks drawing — `null` while `must_ask` is not empty |
+| `command_when_agreed` | The same command with the code appended, ready to run |
 
 Then **stop and wait**. When they agree, run that second command.
 
-**While `phải_hỏi` has anything in it, no code exists.** Not a stale one, not a
+**While `must_ask` has anything in it, no code exists.** Not a stale one, not a
 wrong one — none. The plan table reads the same whether the map language was
 chosen or merely defaulted, so a code alone cannot prove anybody was asked. The
 only way forward is to ask, then put the answers on the command line as
-`--language` and `--layout`; that empties `phải_hỏi` and a code is issued.
+`--language` and `--layout`; that empties `must_ask` and a code is issued.
 
 If they change anything, run the planning step again with the new settings: the
 old code stops working the moment a setting moves, so a changed plan is always
@@ -544,9 +544,9 @@ table, not the table:
 ```
 PHƯƠNG ÁN TRƯỚC KHI VẼ — đề nghị xác nhận
 
-  <mỗi dòng của phương_án: số, mục, giá_trị, và ghi_chú nếu có>
+  <mỗi dòng của settings: số, mục, value, và note nếu có>
 
-Cảnh báo: <mỗi mục của cảnh_báo, nêu trước khi hỏi>
+Cảnh báo: <mỗi mục của warnings, nêu trước khi hỏi>
 
 Xác nhận để tiến hành vẽ. Để thay đổi, nêu số thứ tự của mục cần sửa.
 ```
@@ -555,7 +555,7 @@ The heading and the closing line follow the conversation language: *PLAN BEFORE
 DRAWING — please confirm* … *Confirm to draw. To change anything, give the number
 of the line.*
 
-The plan is editable, not just viewable. A row that carries `lựa_chọn` is changed
+The plan is editable, not just viewable. A row that carries `choices` is changed
 by handing those options to the picker. A row that does not — the measure, the
 circle column, the slice — is changed in the person's own words: "thêm số ca đồng
 nhiễm vào bản đồ", "bỏ vòng tròn đi". Take it, re-allocate, run the planning step
@@ -601,7 +601,7 @@ Three things in that line are worth reading slowly:
   pinning HTS_TST_POS's way triples TX_CURR.
 - **`--where` stays for what is common to all of them** — the period, usually.
 
-Take the pins straight from each indicator's `lát_đề_xuất` in the profile. A pin
+Take the pins straight from each indicator's `suggested_slices` in the profile. A pin
 that matches nothing stops the run and prints the values that indicator actually
 has, so a wrong guess costs one message.
 
@@ -674,7 +674,7 @@ translation is not reviewable by anyone in the conversation.
 
 ### Which language to offer
 
-`render`'s plan carries `gợi_ý_ngôn_ngữ` when it has anything to say. It reports
+`render`'s plan carries `language_hint` when it has anything to say. It reports
 two sources separately — what the machine is set to, and the language of the
 country whose boundaries are being drawn — because they disagree often: somebody
 writing to you in English very often wants a Vietnamese map for a Vietnamese
@@ -713,7 +713,7 @@ Two things make an animated map honest, and both are enforced:
 provinces produces one video per province, and they all share one set of class
 breaks and one circle scale computed across the whole set — a colour has to mean
 the same thing in Nghệ An as in Hà Nội, and in every period of both. The result
-carries `số_khung` and a `khung` list; the interactive page gathers them all
+carries `frames` and a `khung` list; the interactive page gathers them all
 behind one picker.
 
 MP4 needs ffmpeg. Without it the run falls back to GIF and says so in the result; relay that, because a GIF is bigger and coarser.
@@ -737,7 +737,7 @@ Tell the user what the conversion did to their numbers: counts from former provi
 
 ## When the user's choice is scientifically wrong
 
-The script returns a `cảnh_báo` list; each item has `vấn_đề`, `vì_sao` and `nên_làm` already written in plain Vietnamese. Relay `critical` and `warning` items before rendering.
+The script returns a `warnings` list; each item has `problem`, `why` and `fix` already written in the conversation's language. Relay `critical` and `warning` items before rendering.
 
 **Warn, propose, then do what the user decides.** Do not refuse, and do not silently override. The common cases:
 
@@ -787,15 +787,15 @@ declaration, Vietnam's, and reads any other from the country profile
 `shapefiles/ho_so_quoc_gia.json`:
 
 ```json
-"canada": { "khai_báo": { "kinh_tuyến_khung_phụ": -100.0,
-                          "nhãn_khung_phụ": "Arctic Archipelago" } }
+"canada": { "declared": { "inset_meridian": -100.0,
+                          "inset_label": "Arctic Archipelago" } }
 ```
 
 The caption is optional and there is no default: a box with nothing declared is
-drawn without a caption, never with Vietnam's. `khung_phụ` in the profile always
+drawn without a caption, never with Vietnam's. `inset` in the profile always
 says which of the three states applies — declared here, declared built-in, or
-`"nguồn": "chưa khai"` — and when nothing is declared it also carries
-`cách_khai`, the line to write and the file to write it in. Offer this when the
+`"source": "chưa khai"` — and when nothing is declared it also carries
+`how_to_declare`, the line to write and the file to write it in. Offer this when the
 warning above fires **and** the distant land lies wholly to one side by
 longitude. It cannot help the United States, whose Alaska is west and whose
 Puerto Rico is east; say so rather than suggesting a number that will not work.
@@ -816,7 +816,7 @@ mainland leaves the mainland 56% of the width — Hà Nội becomes too small to
 label. The engine frames the mainland and carries the archipelagos in a boxed
 inset at the bottom right, coloured from the same data as the main map. Nothing
 is deleted: only the view is narrowed, so every value, area and label anchor is
-unchanged. The result appears as `khung_phụ` in the map's metadata, including
+unchanged. The result appears as `inset` in the map's metadata, including
 what share of the width the mainland ended up with (69.4% on the current
 shapefile). A map of one province gets no inset — there is no
 mainland-versus-islands story when the reader asked for Khánh Hòa.
@@ -967,25 +967,25 @@ Two things follow from how it is built, and both are worth saying to the user ra
 
 **Look at the rendered PNG.** Exit code zero is not evidence that a map is readable. Check that nothing is clipped at the page edge, labels do not collide, every leader line ends on a label, the legend order runs low to high, and the locator does not sit on top of anything.
 
-**Read `tràn_khung` before anything else.** It lists text that left the space it
-was given: `ra_khỏi: "trang"` means it will be cut when the file is written,
-`ra_khỏi: "cột chú giải"` means it stayed on the paper but ran out of the left
+**Read `overflow` before anything else.** It lists text that left the space it
+was given: `outside_of: "trang"` means it will be cut when the file is written,
+`outside_of: "cột chú giải"` means it stayed on the paper but ran out of the left
 column and across the map. The usual cause is a `--legend-title` or `--title`
 too long for the layout — shorten it and render again rather than handing over a
 plate with a sentence lying over the country. An empty list is the normal result.
 
-Read the label report too. `chỉ_hiện_tên` lists units too crowded to fit their value, so the name is printed alone — a reader cannot tell that from a unit with no data, so name them. `bỏ_vì_chật` lists units that got no label at all. Both are still readable by hovering the interactive page; say so.
+Read the label report too. `name_only` lists units too crowded to fit their value, so the name is printed alone — a reader cannot tell that from a unit with no data, so name them. `dropped_no_room` lists units that got no label at all. Both are still readable by hovering the interactive page; say so.
 
 Then reply with the run folder path, the image paths, **the interactive page and what it is for**, what you chose on the user's behalf, and any warning they accepted. Say plainly that the HTML file can be sent on its own — people assume a web page needs the folder around it.
 
-**Never build a file link yourself.** `render` returns `mở_tệp`: one entry per
-file worth opening, each with `tên`, `đường_dẫn` and a finished `liên_kết`. Copy
-`liên_kết` exactly. Do not prepend a scheme, do not convert separators, do not
+**Never build a file link yourself.** `render` returns `open_files`: one entry per
+file worth opening, each with `name`, `path` and a finished `link`. Copy
+`link` exactly. Do not prepend a scheme, do not convert separators, do not
 translate a drive letter into a mount point.
 
 The reason is specific. A real run rewrote the Windows path it had been handed
 into a `file:///` URL on a different drive, under a mount point that does not
 exist on the machine holding the file: it had assumed a Linux sandbox it was not
 running in. The link opened nothing, and the user had no way to tell that from a
-map that had failed to render. `mở_tệp` is computed on the machine the file is
+map that had failed to render. `open_files` is computed on the machine the file is
 actually on, so there is nothing left to assume.

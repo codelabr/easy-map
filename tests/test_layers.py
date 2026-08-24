@@ -15,7 +15,7 @@ from emap import layers, semantics as sem
 
 
 def ask(name: str, semantic: str) -> dict:
-    return {"tên": name, "semantic": semantic}
+    return {"name": name, "semantic": semantic}
 
 
 RATE = ask("Tỷ lệ ức chế virus", sem.PERCENT)
@@ -28,29 +28,29 @@ GROUP = ask("Mức ưu tiên", sem.CATEGORY)
 class TestOneMap(unittest.TestCase):
     def test_a_rate_and_a_count_share_one_map(self):
         plan = layers.allocate([RATE, COUNT])
-        self.assertEqual(len(plan["bản_đồ"]), 1)
-        one = plan["bản_đồ"][0]
-        self.assertEqual(one["màu_vùng"], RATE)
-        self.assertEqual(one["vòng_tròn"], COUNT)
-        self.assertEqual(one["loại"], "choropleth-symbol")
+        self.assertEqual(len(plan["maps"]), 1)
+        one = plan["maps"][0]
+        self.assertEqual(one["fill"], RATE)
+        self.assertEqual(one["symbol"], COUNT)
+        self.assertEqual(one["kind"], "choropleth-symbol")
 
     def test_the_order_asked_for_does_not_change_the_channels(self):
         """Semantic decides the channel, not the order of the request."""
-        self.assertEqual(layers.allocate([COUNT, RATE])["bản_đồ"][0]["màu_vùng"], RATE)
+        self.assertEqual(layers.allocate([COUNT, RATE])["maps"][0]["fill"], RATE)
 
     def test_a_rate_alone_is_a_choropleth(self):
-        self.assertEqual(layers.allocate([RATE])["bản_đồ"][0]["loại"], "choropleth")
+        self.assertEqual(layers.allocate([RATE])["maps"][0]["kind"], "choropleth")
 
     def test_a_count_alone_gets_circles_not_fill(self):
-        plan = layers.allocate([COUNT])["bản_đồ"][0]
-        self.assertIsNone(plan["màu_vùng"])
-        self.assertEqual(plan["loại"], "graduated-symbol")
+        plan = layers.allocate([COUNT])["maps"][0]
+        self.assertIsNone(plan["fill"])
+        self.assertEqual(plan["kind"], "graduated-symbol")
 
     def test_a_category_fills_areas_with_its_own_map_type(self):
-        self.assertEqual(layers.allocate([GROUP])["bản_đồ"][0]["loại"], "categorized")
+        self.assertEqual(layers.allocate([GROUP])["maps"][0]["kind"], "categorized")
 
     def test_every_placement_explains_itself(self):
-        why = " ".join(layers.allocate([RATE, COUNT])["bản_đồ"][0]["lý_do"])
+        why = " ".join(layers.allocate([RATE, COUNT])["maps"][0]["reason"])
         self.assertIn("chuẩn hoá", why)
         self.assertIn("diện tích và dân số", why)
 
@@ -58,46 +58,46 @@ class TestOneMap(unittest.TestCase):
 class TestSpillingToASecondMap(unittest.TestCase):
     def test_two_counts_cannot_share_the_circle_channel(self):
         plan = layers.allocate([RATE, COUNT, COUNT2])
-        self.assertEqual(len(plan["bản_đồ"]), 2)
-        self.assertEqual(plan["bản_đồ"][0]["vòng_tròn"], COUNT)
-        self.assertEqual(plan["bản_đồ"][1]["vòng_tròn"], COUNT2)
+        self.assertEqual(len(plan["maps"]), 2)
+        self.assertEqual(plan["maps"][0]["symbol"], COUNT)
+        self.assertEqual(plan["maps"][1]["symbol"], COUNT2)
 
     def test_the_first_named_variable_keeps_the_channel(self):
         plan = layers.allocate([COUNT2, COUNT])
-        self.assertEqual(plan["bản_đồ"][0]["vòng_tròn"], COUNT2)
+        self.assertEqual(plan["maps"][0]["symbol"], COUNT2)
 
     def test_two_rates_split_across_two_maps(self):
         plan = layers.allocate([RATE, RATE2])
-        self.assertEqual([m["màu_vùng"] for m in plan["bản_đồ"]], [RATE, RATE2])
+        self.assertEqual([m["fill"] for m in plan["maps"]], [RATE, RATE2])
 
     def test_the_split_is_explained_rather_than_just_done(self):
         plan = layers.allocate([RATE, COUNT, COUNT2])
-        self.assertIn("hai kênh", plan["vì_sao_tách"])
-        self.assertIn("hộp chọn", plan["vì_sao_tách"])
+        self.assertIn("hai kênh", plan["why_split"])
+        self.assertIn("hộp chọn", plan["why_split"])
 
     def test_a_single_map_needs_no_explanation_of_splitting(self):
-        self.assertNotIn("vì_sao_tách", layers.allocate([RATE, COUNT]))
+        self.assertNotIn("why_split", layers.allocate([RATE, COUNT]))
 
     def test_four_variables_pair_up_two_and_two(self):
         plan = layers.allocate([RATE, COUNT, RATE2, COUNT2])
-        self.assertEqual(len(plan["bản_đồ"]), 2)
-        self.assertEqual(plan["bản_đồ"][1]["loại"], "choropleth-symbol")
+        self.assertEqual(len(plan["maps"]), 2)
+        self.assertEqual(plan["maps"][1]["kind"], "choropleth-symbol")
 
 
 class TestWhatCannotBeDrawn(unittest.TestCase):
     def test_a_time_column_is_refused_with_a_reason(self):
         plan = layers.allocate([ask("Quarter", sem.TIME)])
-        self.assertEqual(plan["bản_đồ"], [])
-        self.assertIn("lọc kỳ", plan["không_xếp_được"][0]["vì_sao"])
+        self.assertEqual(plan["maps"], [])
+        self.assertIn("lọc kỳ", plan["unplaced"][0]["why"])
 
     def test_coordinates_are_pointed_at_the_point_map(self):
         plan = layers.allocate([ask("Kinh độ", sem.COORDINATE)])
-        self.assertIn("--map-type point", plan["không_xếp_được"][0]["vì_sao"])
+        self.assertIn("--map-type point", plan["unplaced"][0]["why"])
 
     def test_a_refused_column_does_not_stop_the_others(self):
         plan = layers.allocate([RATE, ask("Site Name", sem.TEXT), COUNT])
-        self.assertEqual(len(plan["bản_đồ"]), 1)
-        self.assertEqual(len(plan["không_xếp_được"]), 1)
+        self.assertEqual(len(plan["maps"]), 1)
+        self.assertEqual(len(plan["unplaced"]), 1)
 
 
 class TestConflictWarnings(unittest.TestCase):
@@ -232,19 +232,19 @@ class TestLongSheetLayers(unittest.TestCase):
 
     def test_an_indicator_value_is_accepted_where_a_column_name_would_not_be(self):
         [one] = self.requests("TX_CURR")
-        self.assertEqual(one["chỉ_số"], "TX_CURR")
+        self.assertEqual(one["indicator"], "TX_CURR")
         self.assertEqual(one["semantic"], sem.COUNT)
 
     def test_a_pair_written_with_a_slash_becomes_a_rate(self):
         [one] = self.requests("TX_PVLS Num / TX_PVLS Den")
         self.assertEqual(one["semantic"], sem.PERCENT)
-        self.assertEqual((one["tử_số"], one["mẫu_số"]), ("TX_PVLS Num", "TX_PVLS Den"))
+        self.assertEqual((one["numerator"], one["denominator"]), ("TX_PVLS Num", "TX_PVLS Den"))
 
     def test_a_pin_on_a_column_whose_name_contains_a_slash(self):
         """'Status/Result' must not be mistaken for a numerator and denominator."""
         [one] = self.requests("TX_CURR|Status/Result=Total")
-        self.assertEqual(one["chỉ_số"], "TX_CURR")
-        self.assertEqual(one["lát"], ["Status/Result=Total"])
+        self.assertEqual(one["indicator"], "TX_CURR")
+        self.assertEqual(one["slice"], ["Status/Result=Total"])
 
     def test_an_unknown_indicator_names_what_does_exist(self):
         with self.assertRaises(SystemExit) as caught:
@@ -254,9 +254,9 @@ class TestLongSheetLayers(unittest.TestCase):
     def test_three_indicators_lay_out_over_two_maps(self):
         plan = layers.allocate(self.requests(
             "TX_PVLS Num / TX_PVLS Den", "TX_CURR", "HTS_TST_POS"))
-        self.assertEqual(len(plan["bản_đồ"]), 2)
-        self.assertEqual(plan["bản_đồ"][0]["loại"], "choropleth-symbol")
-        self.assertEqual(plan["bản_đồ"][1]["vòng_tròn"]["tên"], "HTS_TST_POS")
+        self.assertEqual(len(plan["maps"]), 2)
+        self.assertEqual(plan["maps"][0]["kind"], "choropleth-symbol")
+        self.assertEqual(plan["maps"][1]["symbol"]["name"], "HTS_TST_POS")
 
 
 class TestChannelsPinnedSeparately(unittest.TestCase):
@@ -292,8 +292,8 @@ class TestChannelsPinnedSeparately(unittest.TestCase):
 
     def test_each_channel_keeps_its_own_pin(self):
         name, frame, note = self.cli._build_long_columns(self.args, self.joined, {})
-        self.assertEqual(note["màu_vùng"]["tổng"], 140.0)     # not 280: detail excluded
-        self.assertEqual(note["vòng_tròn"]["tổng"], 10.0)
+        self.assertEqual(note["fill"]["total"], 140.0)     # not 280: detail excluded
+        self.assertEqual(note["symbol"]["total"], 10.0)
 
     def test_a_pin_that_erases_the_other_channel_is_refused_loudly(self):
         self.args.symbol_where = ["Status/Result=Total"]

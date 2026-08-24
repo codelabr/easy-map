@@ -246,13 +246,13 @@ def overflow(fig, *, slack: float = OVERFLOW_SLACK_PT, panels=()) -> list[dict[s
         if box.width <= 0 or box.height <= 0:
             continue
         frame = owner.bbox if owner is not None else fig.bbox
-        sides = {"trái": frame.x0 - box.x0, "phải": box.x1 - frame.x1,
-                 "dưới": frame.y0 - box.y0, "trên": box.y1 - frame.y1}
+        sides = {"left": frame.x0 - box.x0, "right": box.x1 - frame.x1,
+                 "bottom": frame.y0 - box.y0, "top": box.y1 - frame.y1}
         side, over = max(sides.items(), key=lambda kv: kv[1])
         if over > slack:
-            out.append({"chữ": str(artist.get_text())[:60], "phía": side,
-                        "ra_khỏi": "trang" if owner is None else "cột chú giải",
-                        "vượt_pt": round(over * 72.0 / fig.dpi, 1)})
+            out.append({"text": str(artist.get_text())[:60], "side": side,
+                        "outside_of": "trang" if owner is None else "cột chú giải",
+                        "over_pt": round(over * 72.0 / fig.dpi, 1)})
     return out
 
 

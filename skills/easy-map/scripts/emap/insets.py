@@ -42,14 +42,14 @@ from typing import Any
 #: gets no inset, and gets a warning instead when its scattered land costs the
 #: reader enough of the page to matter.
 _VIETNAM = {
-    "kinh_tuyến": 111.0,
+    "meridian": 111.0,
     # What the box is captioned. It cannot come from the data — the shapefile
     # carries province names, and the islands are fragments of two of them — so
     # it is declared with the meridian, and a country that declares a meridian
     # without a caption gets an unlabelled box rather than Vietnam's caption.
-    "nhãn": "Hoàng Sa · Trường Sa",
-    "nguồn": "khai báo sẵn cho Việt Nam",
-    "bằng_chứng": "điểm đất liền đông nhất trong shapefile là 110,64°E; "
+    "label": "Hoàng Sa · Trường Sa",
+    "source": "built in for Vietnam",
+    "evidence": "điểm đất liền đông nhất trong shapefile là 110,64°E; "
                   "mảnh đảo tây nhất là 111,45°E",
 }
 
@@ -61,12 +61,12 @@ _DECLARED: dict[str, dict[str, Any]] = {
 #: The key a person writes to declare a meridian for a country the table does
 #: not cover. It goes in the profile's ``khai_báo`` block — the one part of that
 #: file the builder copies forward instead of computing.
-HAND_KEY = "kinh_tuyến_khung_phụ"
+HAND_KEY = "inset_meridian"
 
 #: The caption for that country's box, declared beside the meridian. Optional:
 #: without it the box is drawn unlabelled, which is the honest default — no
 #: other country's islands are called Hoàng Sa.
-HAND_LABEL_KEY = "nhãn_khung_phụ"
+HAND_LABEL_KEY = "inset_label"
 
 #: Height of the inset as a share of the mainland's height. Large enough that
 #: the island groups read as more than specks, small enough to leave the
@@ -217,7 +217,7 @@ def land_masses(frame) -> dict[str, Any]:
     parts = frame.explode(index_parts=False, ignore_index=True)
     geoms = parts.geometry.to_numpy()
     if not len(geoms):
-        return {"số_khối": 0, "khối_rời": 0}
+        return {"mass_count": 0, "detached_masses": 0}
 
     tree = shapely.STRtree(geoms)
     left, right = tree.query(geoms, predicate="dwithin", distance=LAND_LINK_M)
@@ -254,9 +254,9 @@ def land_masses(frame) -> dict[str, Any]:
     # that the main body keeps 47% of the page — and needs no distance to say
     # it. The cheapest correct thing is the one that was wanted all along.
     return {
-        "số_khối": len(masses),
-        "phần_diện_tích_khối_chính": round(masses[0][0] / total, 5),
-        "phần_bề_ngang_khối_chính": round(
+        "mass_count": len(masses),
+        "main_mass_area_share": round(masses[0][0] / total, 5),
+        "main_mass_width_share": round(
             float(body[2] - body[0]) / (maxx - minx), 4) if maxx > minx else 1.0,
     }
 
@@ -279,7 +279,7 @@ def declaration(country: str | None, by_hand: dict[str, Any] | None = None,
     """What the country profile should record about this country's inset.
 
     Three outcomes, and the profile says which of them happened rather than only
-    what the number is. A reader who finds ``"nguồn": "chưa khai"`` knows the map
+    what the number is. A reader who finds ``"source": "undeclared"`` knows the map
     was framed the ordinary way because nobody has decided otherwise — not
     because the geometry was examined and found not to need an inset.
 
@@ -290,9 +290,9 @@ def declaration(country: str | None, by_hand: dict[str, Any] | None = None,
     if by_hand and HAND_KEY in by_hand:
         lon = by_hand[HAND_KEY]
         if lon is None:
-            return {"kinh_tuyến": None, "nhãn": None,
-                    "nguồn": "người dùng khai là không có",
-                    "bằng_chứng": f"hồ sơ ghi {HAND_KEY} = null"}
+            return {"meridian": None, "label": None,
+                    "source": "declared_as_none",
+                    "evidence": f"hồ sơ ghi {HAND_KEY} = null"}
         if isinstance(lon, bool) or not isinstance(lon, (int, float)) \
                 or not -180.0 <= float(lon) <= 180.0:
             from . import messages as msg
@@ -301,20 +301,20 @@ def declaration(country: str | None, by_hand: dict[str, Any] | None = None,
                                       field=HAND_KEY, given=repr(lon),
                                       file=where or "ho_so_quoc_gia.json"))
         label = by_hand.get(HAND_LABEL_KEY)
-        return {"kinh_tuyến": float(lon),
-                "nhãn": str(label) if label else None,
-                "nguồn": "người dùng khai",
-                "bằng_chứng": f"hồ sơ ghi {HAND_KEY} = {float(lon)}"}
+        return {"meridian": float(lon),
+                "label": str(label) if label else None,
+                "source": "declared_by_user",
+                "evidence": f"hồ sơ ghi {HAND_KEY} = {float(lon)}"}
     known = declared(country)
     if known is not None:
         return dict(known)
     return {
-        "kinh_tuyến": None,
-        "nhãn": None,
-        "nguồn": "chưa khai",
-        "bằng_chứng": f"không có dòng nào cho '{country}' trong bảng khai báo "
+        "meridian": None,
+        "label": None,
+        "source": "undeclared",
+        "evidence": f"không có dòng nào cho '{country}' trong bảng khai báo "
                       f"sẵn, và hồ sơ chưa có {HAND_KEY}",
-        "cách_khai": f"viết \"khai_báo\": {{\"{HAND_KEY}\": <kinh độ>, "
+        "how_to_declare": f"viết \"khai_báo\": {{\"{HAND_KEY}\": <kinh độ>, "
                      f"\"{HAND_LABEL_KEY}\": \"<nhãn, không bắt buộc>\"}} vào "
                      f"mục của quốc gia này trong "
                      f"{where or 'ho_so_quoc_gia.json'}",
@@ -328,12 +328,12 @@ def meridian(profile: dict[str, Any] | None) -> float | None:
     worked out its own meridian would be a second chance to answer differently
     from the profile the plan was shown from.
     """
-    return ((profile or {}).get("khung_phụ") or {}).get("kinh_tuyến")
+    return ((profile or {}).get("inset") or {}).get("meridian")
 
 
 def inset_label(profile: dict[str, Any] | None) -> str | None:
     """The caption declared for that country's box, or None for no caption."""
-    return ((profile or {}).get("khung_phụ") or {}).get("nhãn")
+    return ((profile or {}).get("inset") or {}).get("label")
 
 
 def split_bounds(frame, lon: float | None) -> dict[str, Any] | None:
@@ -364,7 +364,7 @@ def split_bounds(frame, lon: float | None) -> dict[str, Any] | None:
     # framing is already fine and an inset would be ceremony.
     if (maxx - west[2]) < (west[2] - west[0]) * 0.15:
         return None
-    return {"đất_liền": west, "quần_đảo": east, "mặt_nạ_tây": west_mask}
+    return {"mainland": west, "archipelago": east, "west_mask": west_mask}
 
 
 def view(frame, lon: float | None) -> dict[str, Any] | None:
@@ -377,8 +377,8 @@ def view(frame, lon: float | None) -> dict[str, Any] | None:
     if parts is None:
         return None
 
-    lminx, lminy, lmaxx, lmaxy = parts["đất_liền"]
-    iminx, iminy, imaxx, imaxy = parts["quần_đảo"]
+    lminx, lminy, lmaxx, lmaxy = parts["mainland"]
+    iminx, iminy, imaxx, imaxy = parts["archipelago"]
     land_w, land_h = lmaxx - lminx, lmaxy - lminy
 
     # The inset keeps the archipelagos' own proportions, so island groups are
@@ -395,16 +395,16 @@ def view(frame, lon: float | None) -> dict[str, Any] | None:
     x0 = view_maxx - margin - box_w
     y0 = lminy + margin
     return {
-        "khung_nhìn": (lminx, lminy, view_maxx, lmaxy),
-        "ô_khung_phụ": (x0, y0, box_w, box_h),
-        "vùng_quần_đảo": (iminx, iminy, imaxx, imaxy),
+        "view_bounds": (lminx, lminy, view_maxx, lmaxy),
+        "inset_box": (x0, y0, box_w, box_h),
+        "archipelago_bounds": (iminx, iminy, imaxx, imaxy),
         # The strip cleared for the inset is out at sea, which is exactly where
         # the islands are: drawing the main layers unclipped would leave Hoàng
         # Sa sitting in the open beside the box that is supposed to hold it.
         # A projected polygon, not a rectangle of degrees — see _masks.
-        "mặt_nạ_khi_vẽ": parts["mặt_nạ_tây"],
-        "tỷ_lệ_so_với_khung_chính": round(box_w / island_w, 3),
-        "phần_trăm_bề_ngang_đất_liền": round(land_w / (view_maxx - lminx) * 100, 1),
+        "draw_mask": parts["west_mask"],
+        "scale_vs_main": round(box_w / island_w, 3),
+        "mainland_width_pct": round(land_w / (view_maxx - lminx) * 100, 1),
     }
 
 
@@ -417,10 +417,10 @@ def summary(plan: dict[str, Any] | None) -> dict[str, Any] | None:
     """
     if plan is None:
         return None
-    return {"có_khung_phụ": True,
-            "vùng_quần_đảo": [round(v, 1) for v in plan["vùng_quần_đảo"]],
-            "tỷ_lệ_so_với_khung_chính": plan["tỷ_lệ_so_với_khung_chính"],
-            "phần_trăm_bề_ngang_đất_liền": plan["phần_trăm_bề_ngang_đất_liền"]}
+    return {"has_inset": True,
+            "archipelago_bounds": [round(v, 1) for v in plan["archipelago_bounds"]],
+            "scale_vs_main": plan["scale_vs_main"],
+            "mainland_width_pct": plan["mainland_width_pct"]}
 
 
 def clip_for_drawing(rows, plan: dict[str, Any] | None):
@@ -437,4 +437,4 @@ def clip_for_drawing(rows, plan: dict[str, Any] | None):
     # the mask. The caller draws with a list of colours built from the original
     # row order, so a reordered frame paints every province in some other
     # province's colour — a map that is wrong everywhere and looks fine.
-    return rows.set_geometry(rows.geometry.intersection(plan["mặt_nạ_khi_vẽ"]))
+    return rows.set_geometry(rows.geometry.intersection(plan["draw_mask"]))

@@ -204,7 +204,7 @@ def check_detached_territory(land: dict[str, Any] | None, inset_drawn: bool,
     """
     if not land or inset_drawn:
         return []
-    width = land.get("phần_bề_ngang_khối_chính", 1.0)
+    width = land.get("main_mass_width_share", 1.0)
     if width >= 0.8:            # the far land barely stretches the frame
         return []
     # The symptom is the trigger, and it is the only figure in the sentence.
@@ -219,8 +219,8 @@ def check_detached_territory(land: dict[str, Any] | None, inset_drawn: bool,
              # the way out, named where the reader can act on it: the inset is
              # no longer a mechanism only Vietnam can reach
              "field": insets.HAND_KEY},
-        extra={"phần_bề_ngang_khối_chính": width,
-               "số_khối": land.get("số_khối")},
+        extra={"main_mass_width_share": width,
+               "mass_count": land.get("mass_count")},
     )]
 
 
@@ -283,8 +283,8 @@ def summarize(issues: Sequence[dict[str, Any]]) -> dict[str, Any]:
     order = {CRITICAL: 0, WARNING: 1, INFO: 2}
     ranked = sorted(issues, key=lambda i: order.get(i["severity"], 3))
     return {
-        "tổng": len(ranked),
-        "nghiêm_trọng": sum(1 for i in ranked if i["severity"] == CRITICAL),
-        "cảnh_báo": sum(1 for i in ranked if i["severity"] == WARNING),
-        "danh_sách": ranked,
+        "total": len(ranked),
+        "critical": sum(1 for i in ranked if i["severity"] == CRITICAL),
+        "warnings": sum(1 for i in ranked if i["severity"] == WARNING),
+        "items": ranked,
     }

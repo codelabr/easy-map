@@ -161,8 +161,8 @@ def adopt_file(project_root: Path, source: Path) -> dict[str, Any]:
     if target.exists():
         if target.stat().st_size == source.stat().st_size and \
                 _digest(target) == _digest(source):
-            return {"tệp": f"input/{target.name}", "trạng_thái": "đã_có_sẵn",
-                    "ghi_chú": msg.text("doc.tệp-trùng")}
+            return {"files": f"input/{target.name}", "status": "already_present",
+                    "note": msg.text("doc.tệp-trùng")}
         stem, suffix = target.stem, target.suffix
         index = 2
         while (folder / f"{stem}_{index:02d}{suffix}").exists():
@@ -170,8 +170,8 @@ def adopt_file(project_root: Path, source: Path) -> dict[str, Any]:
         target = folder / f"{stem}_{index:02d}{suffix}"
 
     shutil.copy2(source, target)
-    return {"tệp": f"input/{target.name}", "trạng_thái": "đã_chép",
-            "tên_gốc": source.name, "dung_lượng_byte": target.stat().st_size}
+    return {"files": f"input/{target.name}", "status": "copied",
+            "original_name": source.name, "size_bytes": target.stat().st_size}
 
 
 #: Where the boundary layers live, when they do not live in the project.
@@ -220,13 +220,13 @@ def migrate_legacy_layout(root: Path) -> list[dict[str, Any]]:
             continue
         target = root / country / tier
         if target.exists():
-            moved.append({"từ": legacy, "sang": f"{country}/{tier}",
-                          "trạng_thái": "bỏ_qua_vì_đích_đã_có"})
+            moved.append({"from": legacy, "to": f"{country}/{tier}",
+                          "status": "skipped_target_exists"})
             continue
         target.parent.mkdir(parents=True, exist_ok=True)
         source.rename(target)
-        moved.append({"từ": legacy, "sang": f"{country}/{tier}",
-                      "trạng_thái": "đã_chuyển"})
+        moved.append({"from": legacy, "to": f"{country}/{tier}",
+                      "status": "moved"})
     return moved
 
 
@@ -308,11 +308,11 @@ def tiers(root: Path, country: str) -> list[dict[str, Any]]:
         if not _has_boundary(tier):
             continue
         path = _one_dataset(tier)
-        found.append({"thư_mục": tier.name, "tệp": path.name,
-                      "số_đơn_vị": _feature_count(path), "__path": path})
+        found.append({"folder": tier.name, "files": path.name,
+                      "unit_count": _feature_count(path), "__path": path})
     # Unreadable files sort last and keep their order, so one bad file cannot
     # silently promote itself to the coarse tier and become the country.
-    found.sort(key=lambda t: (t["số_đơn_vị"] is None, t["số_đơn_vị"] or 0))
+    found.sort(key=lambda t: (t["unit_count"] is None, t["unit_count"] or 0))
 
     # A GADM download holds four files and the first of them is the outline of
     # the whole country: one feature, and therefore the smallest tier of the
@@ -320,22 +320,22 @@ def tiers(root: Path, country: str) -> list[dict[str, Any]]:
     # would be matched against a single shape called "Vietnam". The file is
     # opened only when the count is one, which costs one feature to read.
     for entry in found:
-        entry["là_đường_viền_quốc_gia"] = False
-        if entry["số_đơn_vị"] == 1:
+        entry["is_country_outline"] = False
+        if entry["unit_count"] == 1:
             try:
                 import geopandas
 
                 frame = geopandas.read_file(entry["__path"])
             except Exception:               # pragma: no cover - depends on driver
                 continue
-            entry["là_đường_viền_quốc_gia"] = bool(
-                detect.identify(frame).get("là_đường_viền_quốc_gia"))
+            entry["is_country_outline"] = bool(
+                detect.identify(frame).get("is_country_outline"))
 
-    ranked = [t for t in found if not t["là_đường_viền_quốc_gia"]]
+    ranked = [t for t in found if not t["is_country_outline"]]
     for entry in found:
-        entry["vai_trò"] = None
+        entry["role"] = None
     for role, entry in zip((COARSE, FINE), ranked):
-        entry["vai_trò"] = role
+        entry["role"] = role
     return found
 
 
@@ -356,13 +356,13 @@ def find_boundaries(project_root: Path, admin_level: str,
         raise SystemExit(msg.text("loi.thiếu-thư-mục-shapefile", folder=root / name))
 
     for entry in available:
-        if entry.get("là_đường_viền_quốc_gia"):
+        if entry.get("is_country_outline"):
             continue
-        if admin_level in (entry["thư_mục"], entry.get("vai_trò")):
+        if admin_level in (entry["folder"], entry.get("role")):
             return entry["__path"]
     raise SystemExit(msg.text(
         "loi.không-có-tầng", level=admin_level, country=name,
-        available=", ".join(f"{t['thư_mục']} ({t['số_đơn_vị']})" for t in available)))
+        available=", ".join(f"{t['folder']} ({t['unit_count']})" for t in available)))
 
 
 def resolve_tier(project_root: Path, admin_level: str,
@@ -379,13 +379,13 @@ def resolve_tier(project_root: Path, admin_level: str,
     migrate_legacy_layout(root)
     name = resolve_country(root, country)
     for entry in tiers(root, name):
-        if entry.get("là_đường_viền_quốc_gia"):
+        if entry.get("is_country_outline"):
             continue
-        if admin_level in (entry["thư_mục"], entry.get("vai_trò")):
-            return {**entry, "quốc_gia": name}
+        if admin_level in (entry["folder"], entry.get("role")):
+            return {**entry, "country": name}
     raise SystemExit(msg.text(
         "loi.không-có-tầng", level=admin_level, country=name,
-        available=", ".join(f"{t['thư_mục']} ({t['số_đơn_vị']})"
+        available=", ".join(f"{t['folder']} ({t['unit_count']})"
                             for t in tiers(root, name))))
 
 
@@ -469,8 +469,8 @@ def read_text_table(deps: Deps, path: Path, notes: list[dict[str, Any]] | None =
                           na_values=[""], **dialect)
     if notes is not None:
         notes.append({
-            "việc": "đọc_văn_bản_phân_cách",
-            "chi_tiết": msg.text("doc.bảng-dán", encoding=dialect["encoding"],
+            "action": "read_delimited_text",
+            "detail": msg.text("doc.bảng-dán", encoding=dialect["encoding"],
                                  delimiter=repr(dialect["sep"])),
         })
     return df
@@ -506,8 +506,8 @@ def read_table(deps: Deps, excel: Path, sheet: str | None,
     df.columns = [str(c).strip() for c in df.columns]
     if start and notes is not None:
         notes.append({
-            "việc": "bỏ_qua_dòng_đầu",
-            "chi_tiết": msg.text("doc.dòng-tiêu-đề", row=start + 1, skipped=start),
+            "action": "skipped_leading_rows",
+            "detail": msg.text("doc.dòng-tiêu-đề", row=start + 1, skipped=start),
         })
 
     for column in df.columns:
@@ -524,7 +524,7 @@ def read_table(deps: Deps, excel: Path, sheet: str | None,
         df[column] = deps.pd.to_numeric(deps.pd.Series(values, index=df.index),
                                         errors="coerce")
         if notes is not None:
-            notes.append({"việc": "đổi_chữ_thành_số", "cột": column, **note})
+            notes.append({"action": "coerced_text_to_number", "column": column, **note})
     return df
 
 
@@ -545,8 +545,8 @@ def _read_merged(deps: Deps, excel: Path, sheet: str | None, plain, notes):
     if excel.stat().st_size > MERGE_SCAN_MAX_BYTES:
         if notes is not None:
             notes.append({
-                "việc": "bỏ_qua_dò_ô_gộp",
-                "chi_tiết": msg.text("doc.ô-gộp-tệp-lớn",
+                "action": "skipped_merged_scan",
+                "detail": msg.text("doc.ô-gộp-tệp-lớn",
                                      limit=MERGE_SCAN_MAX_BYTES // 1_000_000),
             })
         return None
@@ -575,10 +575,10 @@ def _read_merged(deps: Deps, excel: Path, sheet: str | None, plain, notes):
 
     if notes is not None:
         notes.append({
-            "việc": "đọc_ô_gộp",
-            "số_vùng_gộp": len(ranges),
-            "số_tầng_tiêu_đề": depth,
-            "chi_tiết": msg.text(
+            "action": "read_merged_cells",
+            "merged_regions": len(ranges),
+            "header_tiers": depth,
+            "detail": msg.text(
                 "doc.ô-gộp", regions=len(ranges),
                 header=(msg.text("doc.ô-gộp-tiêu-đề", levels=depth,
                                  example=names[3] if len(names) > 3 else names[-1])
@@ -675,9 +675,9 @@ def _encoding_repair(gdf, path: Path) -> dict[str, Any] | None:
     # Named by its folder as well as its file, because the two tiers are
     # repaired separately and two lines reading "ca.shp" look like the same
     # thing reported twice when they are two files.
-    return {"tệp": f"{path.parent.name}/{path.name}", "số_giá_trị": repaired,
-            "ví_dụ": {"đọc_sai": sample[0], "đúng": sample[1]},
-            "cách_sửa": f"{path.parent.name}/{path.stem}.cpg"}
+    return {"files": f"{path.parent.name}/{path.name}", "value_count": repaired,
+            "examples": {"misread": sample[0], "correct": sample[1]},
+            "how_to_fix": f"{path.parent.name}/{path.stem}.cpg"}
 
 
 def load_shapes(deps: Deps, project_root: Path, admin_level: str,
@@ -719,20 +719,20 @@ def shape_fields(gdf, admin_level: str) -> dict[str, str | None]:
     one dataset in the world.
     """
     reading = detect.identify(gdf)
-    if reading.get("là_đường_viền_quốc_gia"):
+    if reading.get("is_country_outline"):
         raise SystemExit(msg.text("loi.là-đường-viền-quốc-gia",
-                                  evidence=reading["bằng_chứng"]))
+                                  evidence=reading["evidence"]))
 
-    name = reading.get("cột_tên")
+    name = reading.get("name_column")
     if name is None:
         raise SystemExit(msg.text("loi.không-tìm-được-cột-tên", level=admin_level,
-                                  evidence=reading["bằng_chứng"]))
+                                  evidence=reading["evidence"]))
     # Two keys and no more. The reading that produced them, with its evidence,
     # belongs in the country profile where an agent can read it once; carried
     # back here it would ride along inside a dict a dozen callers index by
     # name and none of them expect to be a report.
     if admin_level == FINE:
-        return {"province": reading.get("cột_cha"), "commune": name}
+        return {"province": reading.get("parent_column"), "commune": name}
     return {"province": name, "commune": None}
 
 
@@ -846,7 +846,7 @@ def run_thematic_crs(deps: Deps, project_root: Path,
         # Read, not recomputed. The profile already decided this, with its
         # evidence beside it; deriving it a second time here would be a second
         # chance to answer differently.
-        _CRS_CACHE[key] = read_country(deps, root, name)["phép_chiếu"]["crs"]
+        _CRS_CACHE[key] = read_country(deps, root, name)["projection"]["crs"]
     return _CRS_CACHE[key]
 
 
@@ -861,7 +861,7 @@ PROFILE = "ho_so_quoc_gia.json"
 #: that key and answers None to a question it was never asked, so Vietnam loses
 #: its inset on every machine that already had a profile and nothing says why.
 #: Bump this in the same commit as any new field.
-PROFILE_VERSION = 2
+PROFILE_VERSION = 3
 
 
 def _profile_key(root: Path, country: str) -> list[str]:
@@ -904,64 +904,64 @@ def read_country(deps: Deps, root: Path, country: str,
 
     key = _profile_key(root, country)
     kept = saved.get(country, {})
-    if not rebuild and kept.get("__nguồn") == key \
-            and kept.get("__phiên_bản") == PROFILE_VERSION:
+    if not rebuild and kept.get("__from") == key \
+            and kept.get("__version") == PROFILE_VERSION:
         # The declaration is the one field a person edits by hand, so it is read
         # back on every command instead of being cached with the machine's
         # reading. The cache is keyed on the boundary files, and editing this
         # file changes none of them: without this, somebody writes a meridian,
         # runs the command, and gets the map they had before.
-        fresh = insets.declaration(kept.get("tên_quốc_gia") or country,
-                                   kept.get("khai_báo"), where=str(store))
-        if fresh != kept.get("khung_phụ"):
-            kept["khung_phụ"] = fresh
+        fresh = insets.declaration(kept.get("country_name") or country,
+                                   kept.get("declared"), where=str(store))
+        if fresh != kept.get("inset"):
+            kept["inset"] = fresh
             _write_profile(store, saved)
         return kept
 
-    reading: dict[str, Any] = {"__phiên_bản": PROFILE_VERSION,
-                               "__nguồn": key, "tầng": []}
+    reading: dict[str, Any] = {"__version": PROFILE_VERSION,
+                               "__from": key, "tiers": []}
     # What a person wrote about this country is carried across the rebuild
     # untouched. Everything else in this file is the machine's reading and is
     # thrown away the moment a boundary file changes size; a declaration is not
     # a reading, and losing it because somebody replaced a shapefile would undo
     # a decision nobody asked to undo.
-    by_hand = kept.get("khai_báo")
+    by_hand = kept.get("declared")
     if by_hand:
-        reading["khai_báo"] = by_hand
+        reading["declared"] = by_hand
     frames = {}
     for entry in tiers(root, country):
         gdf = deps.gpd.read_file(entry["__path"])
         found = detect.identify(gdf)
-        frames[entry["thư_mục"]] = (gdf, found)
-        reading["tầng"].append({
-            "thư_mục": entry["thư_mục"], "tệp": entry["tệp"],
-            "số_đơn_vị": entry["số_đơn_vị"], "vai_trò": entry.get("vai_trò"),
-            "cột_tên": found.get("cột_tên"), "cấp": found.get("cấp"),
-            "là_đường_viền_quốc_gia": bool(found.get("là_đường_viền_quốc_gia")),
+        frames[entry["folder"]] = (gdf, found)
+        reading["tiers"].append({
+            "folder": entry["folder"], "files": entry["files"],
+            "unit_count": entry["unit_count"], "role": entry.get("role"),
+            "name_column": found.get("name_column"), "level": found.get("level"),
+            "is_country_outline": bool(found.get("is_country_outline")),
         })
 
-    named = [t for t in reading["tầng"] if not t["là_đường_viền_quốc_gia"]]
-    first = frames.get(named[0]["thư_mục"]) if named else None
+    named = [t for t in reading["tiers"] if not t["is_country_outline"]]
+    first = frames.get(named[0]["folder"]) if named else None
     if first is not None:
         gdf, found = first
-        reading["nhận_diện"] = {k: found[k] for k in ("bộ", "độ_tin_cậy", "bằng_chứng")}
-        reading["tên_quốc_gia"] = found.get("quốc_gia")
+        reading["detected"] = {k: found[k] for k in ("dataset", "confidence", "evidence")}
+        reading["country_name"] = found.get("country")
         crs = thematic_crs(gdf)
-        reading["phép_chiếu"] = {
-            "crs": crs, "nguồn": "suy diễn từ hình học của tầng thô",
-            "bằng_chứng": f"hộp bao {[round(float(v), 4) for v in gdf.total_bounds]}",
+        reading["projection"] = {
+            "crs": crs, "source": "suy diễn từ hình học của tầng thô",
+            "evidence": f"hộp bao {[round(float(v), 4) for v in gdf.total_bounds]}",
         }
         # Grouping the land takes seconds, so it is done here — once, cached —
         # rather than on every map that might want to mention it.
-        reading["lãnh_thổ_rời"] = insets.land_masses(gdf.to_crs(crs))
+        reading["detached_land"] = insets.land_masses(gdf.to_crs(crs))
     # Recorded for every country, including the ones with nothing declared,
     # because "no inset here" is worth telling apart from "nobody has said".
-    reading["khung_phụ"] = insets.declaration(
-        reading.get("tên_quốc_gia") or country, reading.get("khai_báo"),
+    reading["inset"] = insets.declaration(
+        reading.get("country_name") or country, reading.get("declared"),
         where=str(store))
     if len(named) > 1:
-        coarse, fine = frames[named[0]["thư_mục"]], frames[named[1]["thư_mục"]]
-        reading["cha_con"] = detect.link_tiers(coarse[0], coarse[1], fine[0], fine[1])
+        coarse, fine = frames[named[0]["folder"]], frames[named[1]["folder"]]
+        reading["parent_link"] = detect.link_tiers(coarse[0], coarse[1], fine[0], fine[1])
 
     saved[country] = reading
     _write_profile(store, saved)
@@ -1008,7 +1008,7 @@ def remember_open_run(project_root: Path, folder: Path) -> None:
     path = _open_run_path(project_root)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"run_folder": folder.name,
-                                "mở_lúc": datetime.now().isoformat(timespec="seconds")},
+                                "opened_at": datetime.now().isoformat(timespec="seconds")},
                                ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -1118,7 +1118,7 @@ def openable(folder: Path) -> list[dict[str, str]]:
     """
     if not Path(folder).is_dir():
         return []
-    return [{"tên": p.name, "đường_dẫn": str(p), "liên_kết": link(p)}
+    return [{"name": p.name, "path": str(p), "link": link(p)}
             for p in sorted(Path(folder).iterdir())
             if p.is_file() and p.suffix.lower() in OPENABLE]
 

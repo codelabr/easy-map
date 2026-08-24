@@ -95,8 +95,8 @@ class TestMatchingThroughAliases(unittest.TestCase):
     def test_report_lists_what_was_converted(self):
         review = matching.review_province([{"province": "Kiên Giang"}], self.index)
         report = crosswalk.summarize(review)
-        self.assertEqual(report["số_tên_cũ_đã_quy_đổi"], 1)
-        self.assertEqual(report["ví_dụ"], ["Kiên Giang → An Giang"])
+        self.assertEqual(report["renamed_count"], 1)
+        self.assertEqual(report["examples"], ["Kiên Giang → An Giang"])
 class TestAgainstTheRealShapefile(unittest.TestCase):
     """The fake frame above is convenient and it is not evidence.
 

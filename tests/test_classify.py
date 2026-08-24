@@ -199,7 +199,7 @@ class TestFlatSpreadWarning(unittest.TestCase):
         found = guardrails.check_spread({"edges": [99.20, 99.25, 99.32, 99.46, 99.74]})
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0]["severity"], guardrails.WARNING)
-        self.assertIn("gần như bằng nhau", found[0]["vì_sao"])
+        self.assertIn("gần như bằng nhau", found[0]["why"])
 
     def test_a_real_spread_says_nothing(self):
         from emap import guardrails

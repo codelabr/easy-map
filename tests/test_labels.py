@@ -47,9 +47,9 @@ class TestPlacing(LabelCase):
         items = [self.item(20, 20, "Hà Nội", "91,4%"),
                  self.item(70, 70, "Huế", "88,2%")]
         report = self.place(items)
-        self.assertEqual(report["đã_vẽ"], 2)
-        self.assertEqual(report["bỏ_qua"], [])
-        self.assertEqual(report["bỏ_vì_chật"], [])
+        self.assertEqual(report["drawn"], 2)
+        self.assertEqual(report["skipped"], [])
+        self.assertEqual(report["dropped_no_room"], [])
 
     def test_the_text_actually_reaches_the_figure(self):
         self.place([self.item(50, 50, "Hà Nội", "91,4%")])
@@ -60,25 +60,25 @@ class TestPlacing(LabelCase):
         """There are eight positions in the first ring, so the second name
         moves round rather than outward — and neither is lost."""
         report = self.place([self.item(50, 50, "Hà Nội"), self.item(50, 50, "Huế")])
-        self.assertEqual(report["đã_vẽ"], 2)
-        self.assertEqual(report["bỏ_vì_chật"], [])
+        self.assertEqual(report["drawn"], 2)
+        self.assertEqual(report["dropped_no_room"], [])
 
     def test_a_ring_of_names_forces_some_of_them_outward(self):
         """Past eight, a label has to leave the first ring, and that is what
         earns a leader line."""
         items = [self.item(50, 50, f"Đơn vị {i}") for i in range(10)]
-        self.assertGreaterEqual(self.place(items)["phải_dời"], 1)
+        self.assertGreaterEqual(self.place(items)["moved"], 1)
 
     def test_beyond_the_cap_the_rest_are_reported_not_silently_lost(self):
         items = [self.item(i, i, f"Đơn vị {i}", rank=float(i)) for i in range(1, 40)]
         report = self.place(items, max_labels=5)
-        self.assertEqual(len(report["bỏ_qua"]), 34)
-        self.assertEqual(report["đã_vẽ"] + len(report["bỏ_vì_chật"]), 5)
+        self.assertEqual(len(report["skipped"]), 34)
+        self.assertEqual(report["drawn"] + len(report["dropped_no_room"]), 5)
 
     def test_the_cap_keeps_the_highest_ranked(self):
         items = [self.item(10, 10, "nhỏ", rank=1.0), self.item(80, 80, "lớn", rank=99.0)]
         report = self.place(items, max_labels=1)
-        self.assertEqual(report["bỏ_qua"], ["nhỏ"])
+        self.assertEqual(report["skipped"], ["nhỏ"])
 
 
 class TestWhatCannotFit(LabelCase):
@@ -93,23 +93,23 @@ class TestWhatCannotFit(LabelCase):
         self.setUp()
         with_values = self.place([self.item(x, y, f"Xã {i}", "1.234.567 ca")
                                   for i, (x, y) in enumerate(crowd)])
-        self.assertLessEqual(with_values["đã_vẽ"], bare["đã_vẽ"])
+        self.assertLessEqual(with_values["drawn"], bare["drawn"])
         # whatever could not carry its number is accounted for, not dropped
-        self.assertEqual(with_values["đã_vẽ"] + len(with_values["bỏ_vì_chật"]),
+        self.assertEqual(with_values["drawn"] + len(with_values["dropped_no_room"]),
                          len(crowd))
 
     def test_labels_with_nowhere_to_go_are_named(self):
         items = [self.item(50, 50, f"Đơn vị {i}", "88,2%") for i in range(14)]
         report = self.place(items)
-        self.assertTrue(report["bỏ_vì_chật"],
+        self.assertTrue(report["dropped_no_room"],
                         "chồng lên nhau mà báo cáo im lặng là lỗi cũ đã sửa")
-        self.assertEqual(report["đã_vẽ"] + len(report["bỏ_vì_chật"])
-                         + len(report["bỏ_qua"]), 14)
+        self.assertEqual(report["drawn"] + len(report["dropped_no_room"])
+                         + len(report["skipped"]), 14)
 
     def test_nothing_is_drawn_outside_the_axes(self):
         """A label placed past the frame is cut when the file is written."""
         report = self.place([self.item(99.7, 99.7, "Đơn vị sát mép", "88,2%")])
-        self.assertEqual(report["đã_vẽ"] + len(report["bỏ_vì_chật"]), 1)
+        self.assertEqual(report["drawn"] + len(report["dropped_no_room"]), 1)
 
 
 class TestKeepoutBoxes(LabelCase):
@@ -121,12 +121,12 @@ class TestKeepoutBoxes(LabelCase):
         free = self.place([self.item(50, 50, "Hà Nội")])
         self.setUp()
         blocked = self.place([self.item(50, 50, "Hà Nội")], keepout_boxes=[box])
-        self.assertEqual(free["phải_dời"], 0)
-        self.assertGreaterEqual(blocked["phải_dời"] + len(blocked["bỏ_vì_chật"]), 1)
+        self.assertEqual(free["moved"], 0)
+        self.assertGreaterEqual(blocked["moved"] + len(blocked["dropped_no_room"]), 1)
 
     def test_without_boxes_the_behaviour_is_unchanged(self):
         report = self.place([self.item(20, 20, "Hà Nội")], keepout_boxes=())
-        self.assertEqual(report["đã_vẽ"], 1)
+        self.assertEqual(report["drawn"], 1)
 
 
 class TestGeometryHelpers(unittest.TestCase):

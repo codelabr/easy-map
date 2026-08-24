@@ -115,13 +115,13 @@ class TestOverflow(unittest.TestCase):
         self.fig.text(0.98, 0.5, "Một tiêu đề rất dài chạy hẳn ra ngoài trang giấy")
         found = lay.overflow(self.fig)
         self.assertEqual(len(found), 1)
-        self.assertEqual(found[0]["phía"], "phải")
-        self.assertEqual(found[0]["ra_khỏi"], "trang")
-        self.assertGreater(found[0]["vượt_pt"], 10)
+        self.assertEqual(found[0]["side"], "right")
+        self.assertEqual(found[0]["outside_of"], "trang")
+        self.assertGreater(found[0]["over_pt"], 10)
 
     def test_the_side_it_left_by_is_named(self):
         self.fig.text(0.02, 0.5, "chạy sang trái", ha="right")
-        self.assertEqual(lay.overflow(self.fig)[0]["phía"], "trái")
+        self.assertEqual(lay.overflow(self.fig)[0]["side"], "left")
 
     def test_text_inside_an_unwatched_axes_is_left_to_its_own_placement(self):
         """Map labels have their own pass, which reports what it could not
@@ -138,8 +138,8 @@ class TestOverflow(unittest.TestCase):
         panel.text(0.0, 0.5, "Tiêu đề chú giải quá dài so với cột bên trái")
         found = lay.overflow(self.fig, panels=[panel])
         self.assertEqual(len(found), 1)
-        self.assertEqual(found[0]["ra_khỏi"], "cột chú giải")
-        self.assertEqual(found[0]["phía"], "phải")
+        self.assertEqual(found[0]["outside_of"], "cột chú giải")
+        self.assertEqual(found[0]["side"], "right")
 
     def test_blank_and_hidden_text_is_not_reported(self):
         self.fig.text(0.98, 0.4, "   ")

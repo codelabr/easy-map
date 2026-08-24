@@ -21,7 +21,7 @@ meaning is worse than one that is only Vietnamese. ``tests/test_messages.py``
 walks this table and fails if a key is missing a language or if the two versions
 do not take the same placeholders.
 
-The JSON *keys* stay Vietnamese (``vấn_đề``, ``vì_sao``, ``nên_làm``). They are
+The JSON *keys* are English (``problem``, ``why``, ``fix``). They are
 read by the agent, never shown to a user, and renaming them would break the
 output contract for no reader's benefit.
 """
@@ -59,7 +59,7 @@ def current() -> str:
     return _current
 
 
-WHAT, WHY, FIX = "vấn_đề", "vì_sao", "nên_làm"
+WHAT, WHY, FIX = "problem", "why", "fix"
 
 #: Optional overrides used when the sentence counts exactly one thing. English
 #: inflects its nouns and verbs and Vietnamese does not, so "1 place names were
@@ -680,7 +680,7 @@ TEXT: dict[str, dict[str, str]] = {
             ONE: "There is a single numeric column ({column}) but an average of {per_place} "
                  "rows per geographic unit, alongside {categories} categorical column. A row "
                  "here is one observation, not one place.",
-            "nhiều": "There is a single numeric column ({column}) but an average of "
+            "many": "There is a single numeric column ({column}) but an average of "
                      "{per_place} rows per geographic unit, alongside {categories} "
                      "categorical columns. A row here is one observation, not one place.",
         },
@@ -699,7 +699,7 @@ TEXT: dict[str, dict[str, str]] = {
                  "would double-count {split} of {places} units. Pin it with --where, or "
                  "confirm that those rows are disjoint parts of one total and that adding "
                  "them is what you intend.",
-            "nhiều": "{count} columns still put one unit on several rows: {columns}. A plain "
+            "many": "{count} columns still put one unit on several rows: {columns}. A plain "
                      "sum would double-count {split} of {places} units. Pin each column with "
                      "--where, or confirm that those rows are disjoint parts of one total and "
                      "that adding them is what you intend.",
@@ -859,15 +859,15 @@ TEXT: dict[str, dict[str, str]] = {
     "bảng.đang-chọn": {"vi": "đang chọn", "en": "current"},
     "bảng.số-dòng": {
         "vi": "{rows} dòng",
-        "en": {ONE: "{rows} row", "nhiều": "{rows} rows"},
+        "en": {ONE: "{rows} row", "many": "{rows} rows"},
     },
     "bảng.số-tấm": {
         "vi": "{maps} tấm",
-        "en": {ONE: "{maps} map", "nhiều": "{maps} maps"},
+        "en": {ONE: "{maps} map", "many": "{maps} maps"},
     },
     "bảng.số-nhóm": {
         "vi": "{classes} nhóm",
-        "en": {ONE: "{classes} class", "nhiều": "{classes} classes"},
+        "en": {ONE: "{classes} class", "many": "{classes} classes"},
     },
     "bảng.không-áp-dụng": {"vi": "không áp dụng", "en": "not applicable"},
     "bảng.kèm-html": {
@@ -885,36 +885,36 @@ TEXT: dict[str, dict[str, str]] = {
     # mechanical; a paragraph read immediately before composing a message is a
     # different thing, and it follows the conversation.
     "cổng.trình-bày": {
-        "vi": "CHƯA VẼ GÌ CẢ. Trình bày bảng 'phương_án' cho người dùng dưới dạng "
-              "danh sách đánh số, nêu rõ những mục có 'ghi_chú' là skill tự chọn. "
-              "Mọi câu hỏi — các mục trong 'phải_hỏi', và bất kỳ dòng nào có "
-              "'lựa_chọn' mà người dùng muốn đổi — phải hỏi bằng GIAO DIỆN LỰA "
+        "vi": "CHƯA VẼ GÌ CẢ. Trình bày bảng 'settings' cho người dùng dưới dạng "
+              "danh sách đánh số, nêu rõ những mục có 'note' là skill tự chọn. "
+              "Mọi câu hỏi — các mục trong 'must_ask', và bất kỳ dòng nào có "
+              "'choices' mà người dùng muốn đổi — phải hỏi bằng GIAO DIỆN LỰA "
               "CHỌN của môi trường (trên Codex là công cụ request_user_input), "
-              "truyền nguyên 'câu_hỏi' làm câu hỏi và mỗi phần tử 'lựa_chọn' làm "
-              "một phương án: 'nhãn' làm nhãn, 'mô_tả' làm mô tả, phần tử có "
-              "khuyến_nghị=true đặt lên đầu và ghi thêm '(Recommended)'. Không tự "
+              "truyền nguyên 'question' làm câu hỏi và mỗi phần tử 'choices' làm "
+              "một phương án: 'labels' làm nhãn, 'description' làm mô tả, phần tử có "
+              "recommended=true đặt lên đầu và ghi thêm '(Recommended)'. Không tự "
               "nghĩ thêm phương án, không hỏi bằng đoạn văn tự do, không đọc tên "
               "cờ hay giá trị cờ ra cho người dùng. Nếu môi trường không có giao "
               "diện lựa chọn thì trình bày cùng nội dung đó bằng bảng Markdown. "
               "Hỏi xong thì DỪNG LẠI CHỜ TRẢ LỜI.",
-        "en": "NOTHING HAS BEEN DRAWN. Show the person the 'phương_án' table as a "
-              "numbered list, marking the rows whose 'ghi_chú' says the skill "
-              "chose them. Every question — the entries in 'phải_hỏi', and any "
-              "row with 'lựa_chọn' that the person wants changed — must be asked "
+        "en": "NOTHING HAS BEEN DRAWN. Show the person the 'settings' table as a "
+              "numbered list, marking the rows whose 'note' says the skill "
+              "chose them. Every question — the entries in 'must_ask', and any "
+              "row with 'choices' that the person wants changed — must be asked "
               "through the host's OPTION PICKER (on Codex, the request_user_input "
-              "tool), passing 'câu_hỏi' through as the question and each entry of "
-              "'lựa_chọn' as one option: 'nhãn' as the label, 'mô_tả' as the "
-              "description, the entry with khuyến_nghị=true first and marked "
+              "tool), passing 'question' through as the question and each entry of "
+              "'choices' as one option: 'labels' as the label, 'description' as the "
+              "description, the entry with recommended=true first and marked "
               "'(Recommended)'. Do not invent further options, do not ask in free "
               "prose, and do not read a flag name or a flag value out to the "
               "person. Where the host has no picker, present the same content as "
               "a Markdown table. Having asked, STOP AND WAIT FOR AN ANSWER.",
     },
     "cổng.chưa-hỏi": {
-        "vi": " KHÔNG có mã nào dùng được cho tới khi mọi mục trong 'phải_hỏi' "
+        "vi": " KHÔNG có mã nào dùng được cho tới khi mọi mục trong 'must_ask' "
               "được hỏi và câu trả lời truyền vào bằng cờ tương ứng. Hỏi trước, "
               "rồi chạy lại lệnh kèm câu trả lời để nhận mã.",
-        "en": " NO code exists until every entry in 'phải_hỏi' has been asked and "
+        "en": " NO code exists until every entry in 'must_ask' has been asked and "
               "the answers passed back on the command line. Ask first, then run "
               "the command again with the answers to receive a code.",
     },
@@ -1433,7 +1433,7 @@ def text(key: str, lang: str | None = None, singular: bool = False,
     """
     entry = TEXT[key][normalise(lang)]
     if isinstance(entry, dict):
-        entry = entry[ONE] if singular and ONE in entry else entry["nhiều"]
+        entry = entry[ONE] if singular and ONE in entry else entry["many"]
     return entry.format(**fmt)
 
 

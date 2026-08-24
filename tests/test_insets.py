@@ -29,7 +29,7 @@ def frame(pairs, crs="EPSG:4326"):
 #: second time. Every one of these calls used to leave the argument out and let
 #: a default fill it in; the default is gone, because it filled itself in for
 #: every other country too.
-VN_LON = insets.declared("Việt Nam")["kinh_tuyến"]
+VN_LON = insets.declared("Việt Nam")["meridian"]
 
 MAINLAND = [(105.0, 21.0), (106.5, 16.0), (106.0, 10.5)]
 ISLANDS = [(112.0, 16.5), (114.0, 9.0), (116.5, 8.0)]
@@ -65,16 +65,16 @@ class TestFramingNumbers(unittest.TestCase):
         land = rows.iloc[:len(MAINLAND)]
         land_w = land.total_bounds[2] - land.total_bounds[0]
         before = land_w / whole * 100
-        self.assertGreater(self.plan["phần_trăm_bề_ngang_đất_liền"], before * 1.5)
+        self.assertGreater(self.plan["mainland_width_pct"], before * 1.5)
 
     def test_the_view_stops_short_of_the_islands(self):
-        _, _, view_maxx, _ = self.plan["khung_nhìn"]
-        island_minx, _, _, _ = self.plan["vùng_quần_đảo"]
+        _, _, view_maxx, _ = self.plan["view_bounds"]
+        island_minx, _, _, _ = self.plan["archipelago_bounds"]
         self.assertLess(view_maxx, island_minx)
 
     def test_the_inset_box_sits_inside_the_view(self):
-        vminx, vminy, vmaxx, vmaxy = self.plan["khung_nhìn"]
-        x0, y0, w, h = self.plan["ô_khung_phụ"]
+        vminx, vminy, vmaxx, vmaxy = self.plan["view_bounds"]
+        x0, y0, w, h = self.plan["inset_box"]
         self.assertGreaterEqual(x0, vminx)
         self.assertLessEqual(x0 + w, vmaxx + 1e-6)
         self.assertGreaterEqual(y0, vminy)
@@ -105,13 +105,13 @@ class TestProjectedCoordinates(unittest.TestCase):
         plan = insets.view(rows, VN_LON)
         self.assertIsNotNone(plan)
         # the drawn map stops well short of the islands, in metres
-        self.assertLess(plan["khung_nhìn"][2], plan["vùng_quần_đảo"][0])
+        self.assertLess(plan["view_bounds"][2], plan["archipelago_bounds"][0])
 
     def test_the_split_is_in_the_frames_own_units(self):
         """Metres, so the numbers are large — a plan still in degrees would
         report a view a few hundred units wide."""
         plan = insets.view(frame(MAINLAND + ISLANDS, crs=self.METRIC), VN_LON)
-        minx, _, maxx, _ = plan["khung_nhìn"]
+        minx, _, maxx, _ = plan["view_bounds"]
         self.assertGreater(maxx - minx, 100_000)
 
     def test_both_coordinate_systems_split_the_same_units(self):
@@ -140,35 +140,35 @@ class TestDeclaringWhereTheSplitIs(unittest.TestCase):
 
     def test_vietnams_number_is_unchanged_and_says_where_it_came_from(self):
         found = insets.declared("Việt Nam")
-        self.assertEqual(found["kinh_tuyến"], 111.0)
-        self.assertIn("110,64", found["bằng_chứng"])
+        self.assertEqual(found["meridian"], 111.0)
+        self.assertIn("110,64", found["evidence"])
 
     def test_the_name_may_arrive_as_the_folder_it_sits_in(self):
         """``tên_quốc_gia`` is what the file reports; the fallback is the folder
         name, and those are spelled differently."""
         for spelling in ("Việt Nam", "viet nam", "viet-nam", "VNM", " vietnam "):
-            self.assertEqual(insets.declared(spelling)["kinh_tuyến"], 111.0,
+            self.assertEqual(insets.declared(spelling)["meridian"], 111.0,
                              spelling)
 
     def test_a_country_nobody_declared_gets_told_how_to_declare_one(self):
         found = insets.declaration("Fictavia", where="ho_so.json")
-        self.assertIsNone(found["kinh_tuyến"])
-        self.assertEqual(found["nguồn"], "chưa khai")
-        self.assertIn(insets.HAND_KEY, found["cách_khai"])
-        self.assertIn("ho_so.json", found["cách_khai"])
+        self.assertIsNone(found["meridian"])
+        self.assertEqual(found["source"], "undeclared")
+        self.assertIn(insets.HAND_KEY, found["how_to_declare"])
+        self.assertIn("ho_so.json", found["how_to_declare"])
 
     def test_a_hand_written_declaration_beats_the_table(self):
         found = insets.declaration("Việt Nam", {insets.HAND_KEY: 120.0})
-        self.assertEqual(found["kinh_tuyến"], 120.0)
-        self.assertEqual(found["nguồn"], "người dùng khai")
+        self.assertEqual(found["meridian"], 120.0)
+        self.assertEqual(found["source"], "declared_by_user")
 
     def test_null_is_how_a_country_says_it_wants_no_inset(self):
         """Turning Vietnam's own inset off is a decision somebody is allowed to
         make, so it has to be expressible — and it must not read the same as
         having said nothing."""
         found = insets.declaration("Việt Nam", {insets.HAND_KEY: None})
-        self.assertIsNone(found["kinh_tuyến"])
-        self.assertNotEqual(found["nguồn"], "chưa khai")
+        self.assertIsNone(found["meridian"])
+        self.assertNotEqual(found["source"], "undeclared")
 
     def test_an_unusable_declaration_stops_with_the_key_named(self):
         for bad in ("111", 400.0, True, [111]):
@@ -182,23 +182,23 @@ class TestDeclaringWhereTheSplitIs(unittest.TestCase):
         declared too. It used to be a default argument, which is how the first
         map ever drawn with a second country's inset captioned that country's
         islands with Vietnam's."""
-        self.assertEqual(insets.declared("Việt Nam")["nhãn"], "Hoàng Sa · Trường Sa")
+        self.assertEqual(insets.declared("Việt Nam")["label"], "Hoàng Sa · Trường Sa")
 
         bare = insets.declaration("Atlantis", {insets.HAND_KEY: 42.0})
-        self.assertIsNone(bare["nhãn"])
+        self.assertIsNone(bare["label"])
 
         named = insets.declaration("Atlantis", {insets.HAND_KEY: 42.0,
                                                 insets.HAND_LABEL_KEY: "Eastern Isles"})
-        self.assertEqual(named["nhãn"], "Eastern Isles")
+        self.assertEqual(named["label"], "Eastern Isles")
 
     def test_the_caption_is_read_from_the_profile_too(self):
-        self.assertEqual(insets.inset_label({"khung_phụ": {"nhãn": "Isles"}}), "Isles")
-        for empty in (None, {}, {"khung_phụ": {"kinh_tuyến": 42.0}}):
+        self.assertEqual(insets.inset_label({"inset": {"label": "Isles"}}), "Isles")
+        for empty in (None, {}, {"inset": {"meridian": 42.0}}):
             self.assertIsNone(insets.inset_label(empty), empty)
 
     def test_the_meridian_is_read_from_a_profile_not_worked_out_again(self):
-        self.assertEqual(insets.meridian({"khung_phụ": {"kinh_tuyến": 42.0}}), 42.0)
-        for empty in (None, {}, {"khung_phụ": None}, {"khung_phụ": {}}):
+        self.assertEqual(insets.meridian({"inset": {"meridian": 42.0}}), 42.0)
+        for empty in (None, {}, {"inset": None}, {"inset": {}}):
             self.assertIsNone(insets.meridian(empty), empty)
 
     def test_no_declaration_means_no_inset_however_scattered_the_land_is(self):
@@ -215,7 +215,7 @@ class TestDeclaringWhereTheSplitIs(unittest.TestCase):
         rows = frame(ELSEWHERE + ELSEWHERE_ISLANDS)
         plan = insets.view(rows, 42.0)
         self.assertIsNotNone(plan)
-        self.assertLess(plan["khung_nhìn"][2], plan["vùng_quần_đảo"][0])
+        self.assertLess(plan["view_bounds"][2], plan["archipelago_bounds"][0])
         drawn = insets.clip_for_drawing(rows, plan)
         kept = [i for i, g in enumerate(drawn.geometry) if not g.is_empty]
         self.assertEqual(kept, list(range(len(ELSEWHERE))))
@@ -236,7 +236,7 @@ class TestDeclaringWhereTheSplitIs(unittest.TestCase):
             isles = [(x + shift, y * flip) for x, y in ELSEWHERE_ISLANDS]
             plan = insets.view(frame(land + isles), 42.0 + shift)
             self.assertIsNotNone(plan, (shift, flip))
-            self.assertLess(plan["khung_nhìn"][2], plan["vùng_quần_đảo"][0],
+            self.assertLess(plan["view_bounds"][2], plan["archipelago_bounds"][0],
                             (shift, flip))
 
 
@@ -287,7 +287,7 @@ class TestTheBoxOnThePage(unittest.TestCase):
         plan = insets.view(rows, VN_LON)
         fig, ax = plt.subplots()
         self.addCleanup(plt.close, fig)
-        minx, miny, maxx, maxy = plan["khung_nhìn"]
+        minx, miny, maxx, maxy = plan["view_bounds"]
         ax.set_xlim(minx, maxx)
         ax.set_ylim(miny, maxy)
         painted = [(insets.clip_for_drawing(rows, plan), {"color": "#cccccc"})]

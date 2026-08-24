@@ -83,7 +83,7 @@ def fixture(kind: str, tier: str):
 #: Vietnam's split meridian, read from the declaration table rather than from a
 #: module constant. It stopped being a constant in wave 4: a number every map in
 #: the world was measured against became a number one country declares.
-VN_LON = insets.declared("Việt Nam")["kinh_tuyến"]
+VN_LON = insets.declared("Việt Nam")["meridian"]
 
 
 def mainland(gdf, meridian: float):
@@ -658,8 +658,8 @@ class TestTheFolderLayout(OwnBoundariesOnly):
 
             moved = dataio.migrate_legacy_layout(root)
 
-            self.assertEqual([m["trạng_thái"] for m in moved],
-                             ["đã_chuyển", "đã_chuyển"])
+            self.assertEqual([m["status"] for m in moved],
+                             ["moved", "moved"])
             self.assertFalse((root / "provinces").exists())
             self.assertTrue((root / "viet-nam" / "province" / "units.shp").is_file())
             self.assertTrue((root / "viet-nam" / "commune" / "units.shp").is_file())
@@ -675,7 +675,7 @@ class TestTheFolderLayout(OwnBoundariesOnly):
 
             moved = dataio.migrate_legacy_layout(root)
 
-            self.assertEqual(moved[0]["trạng_thái"], "bỏ_qua_vì_đích_đã_có")
+            self.assertEqual(moved[0]["status"], "skipped_target_exists")
             self.assertTrue((root / "provinces" / "old.shp").is_file())
             self.assertTrue((root / "viet-nam" / "province" / "new.shp").is_file())
 
@@ -689,8 +689,8 @@ class TestTheFolderLayout(OwnBoundariesOnly):
 
             order = dataio.tiers(root, "romania")
 
-            self.assertEqual([t["thư_mục"] for t in order], ["judet", "comuna"])
-            self.assertEqual([t["vai_trò"] for t in order],
+            self.assertEqual([t["folder"] for t in order], ["judet", "comuna"])
+            self.assertEqual([t["role"] for t in order],
                              [dataio.COARSE, dataio.FINE])
 
     def test_a_country_with_one_tier_can_be_drawn_at_that_tier(self):
@@ -702,7 +702,7 @@ class TestTheFolderLayout(OwnBoundariesOnly):
             self.dataset(root / "united-states" / "state", 51)
 
             order = dataio.tiers(root, "united-states")
-            self.assertEqual([t["vai_trò"] for t in order], [dataio.COARSE])
+            self.assertEqual([t["role"] for t in order], [dataio.COARSE])
 
             found = dataio.find_boundaries(Path(folder), "state")
             self.assertEqual(found.parent.name, "state")
@@ -754,8 +754,8 @@ class TestTheFolderLayout(OwnBoundariesOnly):
 
         self.assertTrue(assigned, "command_render no longer sets admin_level")
         for expression in assigned:
-            self.assertNotIn("thư_mục", expression)
-        self.assertTrue(any("vai_trò" in e for e in assigned), assigned)
+            self.assertNotIn("folder", expression)
+        self.assertTrue(any("role" in e for e in assigned), assigned)
 
     def test_the_two_roles_are_the_words_the_rest_of_the_engine_uses(self):
         """The roles are not free-form: the whole engine branches on these two
@@ -776,9 +776,9 @@ class TestTheFolderLayout(OwnBoundariesOnly):
 
             order = dataio.tiers(root, "somewhere")
 
-            self.assertEqual([t["thư_mục"] for t in order], ["state", "rubbish"])
-            self.assertEqual(order[0]["số_đơn_vị"], 4)
-            self.assertIsNone(order[1]["số_đơn_vị"])
+            self.assertEqual([t["folder"] for t in order], ["state", "rubbish"])
+            self.assertEqual(order[0]["unit_count"], 4)
+            self.assertIsNone(order[1]["unit_count"])
 
 
 class TestReadingWhatAFileIs(unittest.TestCase):
@@ -795,18 +795,18 @@ class TestReadingWhatAFileIs(unittest.TestCase):
 
     def test_the_vietnamese_schema_is_read_from_its_own_columns(self):
         reading = detect.identify(vietnam("commune"))
-        self.assertEqual(reading["bộ"], detect.VIETNAM)
-        self.assertEqual(reading["cột_tên"], "ten_xa")
-        self.assertEqual(reading["cột_cha"], "ten_tinh")
-        self.assertEqual(reading["cột_sáp_nhập"], "sap_nhap")
-        self.assertEqual(reading["độ_tin_cậy"], detect.SURE)
+        self.assertEqual(reading["dataset"], detect.VIETNAM)
+        self.assertEqual(reading["name_column"], "ten_xa")
+        self.assertEqual(reading["parent_column"], "ten_tinh")
+        self.assertEqual(reading["merger_column"], "sap_nhap")
+        self.assertEqual(reading["confidence"], detect.SURE)
 
     def test_gadm_is_read_by_its_level_number(self):
         district = detect.identify(fixture("shp", "district"))
-        self.assertEqual(district["bộ"], detect.GADM)
-        self.assertEqual((district["cột_tên"], district["cột_cha"]), ("NAME_2", "NAME_1"))
-        self.assertEqual(district["cấp"], 2)
-        self.assertEqual(district["quốc_gia"], "Fictavia")
+        self.assertEqual(district["dataset"], detect.GADM)
+        self.assertEqual((district["name_column"], district["parent_column"]), ("NAME_2", "NAME_1"))
+        self.assertEqual(district["level"], 2)
+        self.assertEqual(district["country"], "Fictavia")
 
     def test_a_gadm_country_outline_is_not_a_tier(self):
         """The trap a real download springs.
@@ -819,9 +819,9 @@ class TestReadingWhatAFileIs(unittest.TestCase):
         """
         outline = self.frame({"GID_0": ["XFA"], "COUNTRY": ["Fictavia"]})
         reading = detect.identify(outline)
-        self.assertEqual(reading["bộ"], detect.GADM)
-        self.assertEqual(reading["cấp"], 0)
-        self.assertTrue(reading["là_đường_viền_quốc_gia"])
+        self.assertEqual(reading["dataset"], detect.GADM)
+        self.assertEqual(reading["level"], 0)
+        self.assertTrue(reading["is_country_outline"])
         with self.assertRaises(SystemExit):
             dataio.shape_fields(outline, dataio.COARSE)
 
@@ -830,9 +830,9 @@ class TestReadingWhatAFileIs(unittest.TestCase):
             "shapeName": ["An Giang", "Bắc Ninh"], "shapeISO": ["VN-44", "VN-56"],
             "shapeID": ["a", "b"], "shapeGroup": ["VNM", "VNM"],
             "shapeType": ["ADM1", "ADM1"]}))
-        self.assertEqual(reading["bộ"], detect.GEOBOUNDARIES)
-        self.assertEqual(reading["cột_tên"], "shapeName")
-        self.assertEqual((reading["quốc_gia"], reading["cấp"]), ("VNM", 1))
+        self.assertEqual(reading["dataset"], detect.GEOBOUNDARIES)
+        self.assertEqual(reading["name_column"], "shapeName")
+        self.assertEqual((reading["country"], reading["level"]), ("VNM", 1))
 
     def test_the_general_path_does_not_pick_a_column_of_one_repeated_value(self):
         """The mistake the first draft of this made, twice over.
@@ -846,7 +846,7 @@ class TestReadingWhatAFileIs(unittest.TestCase):
             "NAME": ["Arkansas", "Colorado", "Delaware", "Florida"],
             "TYPE": ["Land"] * 4,
             "source": ["https://example.invalid"] * 4}))
-        self.assertEqual(reading["cột_tên"], "NAME")
+        self.assertEqual(reading["name_column"], "NAME")
 
     def test_the_general_path_does_not_pick_a_two_letter_code(self):
         """``AR`` and ``05`` vary as much as ``Arkansas`` does — every value
@@ -856,9 +856,9 @@ class TestReadingWhatAFileIs(unittest.TestCase):
             "STATE_ABBR": ["AR", "CO", "DE", "FL"],
             "STATE_FIPS": ["05", "08", "10", "12"],
             "NAME": ["Arkansas", "Colorado", "Delaware", "Florida"]}))
-        self.assertEqual(reading["cột_tên"], "NAME")
-        self.assertEqual(reading["độ_tin_cậy"], detect.LIKELY)
-        self.assertIn("STATE_ABBR", reading["bằng_chứng"])
+        self.assertEqual(reading["name_column"], "NAME")
+        self.assertEqual(reading["confidence"], detect.LIKELY)
+        self.assertIn("STATE_ABBR", reading["evidence"])
 
     def test_a_photo_finish_becomes_a_question_rather_than_a_decision(self):
         """Picking wrong here labels every unit on the map with the wrong
@@ -867,12 +867,12 @@ class TestReadingWhatAFileIs(unittest.TestCase):
         reading = detect.identify(self.frame({
             "ten_a": ["Alpha One", "Beta Two", "Gamma Three"],
             "ten_b": ["Delta Four", "Epsilon Five", "Zeta Six"]}))
-        self.assertEqual(reading["độ_tin_cậy"], detect.ASK)
+        self.assertEqual(reading["confidence"], detect.ASK)
 
     def test_nothing_readable_is_said_so_rather_than_guessed_at(self):
         reading = detect.identify(self.frame({"a": ["1", "2"], "b": ["3", "4"]}))
-        self.assertIsNone(reading["cột_tên"])
-        self.assertEqual(reading["độ_tin_cậy"], detect.ASK)
+        self.assertIsNone(reading["name_column"])
+        self.assertEqual(reading["confidence"], detect.ASK)
 
     def test_the_parent_link_is_found_by_matching_the_other_tier(self):
         """The one piece of evidence a code column cannot fake. It is checked
@@ -882,9 +882,9 @@ class TestReadingWhatAFileIs(unittest.TestCase):
                                  detect.identify(vietnam("province")),
                                  vietnam("commune"),
                                  detect.identify(vietnam("commune")))
-        self.assertEqual(link["cột_cha"], "ten_tinh")
-        self.assertEqual(link["độ_tin_cậy"], detect.SURE)
-        self.assertIn("3321/3321", link["bằng_chứng"])
+        self.assertEqual(link["parent_column"], "ten_tinh")
+        self.assertEqual(link["confidence"], detect.SURE)
+        self.assertIn("3321/3321", link["evidence"])
 
     def test_tiers_that_do_not_line_up_are_reported_rather_than_joined(self):
         coarse = self.frame({"ten_tinh": ["Hà Nội", "Huế"]})
@@ -892,7 +892,7 @@ class TestReadingWhatAFileIs(unittest.TestCase):
                            "ten_tinh": ["Nowhere", "Elsewhere"]})
         link = detect.link_tiers(coarse, detect.identify(coarse),
                                  fine, detect.identify(fine))
-        self.assertEqual(link["độ_tin_cậy"], detect.ASK)
+        self.assertEqual(link["confidence"], detect.ASK)
 
 
 class TestTheCountryProfile(OwnBoundariesOnly):
@@ -925,12 +925,12 @@ class TestTheCountryProfile(OwnBoundariesOnly):
             reading = dataio.read_country(dataio.load(require_geo=True),
                                           root, "atlantis")
 
-        self.assertEqual(reading["nhận_diện"]["bộ"], detect.GADM)
-        self.assertEqual(reading["tên_quốc_gia"], "Atlantis")
-        self.assertIn("+proj=aea", reading["phép_chiếu"]["crs"])
-        self.assertEqual(reading["cha_con"]["cột_cha"], "NAME_1")
-        self.assertIn("4/4", reading["cha_con"]["bằng_chứng"])
-        self.assertEqual([t["vai_trò"] for t in reading["tầng"]],
+        self.assertEqual(reading["detected"]["dataset"], detect.GADM)
+        self.assertEqual(reading["country_name"], "Atlantis")
+        self.assertIn("+proj=aea", reading["projection"]["crs"])
+        self.assertEqual(reading["parent_link"]["parent_column"], "NAME_1")
+        self.assertIn("4/4", reading["parent_link"]["evidence"])
+        self.assertEqual([t["role"] for t in reading["tiers"]],
                          [dataio.COARSE, dataio.FINE])
 
     def test_it_is_written_once_and_read_back(self):
@@ -953,10 +953,10 @@ class TestTheCountryProfile(OwnBoundariesOnly):
                                                 "COUNTRY": ["Atlantis"] * 2})
             reading = dataio.read_country(dataio.load(require_geo=True),
                                           root, "atlantis")
-        self.assertIsNone(reading["khung_phụ"]["kinh_tuyến"])
-        self.assertEqual(reading["khung_phụ"]["nguồn"], "chưa khai")
-        self.assertIn(insets.HAND_KEY, reading["khung_phụ"]["cách_khai"])
-        self.assertIn(dataio.PROFILE, reading["khung_phụ"]["cách_khai"])
+        self.assertIsNone(reading["inset"]["meridian"])
+        self.assertEqual(reading["inset"]["source"], "undeclared")
+        self.assertIn(insets.HAND_KEY, reading["inset"]["how_to_declare"])
+        self.assertIn(dataio.PROFILE, reading["inset"]["how_to_declare"])
 
     def test_a_declaration_written_by_hand_survives_a_rebuild(self):
         """Everything else in the profile is the machine's reading and is thrown
@@ -975,13 +975,13 @@ class TestTheCountryProfile(OwnBoundariesOnly):
 
             store = root / dataio.PROFILE
             saved = json.loads(store.read_text(encoding="utf-8"))
-            saved["atlantis"]["khai_báo"] = {insets.HAND_KEY: 0.5}
+            saved["atlantis"]["declared"] = {insets.HAND_KEY: 0.5}
             store.write_text(json.dumps(saved, ensure_ascii=False),
                              encoding="utf-8")
 
             declared = dataio.read_country(deps, root, "atlantis", rebuild=True)
-            self.assertEqual(declared["khung_phụ"]["kinh_tuyến"], 0.5)
-            self.assertEqual(declared["khung_phụ"]["nguồn"], "người dùng khai")
+            self.assertEqual(declared["inset"]["meridian"], 0.5)
+            self.assertEqual(declared["inset"]["source"], "declared_by_user")
 
             # a boundary file changes size, so every reading is recomputed
             place = root / "atlantis" / "district"
@@ -993,8 +993,8 @@ class TestTheCountryProfile(OwnBoundariesOnly):
                 crs="EPSG:4326").to_file(place / "district.shp")
             after = dataio.read_country(deps, root, "atlantis")
 
-        self.assertEqual(len(after["tầng"]), 2)          # it did rebuild
-        self.assertEqual(after["khung_phụ"]["kinh_tuyến"], 0.5)
+        self.assertEqual(len(after["tiers"]), 2)          # it did rebuild
+        self.assertEqual(after["inset"]["meridian"], 0.5)
 
     def test_a_declaration_takes_effect_without_waiting_for_a_rebuild(self):
         """The cache is keyed on the boundary files, and editing the profile
@@ -1007,20 +1007,20 @@ class TestTheCountryProfile(OwnBoundariesOnly):
                                                 "COUNTRY": ["Atlantis"] * 2})
             deps = dataio.load(require_geo=True)
             self.assertIsNone(
-                dataio.read_country(deps, root, "atlantis")["khung_phụ"]["kinh_tuyến"])
+                dataio.read_country(deps, root, "atlantis")["inset"]["meridian"])
 
             store = root / dataio.PROFILE
             saved = json.loads(store.read_text(encoding="utf-8"))
-            saved["atlantis"]["khai_báo"] = {insets.HAND_KEY: 0.5}
+            saved["atlantis"]["declared"] = {insets.HAND_KEY: 0.5}
             store.write_text(json.dumps(saved, ensure_ascii=False),
                              encoding="utf-8")
 
             # no rebuild: the boundary files are untouched and the version matches
             again = dataio.read_country(deps, root, "atlantis")
-            self.assertEqual(again["khung_phụ"]["kinh_tuyến"], 0.5)
+            self.assertEqual(again["inset"]["meridian"], 0.5)
             self.assertEqual(
                 json.loads(store.read_text(encoding="utf-8"))
-                ["atlantis"]["khung_phụ"]["kinh_tuyến"], 0.5)
+                ["atlantis"]["inset"]["meridian"], 0.5)
 
     def test_a_profile_from_an_older_engine_is_rebuilt(self):
         """The cache is keyed on the boundary files, which is right for "the
@@ -1038,15 +1038,15 @@ class TestTheCountryProfile(OwnBoundariesOnly):
             store = root / dataio.PROFILE
             saved = json.loads(store.read_text(encoding="utf-8"))
             stale = dict(saved["atlantis"])
-            stale.pop("khung_phụ")
-            stale.pop("__phiên_bản")           # as the older engine wrote it
+            stale.pop("inset")
+            stale.pop("__version")           # as the older engine wrote it
             store.write_text(json.dumps({"atlantis": stale}, ensure_ascii=False),
                              encoding="utf-8")
 
             again = dataio.read_country(deps, root, "atlantis")
 
-        self.assertIn("khung_phụ", again)
-        self.assertEqual(again["__phiên_bản"], dataio.PROFILE_VERSION)
+        self.assertIn("inset", again)
+        self.assertEqual(again["__version"], dataio.PROFILE_VERSION)
 
     def test_adding_a_tier_invalidates_it(self):
         """Kept by file name and size rather than by contents: hashing 135 MB
@@ -1060,7 +1060,7 @@ class TestTheCountryProfile(OwnBoundariesOnly):
                                                 "GID_0": ["ATL", "ATL"]})
             deps = dataio.load(require_geo=True)
             before = dataio.read_country(deps, root, "atlantis")
-            self.assertEqual(len(before["tầng"]), 1)
+            self.assertEqual(len(before["tiers"]), 1)
 
             place = root / "atlantis" / "district"
             place.mkdir()
@@ -1071,8 +1071,8 @@ class TestTheCountryProfile(OwnBoundariesOnly):
                 crs="EPSG:4326").to_file(place / "district.shp")
 
             after = dataio.read_country(deps, root, "atlantis")
-        self.assertEqual(len(after["tầng"]), 2)
-        self.assertNotEqual(before["__nguồn"], after["__nguồn"])
+        self.assertEqual(len(after["tiers"]), 2)
+        self.assertNotEqual(before["__from"], after["__from"])
 
     def test_a_country_outline_dropped_in_beside_the_tiers_takes_no_role(self):
         """A GADM archive unpacked wholesale is the case this guards."""
@@ -1082,7 +1082,7 @@ class TestTheCountryProfile(OwnBoundariesOnly):
                 whole={"GID_0": ["ATL"], "COUNTRY": ["Atlantis"]},
                 region={"NAME_1": ["Ardenne", "Beluar"], "GID_0": ["ATL", "ATL"]})
             order = dataio.tiers(root, "atlantis")
-            roles = {t["thư_mục"]: t["vai_trò"] for t in order}
+            roles = {t["folder"]: t["role"] for t in order}
 
             self.assertIsNone(roles["whole"])
             self.assertEqual(roles["region"], dataio.COARSE)
@@ -1098,14 +1098,14 @@ class TestNoticingLandFarFromTheRest(unittest.TestCase):
     def test_a_compact_country_keeps_the_whole_frame(self):
         land = insets.land_masses(boxes([(0, 0, 10, 10), (10, 0, 20, 10)])
                                   .to_crs("EPSG:3857"))
-        self.assertEqual(land["số_khối"], 1)
-        self.assertAlmostEqual(land["phần_bề_ngang_khối_chính"], 1.0, places=3)
+        self.assertEqual(land["mass_count"], 1)
+        self.assertAlmostEqual(land["main_mass_width_share"], 1.0, places=3)
 
     def test_one_far_piece_costs_the_main_body_most_of_the_width(self):
         frame = boxes([(0, 0, 10, 10), (90, 0, 92, 2)]).to_crs("EPSG:3857")
         land = insets.land_masses(frame)
-        self.assertEqual(land["số_khối"], 2)
-        self.assertLess(land["phần_bề_ngang_khối_chính"], 0.2)
+        self.assertEqual(land["mass_count"], 2)
+        self.assertLess(land["main_mass_width_share"], 0.2)
 
     def test_pieces_close_enough_to_touch_are_one_land_mass(self):
         """Provinces in the shipped Vietnamese data do not share exactly
@@ -1115,29 +1115,29 @@ class TestNoticingLandFarFromTheRest(unittest.TestCase):
         self.assertEqual(len(vietnam("province")), 34)
         projected = vietnam("province").to_crs(
             dataio.thematic_crs(vietnam("province")))
-        self.assertEqual(insets.land_masses(projected)["số_khối"], 218)
+        self.assertEqual(insets.land_masses(projected)["mass_count"], 218)
 
     def test_the_warning_names_what_the_reader_loses(self):
-        land = {"phần_bề_ngang_khối_chính": 0.43, "số_khối": 451}
+        land = {"main_mass_width_share": 0.43, "mass_count": 451}
         issues = guardrails.check_detached_territory(land, inset_drawn=False,
                                                      lang="en")
         self.assertEqual(len(issues), 1)
         self.assertEqual(issues[0]["severity"], guardrails.CRITICAL)
-        self.assertIn("43%", issues[0]["vấn_đề"])
-        self.assertIn("57%", issues[0]["vì_sao"])
+        self.assertIn("43%", issues[0]["problem"])
+        self.assertIn("57%", issues[0]["why"])
 
     def test_an_inset_answers_the_question_so_nothing_is_said(self):
         """Vietnam's frame gives its mainland 47% of the width and its map is
         right, because the archipelagos are in a box. The warning is about the
         two together — land far away, and nothing done about it."""
-        land = {"phần_bề_ngang_khối_chính": 0.47, "số_khối": 218}
+        land = {"main_mass_width_share": 0.47, "mass_count": 218}
         self.assertEqual(
             guardrails.check_detached_territory(land, inset_drawn=True), [])
 
     def test_a_frame_the_main_body_nearly_fills_is_not_worth_a_warning(self):
         for width in (0.80, 0.93, 1.0):
             self.assertEqual(guardrails.check_detached_territory(
-                {"phần_bề_ngang_khối_chính": width}, inset_drawn=False), [],
+                {"main_mass_width_share": width}, inset_drawn=False), [],
                 width)
 
     def test_a_country_measured_end_to_end(self):
@@ -1148,7 +1148,7 @@ class TestNoticingLandFarFromTheRest(unittest.TestCase):
         for country, quiet in (("canada", True), ("united-states", False)):
             if not (root / country).is_dir():
                 self.skipTest(f"chưa có ranh giới {country}")
-            land = dataio.read_country(deps, root, country).get("lãnh_thổ_rời")
+            land = dataio.read_country(deps, root, country).get("detached_land")
             issues = guardrails.check_detached_territory(land, inset_drawn=False)
             self.assertEqual(not issues, quiet, country)
 
@@ -1250,9 +1250,9 @@ class TestSuggestingALanguage(unittest.TestCase):
 
     def test_the_two_sources_are_reported_separately(self):
         hint = i18n.suggest("vi")
-        self.assertEqual(hint["quốc_gia"], "vi")
-        self.assertIn("vi", hint["gợi_ý"])
-        self.assertIn("máy", hint)
+        self.assertEqual(hint["country"], "vi")
+        self.assertIn("vi", hint["suggestion"])
+        self.assertIn("machine", hint)
 
     def test_agreement_is_judged_on_the_language_not_the_spelling(self):
         """Windows answers ``English_United States`` where Linux answers
@@ -1278,7 +1278,7 @@ class TestSuggestingALanguage(unittest.TestCase):
         is settled by the override table, which takes any string at all."""
         hint = i18n.suggest("vi")
         self.assertNotIn("chỉ_được_chọn", hint)
-        self.assertLessEqual(len(hint["gợi_ý"]), 2)
+        self.assertLessEqual(len(hint["suggestion"]), 2)
 
 
 class TestARepairedCodepage(OwnBoundariesOnly):
@@ -1307,9 +1307,9 @@ class TestARepairedCodepage(OwnBoundariesOnly):
 
         self.assertEqual(list(frame["ten_tinh"]), names)
         self.assertEqual(len(notes), 1)
-        self.assertEqual(notes[0]["tệp"], "province/units.shp")
-        self.assertEqual(notes[0]["cách_sửa"], "province/units.cpg")
-        self.assertGreaterEqual(notes[0]["số_giá_trị"], 2)
+        self.assertEqual(notes[0]["files"], "province/units.shp")
+        self.assertEqual(notes[0]["how_to_fix"], "province/units.cpg")
+        self.assertGreaterEqual(notes[0]["value_count"], 2)
 
     def test_a_file_that_was_never_broken_is_left_alone_and_unreported(self):
         names = ["Québec", "Ontario"]
@@ -1476,7 +1476,7 @@ class TestWhatIsStillPinnedToVietnam(unittest.TestCase):
         self.assertEqual(len(mainland(whole, VN_LON)), parts)
         self.assertIsNone(insets.declared("Fictavia"))
 
-        own = insets.declaration("Fictavia", {insets.HAND_KEY: 42.0})["kinh_tuyến"]
+        own = insets.declaration("Fictavia", {insets.HAND_KEY: 42.0})["meridian"]
         self.assertEqual(own, 42.0)
         self.assertLess(len(mainland(whole, own)), parts)
 

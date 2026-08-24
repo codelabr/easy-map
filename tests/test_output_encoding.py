@@ -57,7 +57,7 @@ class TestLegacyConsoles(unittest.TestCase):
         for encoding in LEGACY:
             with self.subTest(encoding=encoding):
                 done = run_list(encoding)
-                self.assertIn("thư_mục_dự_án", done.stdout,
+                self.assertIn("project_root", done.stdout,
                               f"PYTHONIOENCODING={encoding} mangled the reply")
 
 

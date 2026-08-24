@@ -157,8 +157,8 @@ class TestTheLanguageActuallyChangesTheOutput(unittest.TestCase):
         summary = {"total": 99, "unmatched": 30, "fuzzy": 3}
         vi = guardrails.check_admin_level(summary, "commune", "SNU2", lang="vi")
         en = guardrails.check_admin_level(summary, "commune", "SNU2", lang="en")
-        self.assertIn("cấp huyện", vi[0]["vì_sao"])
-        self.assertIn("districts", en[0]["vì_sao"])
+        self.assertIn("cấp huyện", vi[0]["why"])
+        self.assertIn("districts", en[0]["why"])
         # the id and the severity are machine-facing, so they do not translate
         self.assertEqual(vi[0]["id"], en[0]["id"])
         self.assertEqual(vi[0]["severity"], en[0]["severity"])
@@ -169,7 +169,7 @@ class TestTheLanguageActuallyChangesTheOutput(unittest.TestCase):
         for lang in msg.LANGUAGES:
             found = guardrails.check_admin_level(
                 {"total": 99, "unmatched": 30}, "commune", "SNU2", lang=lang)
-            self.assertIn("SNU2", found[0]["vì_sao"], lang)
+            self.assertIn("SNU2", found[0]["why"], lang)
 
     def test_the_run_language_applies_when_no_language_is_passed(self):
         msg.use("en")
@@ -230,8 +230,8 @@ class TestTheLanguageActuallyChangesTheOutput(unittest.TestCase):
         info = {"column": "Tỷ lệ", "semantic": "percent", "scale": "percent"}
         vi = guardrails.check_percent_range([120.5], info, lang="vi")
         en = guardrails.check_percent_range([120.5], info, lang="en")
-        self.assertIn("120,5%", vi[0]["vấn_đề"])
-        self.assertIn("120.5%", en[0]["vấn_đề"])
+        self.assertIn("120,5%", vi[0]["problem"])
+        self.assertIn("120.5%", en[0]["problem"])
 
 
 class TestTheFlagReachesTheTable(unittest.TestCase):

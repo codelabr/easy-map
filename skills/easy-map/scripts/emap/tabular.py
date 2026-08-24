@@ -331,9 +331,9 @@ def coerce_column(values: Sequence[Any]) -> tuple[list[Any], dict[str, Any]] | N
             unreadable.append(str(v).strip())
         else:
             out.append(parsed)
-    return out, {"số_ô_đã_đổi": count,
-                 "số_ô_không_đọc_được": len(unreadable),
-                 "ví_dụ_không_đọc_được": sorted(set(unreadable))[:5]}
+    return out, {"cells_changed": count,
+                 "unreadable_cells": len(unreadable),
+                 "unreadable_examples": sorted(set(unreadable))[:5]}
 
 
 # --- which column holds place names? --------------------------------------
@@ -366,8 +366,8 @@ def place_columns(columns: Sequence[Any], rows: Sequence[Sequence[Any]],
     """
     from . import matching
 
-    best: dict[str, Any] = {"tỉnh": None, "xã": None,
-                            "khớp_tỉnh": 0.0, "khớp_xã": 0.0}
+    best: dict[str, Any] = {"province": None, "commune": None,
+                            "province_match": 0.0, "commune_match": 0.0}
     for index, name in enumerate(columns):
         values = {matching.normalize(r[index]) for r in rows
                   if index < len(r) and not is_blank(r[index])}
@@ -377,10 +377,10 @@ def place_columns(columns: Sequence[Any], rows: Sequence[Sequence[Any]],
         province = sum(1 for v in values if v in province_keys) / len(values)
         commune = sum(1 for v in values
                       if v in commune_keys and v not in province_keys) / len(values)
-        if province >= PROVINCE_SHARE and province > best["khớp_tỉnh"]:
-            best["tỉnh"], best["khớp_tỉnh"] = str(name), round(province, 3)
-        if commune >= COMMUNE_SHARE and commune > best["khớp_xã"]:
-            best["xã"], best["khớp_xã"] = str(name), round(commune, 3)
+        if province >= PROVINCE_SHARE and province > best["province_match"]:
+            best["province"], best["province_match"] = str(name), round(province, 3)
+        if commune >= COMMUNE_SHARE and commune > best["commune_match"]:
+            best["commune"], best["commune_match"] = str(name), round(commune, 3)
     return best
 
 
@@ -398,18 +398,18 @@ def usability(columns: Sequence[Any], row_count: int,
     unnamed = [n for n in names if is_unnamed(n)]
 
     if row_count == 0 or not names:
-        return {"lý_do": msg.text("sheet-trong.lý_do"),
-                "nên_làm": msg.text("sheet-trong.nên_làm")}
+        return {"reason": msg.text("sheet-trong.lý_do"),
+                "fix": msg.text("sheet-trong.nên_làm")}
     if names and len(unnamed) / len(names) > 0.5:
         return {
-            "lý_do": msg.text("cot-khong-ten.lý_do", unnamed=len(unnamed),
+            "reason": msg.text("cot-khong-ten.lý_do", unnamed=len(unnamed),
                               total=len(names), examples=", ".join(unnamed[:4])),
-            "nên_làm": msg.text("cot-khong-ten.nên_làm"),
-            "cột_không_tên": unnamed[:12],
+            "fix": msg.text("cot-khong-ten.nên_làm"),
+            "unnamed_columns": unnamed[:12],
         }
     if not place_column:
         return {
-            "lý_do": msg.text("khong-co-cot-dia-danh.lý_do"),
-            "nên_làm": msg.text("khong-co-cot-dia-danh.nên_làm"),
+            "reason": msg.text("khong-co-cot-dia-danh.lý_do"),
+            "fix": msg.text("khong-co-cot-dia-danh.nên_làm"),
         }
     return None

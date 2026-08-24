@@ -145,8 +145,8 @@ def place(ax, items: Sequence[dict[str, Any]], *, colors: dict[str, str],
             ax.plot([dsx, dex], [dsy, dey], color=colors.get("leader", "#8a969e"),
                     lw=0.7, zorder=7, solid_capstyle="round")
 
-    return {"đã_vẽ": placed, "phải_dời": moved, "bỏ_qua": dropped,
-            "bỏ_vì_chật": crowded_out, "chỉ_hiện_tên": name_only}
+    return {"drawn": placed, "moved": moved, "skipped": dropped,
+            "dropped_no_room": crowded_out, "name_only": name_only}
 
 
 def _search(ax, item, px, py, r, occupied, ax_box, renderer, fontsize,

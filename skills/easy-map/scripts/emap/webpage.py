@@ -308,12 +308,12 @@ def build(run_dir: Path, kind: str) -> dict[str, Any] | None:
     path = run_dir / PAGES[kind]
     path.write_text(_page(title, {"entries": entries, "text": TEXT}), encoding="utf-8")
     return {
-        "tệp": str(path),
-        "định_dạng": "html",
-        "số_bản_đồ_trong_trang": len(entries),
-        "ngôn_ngữ": languages,
-        "kích_thước_MB": round(path.stat().st_size / 1_048_576, 2),
-        "ghi_chú": "Một tệp tự chứa: gửi riêng tệp này vẫn xem được, không cần tệp nào khác.",
+        "files": str(path),
+        "format": "html",
+        "maps_in_page": len(entries),
+        "language": languages,
+        "size_mb": round(path.stat().st_size / 1_048_576, 2),
+        "note": "Một tệp tự chứa: gửi riêng tệp này vẫn xem được, không cần tệp nào khác.",
     }
 
 

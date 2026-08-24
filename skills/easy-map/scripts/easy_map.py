@@ -168,8 +168,8 @@ def command_start_run(args: argparse.Namespace) -> None:
     folder = dataio.create_run_dir(root, args.run_folder, fresh=True)
     emit({
         "run_folder": folder.name,
-        "thư_mục_lần_chạy": str(folder),
-        "hướng_dẫn": ("Truyền --run-folder " + folder.name +
+        "run_folder": str(folder),
+        "guidance": ("Truyền --run-folder " + folder.name +
                       " cho mọi lệnh profile/render của yêu cầu này. Quên truyền thì "
                       "lệnh vẫn ghi vào đúng thư mục này, miễn là gọi trong "
                       f"{dataio.OPEN_RUN_HOURS:g} giờ."),
@@ -186,30 +186,30 @@ def command_list(args: argparse.Namespace) -> None:
             sheets = dataio.read_sheets(deps, path)
         except Exception as exc:  # pragma: no cover - depends on the workbook
             sheets = [f"<không đọc được: {exc}>"]
-        workbooks.append({"tệp": str(path.relative_to(root)), "sheet": sheets})
+        workbooks.append({"files": str(path.relative_to(root)), "sheet": sheets})
 
     boundary_root = dataio.shapefile_root(root)
     moved = dataio.migrate_legacy_layout(boundary_root)
     available = {}
     for name in dataio.countries(boundary_root):
-        entry = {"tầng": [{k: v for k, v in tier.items() if not k.startswith("__")}
+        entry = {"tiers": [{k: v for k, v in tier.items() if not k.startswith("__")}
                           for tier in dataio.tiers(boundary_root, name)]}
         # Reading a country means opening its boundary files, which needs
         # geopandas. ``list`` is the command someone runs when something is
         # wrong, so it answers what it can without it rather than refusing.
         if deps.gpd is None:
-            entry["hồ_sơ"] = messages.text("liet-ke.chưa-có-geopandas")
+            entry["profile"] = messages.text("liet-ke.chưa-có-geopandas")
         else:
             try:
                 reading = dataio.read_country(deps, boundary_root, name)
                 entry.update({k: v for k, v in reading.items()
-                              if k not in ("__nguồn", "tầng")})
+                              if k not in ("__from", "tiers")})
             except Exception as exc:        # a country that cannot be read is
-                entry["không_đọc_được"] = str(exc)   # reported, not fatal
+                entry["unreadable"] = str(exc)   # reported, not fatal
         available[name] = entry
 
     # The per-tier paths are only meaningful when there is one country to be
-    # meaningful about. With several installed, "quốc_gia" above already says
+    # meaningful about. With several installed, "country" above already says
     # what is there, and repeating the same refusal twice under a heading that
     # promises a file is noise dressed as an error.
     shapefiles = {}
@@ -227,13 +227,13 @@ def command_list(args: argparse.Namespace) -> None:
                 shapefiles[level] = str(exc)
 
     emit({
-        "thư_mục_dự_án": str(root),
+        "project_root": str(root),
         "workbook": workbooks,
-        "quốc_gia": available,
-        **({"đã_chuyển_bố_cục": moved} if moved else {}),
+        "country": available,
+        **({"layout_migrated": moved} if moved else {}),
         "shapefile": shapefiles,
-        "font_thiếu": fonts.missing_files(),
-        "lựa_chọn_đã_ghi_nhớ": prefs._load(root / prefs.FOLDER / prefs.CHOICES),
+        "missing_fonts": fonts.missing_files(),
+        "remembered_choices": prefs._load(root / prefs.FOLDER / prefs.CHOICES),
     })
 
 
@@ -254,10 +254,10 @@ def command_import(args: argparse.Namespace) -> None:
     # importing a file is not itself a reason to create an output folder
     run_name = args.run_folder or dataio.open_run(root)
     if run_name:
-        _append_manifest(dataio.create_run_dir(root, run_name), "tệp_đã_nhập", result)
+        _append_manifest(dataio.create_run_dir(root, run_name), "imports", result)
 
-    survey = argparse.Namespace(project_root=args.project_root, excel=result["tệp"])
-    emit({**result, "khảo_sát": _survey_payload(survey)})
+    survey = argparse.Namespace(project_root=args.project_root, excel=result["files"])
+    emit({**result, "survey": _survey_payload(survey)})
 
 
 def command_survey(args: argparse.Namespace) -> None:
@@ -312,8 +312,8 @@ def _survey_payload(args: argparse.Namespace) -> dict[str, Any]:
             try:
                 sample, total = _sample_text_table(path, limit)
             except Exception as exc:
-                files.append({"tệp": _short(path, root), "lỗi": str(exc), "sheet": [],
-                              "nên_dùng": []})
+                files.append({"files": _short(path, root), "error": str(exc), "sheet": [],
+                              "preferred": []})
                 continue
             sheets = [_survey_sheet(dataio.SINGLE_SHEET, total, sample,
                                     province_keys, commune_keys)]
@@ -322,8 +322,8 @@ def _survey_payload(args: argparse.Namespace) -> dict[str, Any]:
         try:
             book = load_workbook(path, read_only=True, data_only=True)
         except Exception as exc:      # a workbook the reader cannot open at all
-            files.append({"tệp": _short(path, root), "lỗi": str(exc), "sheet": [],
-                          "nên_dùng": []})
+            files.append({"files": _short(path, root), "error": str(exc), "sheet": [],
+                          "preferred": []})
             continue
         sheets = []
         try:
@@ -339,21 +339,21 @@ def _survey_payload(args: argparse.Namespace) -> dict[str, Any]:
             book.close()
         files.append(_survey_file(path, root, sheets))
 
-    with_maps = [f for f in files if f["nên_dùng"]]
+    with_maps = [f for f in files if f["preferred"]]
     payload: dict[str, Any] = {
         "workbook": files,
-        "nên_dùng": [{"tệp": f["tệp"], "sheet": f["nên_dùng"]} for f in with_maps],
+        "preferred": [{"files": f["files"], "sheet": f["preferred"]} for f in with_maps],
         # A ready-made menu. Without it the agent lists what it finds in prose
         # and the reader has to copy a file name back — which is what happened
         # on the first real run, and it is a poor way to choose between nine
         # files. One number is the whole answer.
-        "chọn_nhanh": _quick_pick(files),
-        "tóm_tắt": (messages.text("khao-sat.có-sheet-vẽ-được", total=len(files),
+        "quick_pick": _quick_pick(files),
+        "summary": (messages.text("khao-sat.có-sheet-vẽ-được", total=len(files),
                                   files=len(with_maps))
                     if len(files) > 1 else
-                    (files[0].get("tóm_tắt")
+                    (files[0].get("summary")
                      or messages.text("khao-sat.không-đọc-được"))),
-        "ghi_chú": messages.text("doc.chỉ-đọc-mẫu", rows=tabular.SURVEY_ROWS),
+        "note": messages.text("doc.chỉ-đọc-mẫu", rows=tabular.SURVEY_ROWS),
     }
     if len(files) == 1:
         payload["sheet"] = files[0]["sheet"]      # unchanged shape for one file
@@ -371,26 +371,26 @@ def _quick_pick(files: list[dict[str, Any]]) -> dict[str, Any]:
     picks: list[dict[str, Any]] = []
     for f in files:
         for sheet in f.get("sheet", []):
-            if not sheet.get("dùng_được"):
+            if not sheet.get("usable"):
                 continue
-            rows = sheet.get("số_dòng_ước_tính") or 0
-            level = sheet.get("cấp_gợi_ý")
+            rows = sheet.get("estimated_rows") or 0
+            level = sheet.get("suggested_level")
             picks.append({
-                "số": len(picks) + 1,
-                "nhãn": f["tệp"],
-                "mô_tả": messages.text(
+                "number": len(picks) + 1,
+                "label": f["files"],
+                "description": messages.text(
                     "chọn.tệp.mô_tả", sheet=sheet["sheet"],
                     rows=wording.count("bảng.số-dòng", "rows", rows),
                     level=messages.text({"commune": "cap.xa", "province": "cap.tinh"}
                                         .get(level, "bảng.không-áp-dụng"))),
-                "tệp": f["tệp"], "sheet": sheet["sheet"],
-                "số_dòng": sheet.get("số_dòng_ước_tính"), "cấp": level,
+                "files": f["files"], "sheet": sheet["sheet"],
+                "row_count": sheet.get("estimated_rows"), "level": level,
             })
-    picks.append({"số": len(picks) + 1,
-                  "nhãn": messages.text("chọn.tệp.tải-lên.nhãn"),
-                  "mô_tả": messages.text("chọn.tệp.tải-lên.mô_tả"),
-                  "tệp": None, "sheet": None})
-    return {"câu_hỏi": messages.text("chọn.tệp.câu_hỏi"), "lựa_chọn": picks}
+    picks.append({"number": len(picks) + 1,
+                  "label": messages.text("chọn.tệp.tải-lên.nhãn"),
+                  "description": messages.text("chọn.tệp.tải-lên.mô_tả"),
+                  "files": None, "sheet": None})
+    return {"question": messages.text("chọn.tệp.câu_hỏi"), "choices": picks}
 
 
 def _short(path: Path, root: Path) -> str:
@@ -414,7 +414,7 @@ def _append_manifest(run_dir: Path, key: str, entry: dict[str, Any]) -> None:
                 manifest = existing
         except (json.JSONDecodeError, OSError):
             pass
-    manifest["thư_mục"] = str(run_dir)
+    manifest["folder"] = str(run_dir)
     if not isinstance(manifest.get(key), list):
         manifest[key] = []
     manifest[key].append(entry)
@@ -439,10 +439,10 @@ def _sample_text_table(path: Path, limit: int) -> tuple[list[list[Any]], int]:
 
 
 def _survey_file(path: Path, root: Path, sheets: list[dict[str, Any]]) -> dict[str, Any]:
-    usable = [s["sheet"] for s in sheets if s["dùng_được"]]
+    usable = [s["sheet"] for s in sheets if s["usable"]]
     return {
-        "tệp": _short(path, root), "sheet": sheets, "nên_dùng": usable,
-        "tóm_tắt": (messages.text("khao-sat.sheet-vẽ-được", sheets=len(sheets),
+        "files": _short(path, root), "sheet": sheets, "preferred": usable,
+        "summary": (messages.text("khao-sat.sheet-vẽ-được", sheets=len(sheets),
                                   usable=len(usable), names=", ".join(usable))
                     if usable else
                     messages.text("khao-sat.không-sheet-nào", sheets=len(sheets))),
@@ -460,9 +460,9 @@ def _several_tables(sample: list[list[Any]]) -> dict[str, Any]:
     if len(blocks) < 2:
         return {}
     return {
-        "số_bảng_trong_sheet": len(blocks),
-        "vị_trí_các_bảng": [{"dòng_đầu": a + 1, "dòng_cuối": b + 1} for a, b in blocks],
-        "lưu_ý": messages.text("doc.nhiều-bảng", count=len(blocks)),
+        "tables_in_sheet": len(blocks),
+        "table_positions": [{"first_row": a + 1, "last_row": b + 1} for a, b in blocks],
+        "caution": messages.text("doc.nhiều-bảng", count=len(blocks)),
     }
 
 
@@ -507,9 +507,9 @@ def _survey_sheet(title: str, max_row: int, sample: list[list[Any]],
     worksheet object, so a delimited text file — which has neither sheets nor
     an openpyxl reader — goes through exactly the same judgement."""
     if not any(any(not tabular.is_blank(c) for c in row) for row in sample):
-        return {"sheet": title, "dùng_được": False, "số_dòng_ước_tính": 0,
-                "lý_do": messages.text("sheet-rong.lý_do"),
-                "nên_làm": messages.text("sheet-rong.nên_làm")}
+        return {"sheet": title, "usable": False, "estimated_rows": 0,
+                "reason": messages.text("sheet-rong.lý_do"),
+                "fix": messages.text("sheet-rong.nên_làm")}
 
     start = tabular.header_row(sample)
     columns = [c for c in sample[start]] if start < len(sample) else []
@@ -518,20 +518,20 @@ def _survey_sheet(title: str, max_row: int, sample: list[list[Any]],
              for i, c in enumerate(columns)]
 
     places = tabular.place_columns(names, body, province_keys, commune_keys)
-    place_column = places["xã"] or places["tỉnh"]
+    place_column = places["commune"] or places["province"]
     total = max(int(max_row or 0) - start - 1, len(body))
     blocked = tabular.usability(names, len(body), place_column)
 
     out: dict[str, Any] = {
         "sheet": title,
-        "dùng_được": blocked is None,
-        "số_dòng_ước_tính": total,
-        "số_cột": len(names),
-        "dòng_tiêu_đề": start + 1,
-        "cột_địa_danh": {"tỉnh": places["tỉnh"], "xã": places["xã"]},
+        "usable": blocked is None,
+        "estimated_rows": total,
+        "column_count": len(names),
+        "header_row": start + 1,
+        "place_column": {"province": places["province"], "commune": places["commune"]},
         **_several_tables(sample),
-        "cấp_gợi_ý": ("commune" if places["xã"] else
-                      "province" if places["tỉnh"] else None),
+        "suggested_level": ("commune" if places["commune"] else
+                      "province" if places["province"] else None),
     }
     if blocked:
         out.update(blocked)
@@ -569,54 +569,54 @@ def command_profile(args: argparse.Namespace) -> None:
     report = profiling.build(deps, df, sheet=args.sheet, admin_level=admin_level,
                              province_names=province_names, commune_names=commune_names,
                              dictionary=dictionary)
-    report["sheet_khả_dụng"] = sheets
-    report["lựa_chọn_đã_ghi_nhớ"] = prefs.recall_choices(root, excel, args.sheet)
+    report["available_sheets"] = sheets
+    report["remembered_choices"] = prefs.recall_choices(root, excel, args.sheet)
     tables = _tables_in_sheet(excel, args.sheet)
     if tables:
-        report["nhiều_bảng_trong_sheet"] = tables
-        reading.append({"việc": "nhiều_bảng", **tables})
+        report["many_tables_in_sheet"] = tables
+        reading.append({"action": "many_tables", **tables})
 
-    province_column = args.province_column or _first(report["cột_địa_danh"]["tỉnh"])
-    commune_column = args.commune_column or _first(report["cột_địa_danh"]["xã"])
-    report["cột_tỉnh_đề_xuất"] = province_column
-    report["cột_xã_đề_xuất"] = commune_column
+    province_column = args.province_column or _first(report["place_column"]["province"])
+    commune_column = args.commune_column or _first(report["place_column"]["commune"])
+    report["suggested_province_column"] = province_column
+    report["suggested_commune_column"] = commune_column
 
     place_column = commune_column if admin_level == "commune" else province_column
-    report["cách_đọc_sheet"] = reading
+    report["sheet_reading"] = reading
     # A repaired codepage changes place names, so it is never left unsaid: the
     # user has to be able to tell a name the skill corrected from one they typed.
     if boundary_notes:
-        report["sửa_bảng_mã_ranh_giới"] = boundary_notes
+        report["codepage_repair"] = boundary_notes
 
     # Before anything else is said about this sheet: can it become a map at all?
     # Without this, a pivot table read with the wrong header row still came back
     # with a map option beside twenty columns called "Unnamed: 3".
     blocked = tabular.usability(list(df.columns), len(df), place_column)
     if blocked:
-        report["dùng_được"] = False
-        report["phương_án_bản_đồ"] = []
-        report["cảnh_báo_chất_lượng"].insert(0, guardrails._issue(
+        report["usable"] = False
+        report["map_options"] = []
+        report["quality_warnings"].insert(0, guardrails._issue(
             "sheet-khong-ve-duoc", guardrails.CRITICAL,
-            fmt={"why": blocked["lý_do"], "fix": blocked["nên_làm"]},
-            extra={k: v for k, v in blocked.items() if k not in ("lý_do", "nên_làm")}))
+            fmt={"why": blocked["reason"], "fix": blocked["fix"]},
+            extra={k: v for k, v in blocked.items() if k not in ("reason", "fix")}))
         report["run_folder"] = dataio.create_run_dir(root, args.run_folder).name
         emit(report)
         return
-    report["dùng_được"] = True
+    report["usable"] = True
 
-    long_report = _long_format_report(df, report["cột"], place_column)
+    long_report = _long_format_report(df, report["column"], place_column)
     if long_report:
-        report["dữ_liệu_dạng_dài"] = long_report
+        report["long_form"] = long_report
         # the wide-format map options were computed on the assumption that a
         # column is a measure; here they are noise at best and misleading at worst
-        report["phương_án_bản_đồ"] = []
-        report["cảnh_báo_chất_lượng"].extend(long_report.pop("cảnh_báo", []))
+        report["map_options"] = []
+        report["quality_warnings"].extend(long_report.pop("warnings", []))
 
     # the unit being mapped comes first: on commune data the province column is
     # the same value on every row and proves nothing
     places = ([commune_column, province_column] if admin_level == "commune"
               else [province_column, commune_column])
-    report["mẫu_dữ_liệu"] = _sample_rows(df, report["cột"], places, long_report)
+    report["sample"] = _sample_rows(df, report["column"], places, long_report)
 
     review: list[dict[str, Any]] = []
     if admin_level == "province" and province_column:
@@ -637,26 +637,26 @@ def command_profile(args: argparse.Namespace) -> None:
     review_path = run_dir / review_filename(admin_level, excel, args.sheet)
     if review:
         dataio.write_csv(review_path, review)
-    report["ghép_địa_danh"] = {
-        "tóm_tắt": summary,
-        "tệp_duyệt": str(review_path) if review else None,
-        "cần_xem_lại": matching.rows_needing_attention(review)[:25],
+    report["name_matching"] = {
+        "summary": summary,
+        "review_file": str(review_path) if review else None,
+        "needs_review": matching.rows_needing_attention(review)[:25],
     }
     if summary:
-        report["cảnh_báo_chất_lượng"].extend(guardrails.check_matching(summary))
-        report["cảnh_báo_chất_lượng"].extend(
+        report["quality_warnings"].extend(guardrails.check_matching(summary))
+        report["quality_warnings"].extend(
             guardrails.check_admin_level(summary, admin_level, commune_column))
 
     report["run_folder"] = run_dir.name
-    report["thư_mục_lần_chạy"] = str(run_dir)
+    report["run_folder"] = str(run_dir)
     profile_path = run_dir / "dataset_profile.json"
     dataio.write_json(profile_path, report)
-    report["tệp_hồ_sơ"] = str(profile_path)
+    report["profile_file"] = str(profile_path)
     emit(report)
 
 
 def _first(entries: list[dict[str, Any]]) -> str | None:
-    return entries[0]["cột"] if entries else None
+    return entries[0]["column"] if entries else None
 
 
 LONG_SAMPLE = 5000
@@ -697,9 +697,9 @@ def _sample_rows(df, columns: list[dict[str, Any]], place_columns: list[str],
     take([c for c in place_columns if c][:1], wanted)
 
     if long_report:
-        take([long_report.get("cột_chỉ_số"), long_report.get("cột_giá_trị")], wanted)
-        take([a["cột"] for a in long_report.get("cột_phải_ghăm", [])][:2], wanted)
-        take(long_report.get("cột_thời_gian", [])[:2], wanted)
+        take([long_report.get("indicator_column"), long_report.get("value_column")], wanted)
+        take([a["column"] for a in long_report.get("columns_to_pin", [])][:2], wanted)
+        take(long_report.get("period_column", [])[:2], wanted)
     else:
         for info in columns:
             if len(wanted) >= SAMPLE_COLUMNS:
@@ -724,12 +724,12 @@ def _sample_rows(df, columns: list[dict[str, Any]], place_columns: list[str],
                      else ("" if tabular.is_blank(row[c]) else str(row[c]))
                      for c in wanted])
     return {
-        "cột": wanted,
-        "dòng": rows,
-        "số_cột_ẩn": len(hidden),
-        "tên_cột_ẩn": hidden,
-        "số_dòng_còn_lại": max(len(df) - len(rows), 0),
-        "cách_hiển_thị": ("Thêm một cột '…' ở cuối nếu còn cột ẩn, và một dòng '…' "
+        "column": wanted,
+        "rows": rows,
+        "hidden_columns": len(hidden),
+        "hidden_column_names": hidden,
+        "remaining_rows": max(len(df) - len(rows), 0),
+        "display": ("Thêm một cột '…' ở cuối nếu còn cột ẩn, và một dòng '…' "
                           "ở dưới nếu bảng còn dài, kèm con số cụ thể."),
     }
 
@@ -802,7 +802,7 @@ def _layer_requests(args, deps, frame) -> list[dict[str, Any]]:
             if name not in known:
                 raise SystemExit(f"--layer trỏ vào cột không có: {name!r}. "
                                  f"Các cột hiện có: {', '.join(map(str, frame.columns))}")
-            out.append({"tên": name, "semantic": known[name]["semantic"], "cột": name})
+            out.append({"name": name, "semantic": known[name]["semantic"], "column": name})
         return out
 
     if axis not in frame.columns:
@@ -831,8 +831,8 @@ def _layer_requests(args, deps, frame) -> list[dict[str, Any]]:
             require(num)
             require(den)
             # a quotient is normalised by construction, so it belongs to the fill
-            out.append({"tên": f"{num} ÷ {den} (%)", "semantic": sem.PERCENT,
-                        "tử_số": num, "mẫu_số": den, "lát": pins})
+            out.append({"name": f"{num} ÷ {den} (%)", "semantic": sem.PERCENT,
+                        "numerator": num, "denominator": den, "slice": pins})
             continue
         require(head)
         rows = frame[codes == head]
@@ -841,7 +841,7 @@ def _layer_requests(args, deps, frame) -> list[dict[str, Any]]:
                 raise SystemExit(f"Lát của --layer '{head}' trỏ vào cột không có: {column!r}")
             rows = rows[rows[column].astype(str).str.strip() == value]
         info = indicator_semantic(rows[args.value_column].tolist(), head)
-        out.append({"tên": head, "semantic": info["semantic"], "chỉ_số": head, "lát": pins})
+        out.append({"name": head, "semantic": info["semantic"], "indicator": head, "slice": pins})
     return out
 
 
@@ -865,41 +865,41 @@ def _render_layers(args: argparse.Namespace) -> None:
 
     requests = _layer_requests(args, deps, frame)
     plan = layers.allocate(requests)
-    if not plan["bản_đồ"]:
+    if not plan["maps"]:
         raise SystemExit(messages.text("loi.khong-bien-nao-ve-duoc")
-                         + " ".join(r["vì_sao"] for r in plan["không_xếp_được"]))
+                         + " ".join(r["why"] for r in plan["unplaced"]))
 
     # one folder for the whole set, resolved once so every pass writes together
     run_folder = args.run_folder or dataio.create_run_dir(root).name
-    emit({"kế_hoạch_lớp": layers.summary_lines(plan),
-          "vì_sao_tách": plan.get("vì_sao_tách"),
-          "không_xếp_được": plan["không_xếp_được"],
-          "cảnh_báo_lớp": layers.conflicts(requests),
-          "thư_mục": run_folder,
-          "số_bản_đồ_sẽ_vẽ": len(plan["bản_đồ"])})
+    emit({"layer_plan": layers.summary_lines(plan),
+          "why_split": plan.get("why_split"),
+          "unplaced": plan["unplaced"],
+          "layer_warnings": layers.conflicts(requests),
+          "folder": run_folder,
+          "maps_to_draw": len(plan["maps"])})
 
-    for item in plan["bản_đồ"]:
-        fill, symbol = item["màu_vùng"], item["vòng_tròn"]
+    for item in plan["maps"]:
+        fill, symbol = item["fill"], item["symbol"]
         step = argparse.Namespace(**vars(args))
         step.layer = None
         step.run_folder = run_folder
-        step.map_type = item["loại"]
+        step.map_type = item["kind"]
         if args.indicator_column:
             # each channel names its own slice; the numeric column stays shared
-            step.numerator = (fill or {}).get("tử_số")
-            step.denominator = (fill or {}).get("mẫu_số")
-            step.fill_indicator = (fill or {}).get("chỉ_số")
-            step.symbol_indicator = (symbol or {}).get("chỉ_số")
-            step.fill_where = (fill or {}).get("lát") or args.fill_where
-            step.symbol_where = (symbol or {}).get("lát") or args.symbol_where
+            step.numerator = (fill or {}).get("numerator")
+            step.denominator = (fill or {}).get("denominator")
+            step.fill_indicator = (fill or {}).get("indicator")
+            step.symbol_indicator = (symbol or {}).get("indicator")
+            step.fill_where = (fill or {}).get("slice") or args.fill_where
+            step.symbol_where = (symbol or {}).get("slice") or args.symbol_where
             step.symbol_column = None
         else:
-            step.value_column = fill["cột"] if fill else None
-            step.symbol_column = symbol["cột"] if symbol else None
+            step.value_column = fill["column"] if fill else None
+            step.symbol_column = symbol["column"] if symbol else None
         # the file name is built from the title, so a fixed title across several
         # maps would have each pass overwrite the one before it
-        if len(plan["bản_đồ"]) > 1:
-            lead = (fill or symbol)["tên"]
+        if len(plan["maps"]) > 1:
+            lead = (fill or symbol)["name"]
             step.title = f"{args.title} — {lead}" if args.title else lead
         command_render(step)
 
@@ -937,17 +937,21 @@ def _drawn_table(run_dir: Path, base: str, frame, name_field: str,
     # with it down to the last digit.
     decimals = classify.label_decimals(bins)
     for _, row in frame.iterrows():
-        entry: dict[str, Any] = {"đơn_vị": row[name_field]}
+        # Headings follow --language, so the Vietnamese edition of a map gets a
+        # Vietnamese table and the English edition an English one. The user's own
+        # column name wins wherever there is one: that heading is their data.
+        entry: dict[str, Any] = {i18n.t(lang, "csv_unit"): row[name_field]}
         if "__value" in frame.columns:
             raw = row["__value"]
-            entry[value_column or "giá_trị"] = "" if raw != raw else raw
-            entry["hiển_thị"] = ("" if raw != raw
-                                 else sem.format_value(raw, value_info,
+            entry[value_column or i18n.t(lang, "csv_value")] = "" if raw != raw else raw
+            entry[i18n.t(lang, "csv_formatted")] = (
+                "" if raw != raw else sem.format_value(raw, value_info,
                                                        decimals=decimals, lang=lang))
         if "__symbol" in frame.columns:
             raw = row["__symbol"]
-            entry[args.symbol_column or "vòng_tròn"] = "" if raw != raw else raw
-            entry["hiển_thị_vòng_tròn"] = (
+            entry[args.symbol_column or i18n.t(lang, "csv_symbol")] = (
+                "" if raw != raw else raw)
+            entry[i18n.t(lang, "csv_symbol_formatted")] = (
                 "" if raw != raw else sem.format_value(raw, symbol_info, decimals=0,
                                                        lang=lang))
         rows.append(entry)
@@ -974,7 +978,7 @@ def _dress_points(points: dict[str, Any], rows, args, by_name) -> None:
         cats, mapping = classify.category_colours(labels)
         points["colours"] = [mapping[v] for v in labels]
         points["legend_pairs"] = [(mapping[c], c) for c in cats]
-        points["màu_theo"] = colour_col
+        points["fill_by"] = colour_col
 
     size_col = args.point_size_column
     if size_col:
@@ -991,7 +995,7 @@ def _dress_points(points: dict[str, Any], rows, args, by_name) -> None:
         points["size_scale"] = {"max_value": vmax,
                                 "title": args.symbol_legend_title or size_col}
         points["size_info"] = by_name.get(size_col, {})
-        points["cỡ_theo"] = size_col
+        points["size_by"] = size_col
 
 
 def _build_long_columns(args, joined, by_name):
@@ -1045,7 +1049,7 @@ def _build_long_columns(args, joined, by_name):
         return part
 
     frame = joined.drop_duplicates("__shape_id").copy()
-    note: dict[str, Any] = {"cột_chỉ_số": axis}
+    note: dict[str, Any] = {"indicator_column": axis}
     name = None
 
     if args.numerator or args.denominator:
@@ -1060,37 +1064,37 @@ def _build_long_columns(args, joined, by_name):
         frame = frame[frame["__shape_id"].isin(share.index)]
         frame[name] = frame["__shape_id"].map(share)
         by_name[name] = sem._pack(sem.PERCENT, name, "phần trăm", scale="percent")
-        note.update({"tử_số": args.numerator, "mẫu_số": args.denominator,
-                     "lát_màu_vùng": list(args.fill_where or []),
-                     "số_đơn_vị_tính_được": int(len(share)),
-                     "đơn_vị_mẫu_số_bằng_0": len(set(bottom.index) - set(share.index)),
-                     "cách_tính": "Cộng tử số và mẫu số trong từng đơn vị rồi mới chia, "
+        note.update({"numerator": args.numerator, "denominator": args.denominator,
+                     "fill_slice": list(args.fill_where or []),
+                     "computable_units": int(len(share)),
+                     "zero_denominator_units": len(set(bottom.index) - set(share.index)),
+                     "method": "Cộng tử số và mẫu số trong từng đơn vị rồi mới chia, "
                                   "không lấy trung bình của các tỷ lệ."})
     elif args.fill_indicator:
-        rows = rows_for("màu vùng", args.fill_indicator, args.fill_where)
+        rows = rows_for("fill", args.fill_indicator, args.fill_where)
         totals = rows.groupby("__shape_id")[args.value_column].sum()
         name = str(args.fill_indicator)
         frame[name] = frame["__shape_id"].map(totals)
         by_name[name] = indicator_semantic(rows[args.value_column].tolist(), name)
-        note["màu_vùng"] = {"chỉ_số": name, "số_đơn_vị": int(frame[name].notna().sum()),
-                            "tổng": float(totals.sum()),
-                            "lát": list(args.fill_where or [])}
+        note["fill"] = {"indicator": name, "unit_count": int(frame[name].notna().sum()),
+                            "total": float(totals.sum()),
+                            "slice": list(args.fill_where or [])}
 
     # The circles come from a different slice of the same sheet. Without this the
     # symbol column would be read off whatever single row survived the
     # de-duplication above — a real value from the wrong indicator, drawn at a
     # believable size, with nothing on the map to say so.
     if args.symbol_indicator:
-        rows = rows_for("vòng tròn", args.symbol_indicator, args.symbol_where)
+        rows = rows_for("symbol", args.symbol_indicator, args.symbol_where)
         totals = rows.groupby("__shape_id")[args.value_column].sum()
         symbol_name = str(args.symbol_indicator)
         frame[symbol_name] = frame["__shape_id"].map(totals)
         by_name[symbol_name] = sem._pack(sem.COUNT, symbol_name, "số đếm", integer=True)
         args.symbol_column = symbol_name
-        note["vòng_tròn"] = {"chỉ_số": symbol_name,
-                             "số_đơn_vị": int(frame[symbol_name].notna().sum()),
-                             "tổng": float(totals.sum()),
-                             "lát": list(args.symbol_where or [])}
+        note["symbol"] = {"indicator": symbol_name,
+                             "unit_count": int(frame[symbol_name].notna().sum()),
+                             "total": float(totals.sum()),
+                             "slice": list(args.symbol_where or [])}
     return name, frame, note
 
 
@@ -1112,28 +1116,28 @@ def _long_format_report(df, columns: list[dict[str, Any]],
     samples = {c: df[c].dropna().astype(str).head(LONG_SAMPLE).tolist()
                for c in df.columns}
     axis = longform.indicator_axis(columns, samples)
-    value_column = shape["cột_giá_trị"]
+    value_column = shape["value_column"]
     time_columns = [c["column"] for c in columns if c.get("semantic") == sem.TIME]
     period_column = time_columns[0] if time_columns else None
 
     out: dict[str, Any] = {
         **shape,
-        "cột_chỉ_số": axis,
-        "cột_thời_gian": time_columns,
-        "cột_phải_ghăm": [],
-        "chỉ_số": [],
-        "cặp_tử_mẫu": [],
-        "cách_dùng": None,
-        "cảnh_báo": [],
+        "indicator_column": axis,
+        "period_column": time_columns,
+        "columns_to_pin": [],
+        "indicator": [],
+        "ratio_pairs": [],
+        "usage": None,
+        "warnings": [],
     }
 
     axes = {c: df[c].tolist() for c in df.columns
             if c not in {place_column, value_column} and df[c].nunique() > 1}
     risky = longform.double_counting_axes(df[place_column].tolist(), axes)
-    out["cột_phải_ghăm"] = risky
+    out["columns_to_pin"] = risky
     warning = longform.pin_warning(risky, int(df[place_column].nunique()))
     if warning:
-        out["cảnh_báo"].append(guardrails._issue(
+        out["warnings"].append(guardrails._issue(
             "dem-trung-dang-dai", guardrails.CRITICAL, fmt={"why": warning}))
 
     if not axis:
@@ -1141,23 +1145,23 @@ def _long_format_report(df, columns: list[dict[str, Any]],
 
     # plain lists, not Series: a filtered Series keeps the original index, so
     # positional access silently becomes a label lookup
-    out["chỉ_số"] = longform.indicator_slices(
+    out["indicator"] = longform.indicator_slices(
         df[axis].tolist(), df[place_column].tolist(), df[value_column].tolist(),
         df[period_column].tolist() if period_column else None)[:TOP_INDICATORS]
-    out["cặp_tử_mẫu"] = longform.ratio_pairs(df[axis].dropna().unique())
+    out["ratio_pairs"] = longform.ratio_pairs(df[axis].dropna().unique())
 
     # Naming the dangerous columns is not enough: the agent still has to know
     # which value to pin, and the data can answer that better than a guess.
     # Time first. A stock indicator like "patients currently on treatment" is
     # not additive across quarters: summing six reporting periods counted every
     # patient six times and produced 433.681 where the quarter alone is 49.706.
-    pin_columns = time_columns + [a["cột"] for a in risky if a["cột"] not in time_columns]
-    for entry in out["chỉ_số"]:
-        entry.update(_recommend_slice(df, axis, entry["chỉ_số"], place_column,
+    pin_columns = time_columns + [a["column"] for a in risky if a["column"] not in time_columns]
+    for entry in out["indicator"]:
+        entry.update(_recommend_slice(df, axis, entry["indicator"], place_column,
                                       value_column, pin_columns, time_columns))
 
-    if out["chỉ_số"]:
-        out["cách_dùng"] = out["chỉ_số"][0]["lệnh"]
+    if out["indicator"]:
+        out["usage"] = out["indicator"][0]["command"]
     return out
 
 
@@ -1172,7 +1176,7 @@ def _recommend_slice(df, axis: str, indicator: str, place_column: str,
     """
     rows = df[df[axis].astype(str).str.strip() == indicator]
     if rows.empty:
-        return {"lát_đề_xuất": [], "lệnh": None, "chưa_ghăm": []}
+        return {"suggested_slices": [], "command": None, "unpinned": []}
 
     chosen: list[dict[str, Any]] = []
     kept = rows
@@ -1190,28 +1194,28 @@ def _recommend_slice(df, axis: str, indicator: str, place_column: str,
         if not pick:
             continue
         chosen.append({
-            "cột": column, "ghăm": pick["giá_trị"], "vì_sao": pick["vì_sao"],
-            "số_đơn_vị": pick["số_đơn_vị"], "tổng": pick["tổng"],
-            "phương_án_khác": pick["phương_án_khác"],
-            "giá_trị_cùng_một_tổng": same,
+            "column": column, "pinned": pick["value"], "why": pick["why"],
+            "unit_count": pick["unit_count"], "total": pick["total"],
+            "alternatives": pick["alternatives"],
+            "same_total_values": same,
         })
-        kept = kept[kept[column].astype(str).str.strip() == pick["giá_trị"]]
+        kept = kept[kept[column].astype(str).str.strip() == pick["value"]]
 
     # Whatever still splits a place after all that is a decision, not a default:
     # say so instead of summing across it and reporting the total as settled.
     leftover = {c: kept[c].tolist() for c in kept.columns
                 if c not in {place_column, value_column, axis}
-                and c not in {p["cột"] for p in chosen} and kept[c].nunique() > 1}
-    remaining = [a["cột"] for a in
+                and c not in {p["column"] for p in chosen} and kept[c].nunique() > 1}
+    remaining = [a["column"] for a in
                  longform.varying_axes(kept[place_column].tolist(), leftover)]
 
-    pins = " ".join(f'--where "{c["cột"]}={c["ghăm"]}"' for c in chosen)
+    pins = " ".join(f'--where "{c["column"]}={c["pinned"]}"' for c in chosen)
     command = (f'--value-column "{value_column}" --where "{axis}={indicator}" '
                f'{pins}').strip()
-    return {"lát_đề_xuất": chosen,
-            "tổng_sau_khi_ghăm": chosen[-1]["tổng"] if chosen else None,
-            "chưa_ghăm": remaining[:6],
-            "lệnh": command}
+    return {"suggested_slices": chosen,
+            "total_after_pinning": chosen[-1]["total"] if chosen else None,
+            "unpinned": remaining[:6],
+            "command": command}
 
 
 def _latest_period(rows, column: str, place_column: str,
@@ -1231,11 +1235,11 @@ def _latest_period(rows, column: str, place_column: str,
     latest = str(ordered[-1]).strip()
     hit = rows[rows[column].astype(str).str.strip() == latest]
     return {
-        "giá_trị": latest,
-        "số_đơn_vị": int(hit[place_column].nunique()),
-        "tổng": round(float(deps_sum(hit[value_column])), 1),
-        "vì_sao": messages.text("dai.ky-moi-nhat", count=len(ordered)),
-        "phương_án_khác": [str(p) for p in reversed(ordered[:-1])][:6],
+        "value": latest,
+        "unit_count": int(hit[place_column].nunique()),
+        "total": round(float(deps_sum(hit[value_column])), 1),
+        "why": messages.text("dai.ky-moi-nhat", count=len(ordered)),
+        "alternatives": [str(p) for p in reversed(ordered[:-1])][:6],
     }
 
 
@@ -1298,10 +1302,10 @@ def command_fix_match(args: argparse.Namespace) -> None:
         raise SystemExit(f"Không có đơn vị nào mang shape_id={args.shape_id}")
     path = prefs.remember_override(root, args.admin_level, args.province, args.name,
                                    int(args.shape_id), str(row.iloc[0][field]))
-    emit({"đã_ghi_nhớ": {"tên_trong_bảng": args.name,
-                         "ghép_với": str(row.iloc[0][field]),
+    emit({"remembered": {"name_in_table": args.name,
+                         "matched_to": str(row.iloc[0][field]),
                          "shape_id": int(args.shape_id)},
-          "tệp": str(path)})
+          "files": str(path)})
 
 
 # --------------------------------------------------------------------------
@@ -1313,27 +1317,27 @@ def _contexts(args, shapes, fields, review, admin_level):
 
     if admin_level == "province":
         frame = shapes if scope != "matched-only" else shapes[shapes["__shape_id"].isin(ids)]
-        return "national", [{"tên": "toàn quốc", "frame": frame, "locator": None}]
+        return "national", [{"name": "national", "frame": frame, "locator": None}]
 
     provinces = sorted({r.get("matched_province", "") for r in matched
                         if r.get("matched_province")})
     if not provinces:
         # nothing was matched by name (e.g. a coordinate-only point map)
-        return "national", [{"tên": "toàn quốc", "frame": shapes, "locator": None}]
+        return "national", [{"name": "national", "frame": shapes, "locator": None}]
     if scope == "matched-only":
-        return "matched-only", [{"tên": "các đơn vị có số liệu",
+        return "matched-only", [{"name": "units with data",
                                  "frame": shapes[shapes["__shape_id"].isin(ids)],
                                  "locator": provinces[0] if len(provinces) == 1 else None}]
     if scope == "national" or (scope == "auto"
                                and len(provinces) > args.province_series_threshold):
-        return "national", [{"tên": "toàn quốc", "frame": shapes, "locator": None}]
+        return "national", [{"name": "national", "frame": shapes, "locator": None}]
     if scope == "single-province" or len(provinces) == 1:
         name = provinces[0] if provinces else ""
-        return "single-province", [{"tên": name,
+        return "single-province", [{"name": name,
                                     "frame": shapes[shapes[fields["province"]] == name],
                                     "locator": name}]
     return "province-series", [
-        {"tên": name, "frame": shapes[shapes[fields["province"]] == name], "locator": name}
+        {"name": name, "frame": shapes[shapes[fields["province"]] == name], "locator": name}
         for name in provinces
     ]
 
@@ -1385,7 +1389,7 @@ def _plan(args, excel, joined, value_column, scope, prepared, method, bins):
     The table and the hash are built from the same values on purpose: what the
     reader saw is exactly what unlocks the drawing.
     """
-    maps = ", ".join(str(c["tên"]) for c in prepared)
+    maps = ", ".join(str(c["name"]) for c in prepared)
     auto = messages.text("bảng.tự-chọn")
     chosen = getattr(args, "chosen_explicitly", set())
     among = _among(value_column, args, scope)
@@ -1431,15 +1435,15 @@ def _plan(args, excel, joined, value_column, scope, prepared, method, bins):
 
     numbered = []
     for number, (name, value, setting) in enumerate(rows, 1):
-        row: dict[str, Any] = {"số": number, "mục": wording.field(name),
-                               "giá_trị": str(value)}
+        row: dict[str, Any] = {"number": number, "item": wording.field(name),
+                               "value": str(value)}
         if setting and setting not in chosen:
-            row["ghi_chú"] = auto
+            row["note"] = auto
         if setting in wording.ALWAYS_SAFE or setting in among:
             offer = wording.menu(setting, _current(args, setting, scope, method),
                                  among=among.get(setting))
             if offer:
-                row.update(câu_hỏi=offer["câu_hỏi"], lựa_chọn=offer["lựa_chọn"])
+                row.update(question=offer["question"], choices=offer["choices"])
         numbered.append(row)
 
     settings = {wording.field(name): str(value) for name, value, _ in rows}
@@ -1466,10 +1470,10 @@ def _map_label(args, value_column, ctx) -> str:
     """What the interactive page's map picker shows.
 
     A province name comes from the shapefile and stays Vietnamese in any
-    language; "toàn quốc" is the script's own word, so it gets translated.
+    language; "national" is the script's own word, so it gets translated.
     """
     lang = i18n.normalise(args.language)
-    where = i18n.t(lang, "scope_national") if ctx["tên"] == "toàn quốc" else ctx["tên"]
+    where = i18n.t(lang, "scope_national") if ctx["name"] == "national" else ctx["name"]
     return f"{args.title or value_column or ''} — {where}".strip(" —")
 
 
@@ -1529,9 +1533,9 @@ def _animation(deps, args, run_dir, joined, contexts, thematic, provinces_gdf,
              if v is not None and not (isinstance(v, float) and v != v)])
 
     wanted = args.animation_formats
-    shared: dict[str, Any] = {"kỳ": [str(p) for p in frames],
-                              "phân_lớp_dùng_chung": bins,
-                              "thang_ký_hiệu_dùng_chung": symbol_scale}
+    shared: dict[str, Any] = {"period": [str(p) for p in frames],
+                              "shared_bins": bins,
+                              "shared_symbol_scale": symbol_scale}
     made: list[dict[str, Any]] = []
     for ctx in contexts:
         ids = set(ctx["frame"]["__shape_id"])
@@ -1546,26 +1550,26 @@ def _animation(deps, args, run_dir, joined, contexts, thematic, provinces_gdf,
                            with_data, frame)
         spec["labels"] = "off"
         spec["diverging"] = args.map_type == "change"
-        base = (dataio.slugify(f"{args.title or value_column} {ctx['tên']}")
+        base = (dataio.slugify(f"{args.title or value_column} {ctx['name']}")
                 + f"_{args.layout}_{i18n.suffix(args.language)}")
 
         common = dict(frame=frame, periods=frames, values_by_period=values_by_period,
                       symbols_by_period=symbols_by_period, spec=spec, fonts=font_info,
                       provinces=provinces_gdf, locator_name=ctx["locator"],
                       out_dir=run_dir, name=base)
-        one: dict[str, Any] = {"tên_bản_đồ": ctx["tên"], "đơn_vị_có_số_liệu": with_data}
+        one: dict[str, Any] = {"map_name": ctx["name"], "units_with_data": with_data}
         if wanted in ("video", "both"):
             one["video"] = animate.build(deps, **common)
         if wanted in ("html", "both"):
             one["html"] = interactive.build(
                 deps, label=_map_label(args, value_column, ctx), **common)
         dataio.write_json(run_dir / f"{base}_metadata.json",
-                          {**shared, **one, "tham_số": vars(args)})
+                          {**shared, **one, "arguments": vars(args)})
         made.append(one)
 
     if len(made) == 1:
         return {**shared, **made[0]}
-    return {**shared, "khung": made, "số_khung": len(made)}
+    return {**shared, "khung": made, "frames": len(made)}
 
 
 def _settle_language(args: argparse.Namespace) -> None:
@@ -1600,13 +1604,13 @@ def command_render(args: argparse.Namespace) -> None:
 
     country = getattr(args, "country", None)
     tier = dataio.resolve_tier(root, args.admin_level, country=country)
-    admin_level = tier["vai_trò"]
+    admin_level = tier["role"]
     # Set before a single string is looked up, so nothing is drawn in one
     # language and labelled in another.
     i18n.use(_map_text(getattr(args, "map_text", None)))
     # carried on args so the plate builder, several calls down, can name the
     # tier the way the country does without another lookup
-    args.tier_folder = tier["thư_mục"]
+    args.tier_folder = tier["folder"]
     boundary_notes: list[dict[str, Any]] = []
     shapes = dataio.load_shapes(deps, root, admin_level, notes=boundary_notes,
                                 country=country)
@@ -1682,7 +1686,7 @@ def command_render(args: argparse.Namespace) -> None:
                      if c["semantic"] in {sem.COUNT, sem.PERCENT, sem.RATE_PER, sem.POINT}}
     for info in columns:
         if info["semantic"] in {sem.PERCENT, sem.RATE_PER, sem.POINT}:
-            info["cột_trọng_số"] = sem.find_denominator(info["column"], columns,
+            info["weight_column"] = sem.find_denominator(info["column"], columns,
                                                         weight_series)
     by_name = {c["column"]: c for c in columns}
 
@@ -1708,8 +1712,8 @@ def command_render(args: argparse.Namespace) -> None:
         lon_col, lat_col = args.lon_column, args.lat_column
         if not (lon_col and lat_col):
             coords = profiling.coordinate_candidates(columns)
-            lon_col = lon_col or coords["kinh_độ"]
-            lat_col = lat_col or coords["vĩ_độ"]
+            lon_col = lon_col or coords["lon"]
+            lat_col = lat_col or coords["lat"]
         if not (lon_col and lat_col):
             raise SystemExit(
                 "Bản đồ điểm cần cột kinh độ và vĩ độ. Chỉ định --lon-column và --lat-column."
@@ -1721,7 +1725,7 @@ def command_render(args: argparse.Namespace) -> None:
             deps.gpd.points_from_xy(valid[lon_col], valid[lat_col]), crs="EPSG:4326"
         ).to_crs(thematic_crs)
         points = {"x": located.x.tolist(), "y": located.y.tolist(),
-                  "bỏ_qua_thiếu_toạ_độ": int(len(joined) - len(valid))}
+                  "skipped_missing_coords": int(len(joined) - len(valid))}
         _dress_points(points, valid, args, by_name)
 
     value_info = by_name.get(value_column, {"semantic": sem.UNKNOWN, "column": value_column})
@@ -1729,8 +1733,8 @@ def command_render(args: argparse.Namespace) -> None:
 
     issues: list[dict[str, Any]] = list(guardrails.check_matching(match_summary))
     country_profile = dataio.read_country(
-        deps, dataio.shapefile_root(root), tier["quốc_gia"])
-    detached = country_profile.get("lãnh_thổ_rời")
+        deps, dataio.shapefile_root(root), tier["country"])
+    detached = country_profile.get("detached_land")
     # Read from the profile, not decided here. Vietnam's 111°E used to be a
     # constant inside the drawing code, which meant no other country could ever
     # have an inset and none was ever told why.
@@ -1771,14 +1775,14 @@ def command_render(args: argparse.Namespace) -> None:
         # only one of them would frame the two editions of the same map
         # differently
         prepared.append({**ctx, "frame": frame,
-                         "kinh_tuyến_khung_phụ": inset_lon,
-                         "nhãn_khung_phụ": inset_label})
+                         "inset_meridian": inset_lon,
+                         "inset_label": inset_label})
 
     # one classification and one symbol scale for the whole job, so the same
     # colour and the same circle size mean the same thing on every sheet
     bins = None
     if values is not None and args.map_type in {"choropleth", "choropleth-symbol", "change"}:
-        groups = {c["tên"]: c["frame"]["__value"].dropna().tolist() for c in prepared}
+        groups = {c["name"]: c["frame"]["__value"].dropna().tolist() for c in prepared}
         pooled = [v for vals in groups.values() for v in vals]
         if not pooled:
             raise SystemExit("Sau khi ghép địa danh, không còn giá trị nào để vẽ.")
@@ -1810,7 +1814,7 @@ def command_render(args: argparse.Namespace) -> None:
     # somebody has been asked.
     if must_ask or not confirm.matches(args.confirmed, settings):
         emit(confirm.gate(settings, numbered,
-                          guardrails.summarize(issues)["danh_sách"], must_ask,
+                          guardrails.summarize(issues)["items"], must_ask,
                           _command_line(),
                           language_stated="messages" in getattr(
                               args, "chosen_explicitly", set()),
@@ -1819,7 +1823,7 @@ def command_render(args: argparse.Namespace) -> None:
                           # boundaries, reported separately because they
                           # disagree often enough to matter
                           language_hint=i18n.suggest(detect.country_language(
-                              country_profile.get("tên_quốc_gia")))))
+                              country_profile.get("country_name")))))
         return
 
     # --- draw -------------------------------------------------------------
@@ -1829,9 +1833,9 @@ def command_render(args: argparse.Namespace) -> None:
         series = _animation(deps, args, run_dir, joined, prepared, thematic, provinces_gdf,
                             value_column, value_info, symbol_info, name_field, font_info,
                             issues)
-        emit({"thư_mục_kết_quả": str(run_dir), "theo_thời_gian": series,
-              "mở_tệp": dataio.openable(run_dir),
-              "cảnh_báo": guardrails.summarize(issues)["danh_sách"]})
+        emit({"output_folder": str(run_dir), "over_time": series,
+              "open_files": dataio.openable(run_dir),
+              "warnings": guardrails.summarize(issues)["items"]})
         return
 
     outputs, per_map = [], []
@@ -1867,7 +1871,7 @@ def command_render(args: argparse.Namespace) -> None:
         # the layout belongs in the name: without it a second render of the same
         # map in the other layout overwrites the first, silently, while
         # run_manifest still lists both
-        family = (dataio.slugify(f"{args.title or value_column or 'ban do'} {ctx['tên']}")
+        family = (dataio.slugify(f"{args.title or value_column or 'ban do'} {ctx['name']}")
                   + f"_{args.layout}")
         base = f"{family}_{i18n.suffix(args.language)}"
         # the page needs the live axes, so capture before save() closes the figure
@@ -1886,15 +1890,15 @@ def command_render(args: argparse.Namespace) -> None:
         # and nothing done about it.
         if scope == "national":
             issues_ctx = issues_ctx + guardrails.check_detached_territory(
-                detached, result.get("khung_phụ") is not None, lang=args.messages)
-        meta = {"tên_bản_đồ": ctx["tên"], "tệp": [str(p) for p in written],
-                "bảng_số_liệu": table,
-                "đơn_vị_có_số_liệu": with_data, "đơn_vị_trong_khung": int(len(frame)),
-                "nhãn": result["labels"], "khung_phụ": result.get("khung_phụ"),
-                "tràn_khung": result.get("tràn_khung") or [],
-                "lãnh_thổ_rời": detached,
-                "cảnh_báo": guardrails.summarize(issues_ctx)}
-        dataio.write_json(run_dir / f"{base}_metadata.json", {**meta, "tham_số": vars(args)})
+                detached, result.get("inset") is not None, lang=args.messages)
+        meta = {"map_name": ctx["name"], "files": [str(p) for p in written],
+                "data_table": table,
+                "units_with_data": with_data, "units_in_frame": int(len(frame)),
+                "labels": result["labels"], "inset": result.get("inset"),
+                "overflow": result.get("overflow") or [],
+                "detached_land": detached,
+                "warnings": guardrails.summarize(issues_ctx)}
+        dataio.write_json(run_dir / f"{base}_metadata.json", {**meta, "arguments": vars(args)})
         per_map.append(meta)
 
     if review:
@@ -1908,32 +1912,32 @@ def command_render(args: argparse.Namespace) -> None:
     })
 
     job = {
-        "phạm_vi": scope, "bản_đồ": per_map,
-        "ngôn_ngữ": i18n.normalise(args.language), "layout": args.layout,
-        "phân_lớp_dùng_chung": bins, "thang_ký_hiệu_dùng_chung": symbol_scale,
-        "cách_tổng_hợp": aggregate.describe(args.aggregate, value_info,
-                                            value_info.get("cột_trọng_số"),
+        "scope": scope, "maps": per_map,
+        "language": i18n.normalise(args.language), "layout": args.layout,
+        "shared_bins": bins, "shared_symbol_scale": symbol_scale,
+        "aggregation": aggregate.describe(args.aggregate, value_info,
+                                            value_info.get("weight_column"),
                                             args.language),
-        "ghép_địa_danh": match_summary, "font": font_info, "tham_số": vars(args),
+        "name_matching": match_summary, "font": font_info, "arguments": vars(args),
         # what slice of a long sheet this map actually drew; without it a PNG
         # from a 70.000-row export cannot be traced back to its rows
-        "lát_dữ_liệu": slice_note, "tỷ_số": ratio_note,
+        "data_slice": slice_note, "ratio": ratio_note,
     }
     # one request may render several times (two languages, two layouts); the
     # manifest keeps every job instead of the last one overwriting the rest
-    _append_manifest(run_dir, "lần_render", job)
+    _append_manifest(run_dir, "renders", job)
 
     # rebuilt from every capture in this request folder, so a second render —
     # the English edition, another layout — extends the page instead of
     # replacing what the first one produced
     page = None if args.no_html else webpage.build(run_dir, webpage.STILL)
 
-    emit({"thư_mục_kết_quả": str(run_dir), "tệp_ảnh": outputs, "trang_tương_tác": page,
+    emit({"output_folder": str(run_dir), "image_files": outputs, "interactive_page": page,
           # ready-made addresses, so nothing is left for the agent to construct
-          "mở_tệp": dataio.openable(run_dir),
-          **({"sửa_bảng_mã_ranh_giới": boundary_notes} if boundary_notes else {}),
-          "phép_chiếu": thematic_crs,
-          "cảnh_báo": guardrails.summarize(issues)["danh_sách"], "bản_đồ": per_map})
+          "open_files": dataio.openable(run_dir),
+          **({"codepage_repair": boundary_notes} if boundary_notes else {}),
+          "projection": thematic_crs,
+          "warnings": guardrails.summarize(issues)["items"], "maps": per_map})
 
 
 def _build_spec(args, ctx, value_column, value_info, symbol_info, bins,
@@ -1981,8 +1985,8 @@ def _build_spec(args, ctx, value_column, value_info, symbol_info, bins,
         "source": source, "method": method_note,
         "locator": args.locator != "off",
         "province_name_field": "ten_tinh",
-        "kinh_tuyến_khung_phụ": ctx.get("kinh_tuyến_khung_phụ"),
-        "nhãn_khung_phụ": ctx.get("nhãn_khung_phụ"),
+        "inset_meridian": ctx.get("inset_meridian"),
+        "inset_label": ctx.get("inset_label"),
         "dpi": args.dpi,
     }
 
@@ -2037,64 +2041,64 @@ def _auto_method(args, bins, method, fills_areas: bool, lang: str | None = None)
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="easy-map engine")
     parser.add_argument("--project-root", default=".",
-                        help="cũng chấp nhận sau tên lệnh, ví dụ: list --project-root .")
+                        help="also accepted after the subcommand, e.g. list --project-root .")
     parser.add_argument("--messages", default=messages.DEFAULT,
                         choices=list(messages.LANGUAGES),
-                        help="ngôn ngữ của cảnh báo và lý do trả về cho agent — tức "
-                             "ngôn ngữ cuộc trò chuyện. Khác với --language, vốn là "
-                             "ngôn ngữ chữ in trên bản đồ")
+                        help="language of the warnings and reasons returned to the agent — "
+                             "the language of the conversation. Not --language, "
+                             "which is the language lettered on the map")
     sub = parser.add_subparsers(dest="command", required=True)
 
     sr = sub.add_parser("start-run",
-                        help="mở thư mục cho một yêu cầu và in ra tên thư mục")
+                        help="open a folder for one request and print its name")
     sr.add_argument("--run-folder",
-                    help="đặt tên thủ công; bỏ trống thì lấy timestamp hiện tại")
+                    help="name it by hand; omit for the current timestamp")
 
-    sub.add_parser("list", help="liệt kê workbook, sheet, shapefile")
+    sub.add_parser("list", help="list the workbooks, sheets and boundary files")
 
     im = sub.add_parser("import",
-                        help="đưa tệp người dùng đính kèm vào input/ và khảo sát luôn")
+                        help="put a file the user attached into input/ and survey it")
     im.add_argument("--file", required=True,
-                    help="đường dẫn tới tệp người dùng đính kèm vào cuộc trò chuyện")
+                    help="path to the file the user attached to the conversation")
     im.add_argument("--run-folder",
-                    help="ghi việc nhập tệp vào manifest của yêu cầu này; bỏ trống "
-                         "thì dùng thư mục start-run đang mở, nếu có")
+                    help="record the import in this request's manifest; omit to use "
+                         "the open start-run folder, if there is one")
 
     sv = sub.add_parser("survey",
-                        help="sheet nào trong workbook vẽ được bản đồ; đọc mẫu nên rất nhanh")
-    sv.add_argument("--country", help="thư mục quốc gia trong shapefiles/; bỏ trống "
-                                      "khi chỉ có một quốc gia")
+                        help="which sheets in a workbook can be mapped; samples, so it is fast")
+    sv.add_argument("--country", help="country folder under shapefiles/; omit when there is "
+                                      "only one country")
     sv.add_argument("--excel",
-                    help="bỏ trống thì khảo sát mọi workbook trong input/")
+                    help="omit to survey every workbook in input/")
 
-    p = sub.add_parser("profile", help="phân tích dataset và đề xuất bản đồ")
-    p.add_argument("--country", help="thư mục quốc gia trong shapefiles/; bỏ trống "
-                                     "khi chỉ có một quốc gia")
+    p = sub.add_parser("profile", help="read the dataset and propose a map")
+    p.add_argument("--country", help="country folder under shapefiles/; omit when there is "
+                                     "only one country")
     p.add_argument("--excel", required=True)
     p.add_argument("--sheet")
     p.add_argument("--admin-level", default="auto",
-                   help="vai trò (province/commune) hoặc tên thư mục cấp, ví dụ state")
+                   help="a role (province/commune) or a tier folder name, e.g. state")
     p.add_argument("--province-column")
     p.add_argument("--commune-column")
     p.add_argument("--run-folder",
-                   help="thư mục của yêu cầu này; bỏ trống thì dùng lại thư mục "
-                        "start-run đang mở")
+                   help="folder for this request; omit to reuse the open "
+                        "start-run folder")
 
-    f = sub.add_parser("fix-match", help="ghi nhớ một cách ghép tên do người dùng xác nhận")
+    f = sub.add_parser("fix-match", help="remember a name match the user confirmed")
     f.add_argument("--country")
     f.add_argument("--admin-level", default="commune",
-                   help="vai trò hoặc tên thư mục cấp")
+                   help="a role, or a tier folder name")
     f.add_argument("--province")
     f.add_argument("--name", required=True)
     f.add_argument("--shape-id", required=True)
 
-    r = sub.add_parser("render", help="vẽ và lưu bản đồ")
-    r.add_argument("--country", help="thư mục quốc gia trong shapefiles/; bỏ trống "
-                                     "khi chỉ có một quốc gia")
+    r = sub.add_parser("render", help="draw the map and write it out")
+    r.add_argument("--country", help="country folder under shapefiles/; omit when there is "
+                                     "only one country")
     r.add_argument("--excel", required=True)
     r.add_argument("--sheet")
     r.add_argument("--admin-level", required=True,
-                   help="vai trò (province/commune) hoặc tên thư mục cấp, ví dụ state")
+                   help="a role (province/commune) or a tier folder name, e.g. state")
     r.add_argument("--province-column")
     r.add_argument("--commune-column")
     r.add_argument("--match-review")
@@ -2109,22 +2113,22 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--period-column")
     r.add_argument("--period")
     r.add_argument("--animate", action="store_true",
-                   help="dựng bản đồ theo thời gian thay vì ảnh tĩnh; cần --period-column")
+                   help="build a map over time instead of a still; needs --period-column")
     r.add_argument("--animation-formats", default="both", choices=["video", "html", "both"],
-                   help="video MP4/GIF, trang HTML tương tác, hoặc cả hai")
-    r.add_argument("--lon-column", help="cột kinh độ cho bản đồ điểm")
-    r.add_argument("--lat-column", help="cột vĩ độ cho bản đồ điểm")
-    r.add_argument("--point-color-column", metavar="CỘT",
-                   help="bản đồ điểm: cột phân loại quyết định màu chấm "
-                        "(loại cơ sở, mức ưu tiên)")
-    r.add_argument("--point-size-column", metavar="CỘT",
-                   help="bản đồ điểm: cột số quyết định cỡ chấm; diện tích tỷ lệ "
-                        "với giá trị, cùng thang với chú giải")
+                   help="an MP4/GIF video, an interactive HTML page, or both")
+    r.add_argument("--lon-column", help="longitude column, for a point map")
+    r.add_argument("--lat-column", help="latitude column, for a point map")
+    r.add_argument("--point-color-column", metavar="COLUMN",
+                   help="point map: the categorical column that decides dot colour "
+                        "(kind of facility, priority level)")
+    r.add_argument("--point-size-column", metavar="COLUMN",
+                   help="point map: the numeric column that decides dot size; area is "
+                        "proportional to the value, on the legend's own scale")
     r.add_argument("--aggregate", default="auto", choices=list(aggregate.METHODS))
     r.add_argument("--map-text", action="append", metavar="KEY=VALUE",
-                   help="thay một chuỗi engine tự sinh trên bản đồ, ví dụ "
-                        "--map-text no_data='ບໍ່ມີຂໍ້ມູນ'. Lặp lại được. "
-                        "Dùng để in bản đồ bằng ngôn ngữ ngoài vi/en")
+                   help="replace one string the engine letters on the map, e.g. "
+                        "--map-text no_data='ບໍ່ມີຂໍ້ມູນ'. Repeatable. "
+                        "Use it to print a map in a language other than vi/en")
     r.add_argument("--map-scope", default="auto",
                    choices=["auto", "national", "single-province", "province-series",
                             "matched-only"])
@@ -2132,12 +2136,12 @@ def build_parser() -> argparse.ArgumentParser:
     # default None, not "vi": the gate needs to tell "the user chose Vietnamese"
     # apart from "nobody asked", and those are different things to report
     r.add_argument("--language", default=None, choices=list(i18n.LANGUAGES),
-                   help="ngôn ngữ của chữ do máy sinh trên bản đồ; cũng là hậu tố tên "
-                        "tệp. KHÔNG suy ra từ ngôn ngữ hội thoại — phải hỏi người dùng")
-    r.add_argument("--confirmed", metavar="MÃ",
-                   help="mã lấy từ lần chạy trước của chính lệnh này, sau khi người "
-                        "dùng đã xem bảng phương án và đồng ý. Thiếu nó thì lệnh chỉ "
-                        "trả về bảng phương án chứ không vẽ")
+                   help="language of the machine-written text on the map, and the file-name "
+                        "suffix. NOT inferred from the conversation — ask the user")
+    r.add_argument("--confirmed", metavar="CODE",
+                   help="the code from a previous run of this same command, once the "
+                        "user has read the settings table and agreed. Without it the "
+                        "command returns the table and draws nothing")
     r.add_argument("--layout", default="report", choices=["report", "banner"])
     r.add_argument("--classification", default="quantile", choices=list(classify.METHODS))
     r.add_argument("--classes", type=int, default=5)
@@ -2145,49 +2149,51 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--label-fontsize", type=float, default=8.0)
     r.add_argument("--formats", default="png", choices=["png", "svg", "both"])
     r.add_argument("--dpi", type=int, default=220)
-    r.add_argument("--layer", action="append", metavar="BIẾN",
-                   help="biến cần thể hiện; lặp lại được. Skill tự phân kênh "
-                        "(màu vùng / vòng tròn) và tách sang tấm thứ hai nếu tràn. "
-                        "Bảng rộng: tên cột. Bảng dài (có --indicator-column): giá trị "
-                        "chỉ số, hoặc 'TỬ SỐ / MẪU SỐ' để lấy tỷ lệ")
-    r.add_argument("--indicator-column", metavar="CỘT",
-                   help="bảng dạng dài: cột chứa tên chỉ số. Có nó thì --layer và "
-                        "--fill-indicator/--symbol-indicator nhận giá trị chỉ số "
-                        "thay vì tên cột")
+    r.add_argument("--layer", action="append", metavar="VARIABLE",
+                   help="a variable to show; repeatable. The skill assigns each to a "
+                        "channel (area fill / circles) and moves the overflow to a "
+                        "second plate. Wide table: a column name. Long table (with "
+                        "--indicator-column): an indicator value, or "
+                        "'NUMERATOR / DENOMINATOR' for a rate")
+    r.add_argument("--indicator-column", metavar="COLUMN",
+                   help="long table: the column holding indicator names. With it, --layer "
+                        "and --fill-indicator/--symbol-indicator take indicator values "
+                        "rather than column names")
     r.add_argument("--fill-indicator",
-                   help="giá trị chỉ số dùng cho màu vùng, khi màu không phải tỷ số")
-    r.add_argument("--fill-where", action="append", metavar="CỘT=GIÁ_TRỊ",
-                   help="lát riêng của chỉ số vẽ màu vùng; lặp lại được. Dùng khi hai "
-                        "chỉ số trên cùng tấm cần ghăm khác nhau trên cùng một cột")
-    r.add_argument("--symbol-where", action="append", metavar="CỘT=GIÁ_TRỊ",
-                   help="lát riêng của chỉ số vẽ vòng tròn; lặp lại được")
-    r.add_argument("--where", action="append", metavar="CỘT=GIÁ_TRỊ",
-                   help="giữ lại các dòng khớp; lặp lại được. Bắt buộc với bảng "
-                        "dạng dài để không đếm trùng")
+                   help="the indicator value the fill uses, when the fill is not a ratio")
+    r.add_argument("--fill-where", action="append", metavar="COLUMN=VALUE",
+                   help="the slice the fill indicator is taken from; repeatable. Use it "
+                        "when two indicators on one plate need different pins on the "
+                        "same column")
+    r.add_argument("--symbol-where", action="append", metavar="COLUMN=VALUE",
+                   help="the slice the circle indicator is taken from; repeatable")
+    r.add_argument("--where", action="append", metavar="COLUMN=VALUE",
+                   help="keep the rows that match; repeatable. Required on a long table "
+                        "so nothing is counted twice")
     r.add_argument("--ratio-column",
-                   help="tên cũ của --indicator-column, giữ lại cho các lệnh đã viết")
-    r.add_argument("--numerator", help="giá trị chỉ số làm tử số")
+                   help="the former name of --indicator-column, kept for commands already written")
+    r.add_argument("--numerator", help="the indicator value to use as the numerator")
     r.add_argument("--symbol-indicator",
-                   help="chế độ tỷ số: giá trị chỉ số dùng cho vòng tròn, lấy từ "
-                        "lát dữ liệu khác với tử/mẫu số")
-    r.add_argument("--denominator", help="giá trị chỉ số làm mẫu số")
+                   help="ratio mode: the indicator value the circles use, taken from a "
+                        "different slice than the numerator and denominator")
+    r.add_argument("--denominator", help="the indicator value to use as the denominator")
     r.add_argument("--ambiguous", default="drop", choices=["drop", "keep"],
-                   help="dòng có tên trùng nhiều xã: 'drop' để ra ngoài bản đồ (mặc định), "
-                        "'keep' vẽ theo ứng viên đầu tiên")
+                   help="a row whose name matches several communes: 'drop' leaves it off the "
+                        "map (default), 'keep' draws it on the first candidate")
     r.add_argument("--no-html", action="store_true",
-                   help="bỏ qua trang HTML tương tác; mặc định mỗi yêu cầu đều có một trang")
+                   help="skip the interactive HTML page; every request gets one by default")
     r.add_argument("--locator", default="auto", choices=["auto", "off"])
     r.add_argument("--title")
     r.add_argument("--subtitle")
     r.add_argument("--insight")
     r.add_argument("--legend-title")
     r.add_argument("--symbol-legend-title",
-                   help="tiêu đề chú giải vòng tròn; mặc định lấy tên cột")
+                   help="heading of the circle legend; defaults to the column name")
     r.add_argument("--source-note")
     r.add_argument("--footnote")
     r.add_argument("--run-folder",
-                   help="thư mục của yêu cầu này; bỏ trống thì dùng lại thư mục "
-                        "start-run đang mở")
+                   help="folder for this request; omit to reuse the open "
+                        "start-run folder")
 
     # accept --project-root and --messages either before or after the subcommand
     for child in (sub.choices.values()):

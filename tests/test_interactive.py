@@ -65,10 +65,10 @@ class TestCapture(unittest.TestCase):
 
     def test_every_period_becomes_one_frame(self):
         report = self.build()
-        self.assertEqual(report["số_kỳ"], 2)
+        self.assertEqual(report["period_count"], 2)
 
     def test_every_unit_can_be_hovered(self):
-        self.assertEqual(self.build()["số_đơn_vị_rê_chuột_được"], 2)
+        self.assertEqual(self.build()["hoverable_units"], 2)
 
     def test_the_page_is_written_where_the_request_lives(self):
         self.build()

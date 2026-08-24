@@ -101,20 +101,20 @@ def options(setting: str, current: str | None, lang: str | None = None, *,
     allowed = None if among is None else set(among)
     pool = [v for v in VALUES[setting] if allowed is None or v in allowed]
     ordered = ([current] if current in pool else []) + [v for v in pool if v != current]
-    return [{"giá_trị": value,
-             "nhãn": label(setting, value, lang),
-             "mô_tả": describe(setting, value, lang),
-             "khuyến_nghị": value == current,
-             "cờ": f"--{setting.replace('_', '-')} {value}"}
+    return [{"value": value,
+             "label": label(setting, value, lang),
+             "description": describe(setting, value, lang),
+             "recommended": value == current,
+             "flag": f"--{setting.replace('_', '-')} {value}"}
             for value in ordered[:limit]]
 
 
 def ask(setting: str, current: str | None, lang: str | None = None, *,
         among: Iterable[str] | None = None) -> dict[str, Any]:
     """One question, complete enough to hand to a picker without rewriting it."""
-    return {"mục": setting,
-            "câu_hỏi": messages.text(f"chọn.{setting}.câu_hỏi", lang),
-            "lựa_chọn": options(setting, current, lang, among=among)}
+    return {"item": setting,
+            "question": messages.text(f"chọn.{setting}.câu_hỏi", lang),
+            "choices": options(setting, current, lang, among=among)}
 
 
 def menu(setting: str, current: str | None, lang: str | None = None, *,
@@ -125,4 +125,4 @@ def menu(setting: str, current: str | None, lang: str | None = None, *,
     a decision that has already been taken for them.
     """
     question = ask(setting, current, lang, among=among)
-    return question if len(question["lựa_chọn"]) > 1 else None
+    return question if len(question["choices"]) > 1 else None

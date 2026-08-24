@@ -124,7 +124,7 @@ class TestRunFolder(unittest.TestCase):
                             .read_text(encoding="utf-8"))
         self.assertEqual(stored["run_folder"], run.name)
         self.assertLess(
-            abs(datetime.fromisoformat(stored["mở_lúc"]) - datetime.now()),
+            abs(datetime.fromisoformat(stored["opened_at"]) - datetime.now()),
             timedelta(minutes=5))
 
 
@@ -170,15 +170,15 @@ class TestHandingOverSomethingToOpen(unittest.TestCase):
     def test_only_what_a_person_opens_is_listed(self):
         self.make("a.png", "a_metadata.json", "run_manifest.json",
                   "a_so-lieu.csv", "trang.html", "phim.mp4")
-        found = [f["tên"] for f in dataio.openable(self.folder)]
+        found = [f["name"] for f in dataio.openable(self.folder)]
         self.assertEqual(found, ["a.png", "a_so-lieu.csv", "phim.mp4", "trang.html"])
 
     def test_every_entry_carries_a_name_a_path_and_a_link(self):
         self.make("a.png")
         entry = dataio.openable(self.folder)[0]
-        self.assertEqual(set(entry), {"tên", "đường_dẫn", "liên_kết"})
-        self.assertEqual(entry["tên"], "a.png")
-        self.assertTrue(entry["liên_kết"].endswith("/a.png"))
+        self.assertEqual(set(entry), {"name", "path", "link"})
+        self.assertEqual(entry["name"], "a.png")
+        self.assertTrue(entry["link"].endswith("/a.png"))
 
     def test_a_folder_that_is_not_there_is_an_empty_list_not_a_crash(self):
         self.assertEqual(dataio.openable(self.folder / "chua-co"), [])

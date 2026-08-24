@@ -14,7 +14,7 @@ def resolve(method: str, info: dict[str, Any]) -> str:
         return method
     default = info.get("default_aggregation", "mean")
     if default == "recompute":
-        return "weighted-mean" if info.get("cột_trọng_số") else "mean"
+        return "weighted-mean" if info.get("weight_column") else "mean"
     return default
 
 
@@ -37,7 +37,7 @@ def combine(deps, df, key: str, column: str, info: dict[str, Any], method: str,
     if method == "first":
         return grouped[column].first()
     if method == "weighted-mean":
-        weight_column = weight_column or info.get("cột_trọng_số")
+        weight_column = weight_column or info.get("weight_column")
         if weight_column and weight_column in df.columns:
             def _weighted(sub):
                 w = sub[weight_column]

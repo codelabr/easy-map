@@ -93,11 +93,11 @@ def looks_long(column_infos: Sequence[dict[str, Any]], row_count: int,
     if per_place < 3:
         return None
     return {
-        "cột_giá_trị": numeric[0]["column"],
-        "số_dòng": row_count,
-        "số_đơn_vị_địa_lý": distinct_places,
-        "dòng_trên_mỗi_đơn_vị": round(per_place, 1),
-        "vì_sao": msg.text("dai.la-bang-dai", singular=len(categories) == 1,
+        "value_column": numeric[0]["column"],
+        "row_count": row_count,
+        "geographic_units": distinct_places,
+        "rows_per_unit": round(per_place, 1),
+        "why": msg.text("dai.la-bang-dai", singular=len(categories) == 1,
                            column=numeric[0]["column"],
                            per_place=f"{per_place:.0f}", categories=len(categories)),
     }
@@ -171,9 +171,9 @@ def varying_axes(place_keys: Sequence[Any],
                 places += 1
                 extra += len(distinct) - 1
         if places:
-            out.append({"cột": name, "số_đơn_vị_bị_tách": places,
-                        "số_giá_trị_thừa": extra})
-    out.sort(key=lambda d: -d["số_giá_trị_thừa"])
+            out.append({"column": name, "split_units": places,
+                        "extra_values": extra})
+    out.sort(key=lambda d: -d["extra_values"])
     return out
 
 
@@ -199,11 +199,11 @@ def double_counting_axes(place_keys: Sequence[Any],
     """
     out = []
     for axis in varying_axes(place_keys, axes):
-        values = {str(v) for v in axes.get(axis["cột"], []) if v is not None}
+        values = {str(v) for v in axes.get(axis["column"], []) if v is not None}
         totals = sorted(v for v in values if is_total_like(v))
         if totals and len(values) > len(totals):
-            out.append({**axis, "giá_trị_tổng": totals,
-                        "vì_sao": msg.text("dai.co-ca-tong-va-chi-tiet",
+            out.append({**axis, "total_value": totals,
+                        "why": msg.text("dai.co-ca-tong-va-chi-tiet",
                                            totals=", ".join(totals))})
     return out
 
@@ -214,11 +214,11 @@ def pin_warning(axes: Sequence[dict[str, Any]], place_count: int) -> str | None:
         return None
     parts = []
     for axis in axes[:4]:
-        reason = axis.get("vì_sao")
-        parts.append(f"'{axis['cột']}'" + (f" ({reason})" if reason else ""))
+        reason = axis.get("why")
+        parts.append(f"'{axis['column']}'" + (f" ({reason})" if reason else ""))
     return msg.text("dai.can-gham", singular=len(axes) == 1,
                     count=len(axes), columns=", ".join(parts),
-                    split=axes[0]["số_đơn_vị_bị_tách"], places=place_count)
+                    split=axes[0]["split_units"], places=place_count)
 
 
 # --- which indicators are worth offering ---------------------------------
@@ -232,29 +232,29 @@ def indicator_slices(indicators: Sequence[Any], places: Sequence[Any],
         name = label_of(raw)
         if not name:
             continue
-        slot = rows.setdefault(name, {"chỉ_số": name, "số_dòng": 0,
-                                      "đơn_vị": set(), "kỳ": set(), "tổng": 0.0})
-        slot["số_dòng"] += 1
+        slot = rows.setdefault(name, {"indicator": name, "row_count": 0,
+                                      "unit": set(), "period": set(), "total": 0.0})
+        slot["row_count"] += 1
         if i < len(places) and places[i] is not None:
-            slot["đơn_vị"].add(str(places[i]))
+            slot["unit"].add(str(places[i]))
         if periods is not None and i < len(periods) and periods[i] is not None:
-            slot["kỳ"].add(str(periods[i]))
+            slot["period"].add(str(periods[i]))
         if i < len(values):
             try:
-                slot["tổng"] += float(values[i])
+                slot["total"] += float(values[i])
             except (TypeError, ValueError):
                 pass
 
     out = []
     for slot in rows.values():
         out.append({
-            "chỉ_số": slot["chỉ_số"],
-            "số_dòng": slot["số_dòng"],
-            "số_đơn_vị_có_mặt": len(slot["đơn_vị"]),
-            "kỳ_có_sẵn": sorted(slot["kỳ"]),
-            "tổng_thô": round(slot["tổng"], 1),
+            "indicator": slot["indicator"],
+            "row_count": slot["row_count"],
+            "units_present": len(slot["unit"]),
+            "available_periods": sorted(slot["period"]),
+            "raw_total": round(slot["total"], 1),
         })
-    out.sort(key=lambda d: (-d["số_đơn_vị_có_mặt"], -d["số_dòng"]))
+    out.sort(key=lambda d: (-d["units_present"], -d["row_count"]))
     return out
 
 
@@ -277,22 +277,22 @@ def pin_options(values: Sequence[Any], places: Sequence[Any],
         name = label_of(raw)
         if not name:
             continue
-        slot = rows.setdefault(name, {"giá_trị": name, "số_dòng": 0,
-                                      "đơn_vị": set(), "tổng": 0.0})
-        slot["số_dòng"] += 1
+        slot = rows.setdefault(name, {"value": name, "row_count": 0,
+                                      "unit": set(), "total": 0.0})
+        slot["row_count"] += 1
         if i < len(places) and places[i] is not None:
-            slot["đơn_vị"].add(str(places[i]))
+            slot["unit"].add(str(places[i]))
         if i < len(amounts):
             try:
-                slot["tổng"] += float(amounts[i])
+                slot["total"] += float(amounts[i])
             except (TypeError, ValueError):
                 pass
 
-    out = [{"giá_trị": s["giá_trị"], "số_dòng": s["số_dòng"],
-            "số_đơn_vị": len(s["đơn_vị"]), "tổng": round(s["tổng"], 1),
-            "là_dòng_tổng": is_total_like(s["giá_trị"])}
+    out = [{"value": s["value"], "row_count": s["row_count"],
+            "unit_count": len(s["unit"]), "total": round(s["total"], 1),
+            "is_total_row": is_total_like(s["value"])}
            for s in rows.values()]
-    out.sort(key=lambda d: (-d["số_đơn_vị"], -d["tổng"]))
+    out.sort(key=lambda d: (-d["unit_count"], -d["total"]))
     return out
 
 
@@ -304,15 +304,15 @@ def duplicated_totals(options: Sequence[dict[str, Any]]) -> list[list[str]]:
     them doubles it, and the doubled figure still looks like a caseload.
     """
     groups: list[list[dict[str, Any]]] = []
-    for option in sorted(options, key=lambda d: -d["tổng"]):
+    for option in sorted(options, key=lambda d: -d["total"]):
         for group in groups:
-            head = group[0]["tổng"]
-            if head > 0 and abs(option["tổng"] - head) / head <= SAME_TOTAL:
+            head = group[0]["total"]
+            if head > 0 and abs(option["total"] - head) / head <= SAME_TOTAL:
                 group.append(option)
                 break
         else:
             groups.append([option])
-    return [[o["giá_trị"] for o in g] for g in groups if len(g) > 1]
+    return [[o["value"] for o in g] for g in groups if len(g) > 1]
 
 
 def recommend_pin(options: Sequence[dict[str, Any]]) -> dict[str, Any] | None:
@@ -323,22 +323,22 @@ def recommend_pin(options: Sequence[dict[str, Any]]) -> dict[str, Any] | None:
     out. Otherwise the widest coverage wins, because a pin that empties the map
     is not a safer choice, it is a different failure.
     """
-    usable = [o for o in options if o["số_đơn_vị"] > 0]
+    usable = [o for o in options if o["unit_count"] > 0]
     if not usable:
         return None
-    best_cover = max(o["số_đơn_vị"] for o in usable)
-    tied = [o for o in usable if o["số_đơn_vị"] == best_cover]
-    totals = [o for o in tied if o["là_dòng_tổng"]]
-    pick = totals[0] if totals else max(tied, key=lambda o: o["tổng"])
+    best_cover = max(o["unit_count"] for o in usable)
+    tied = [o for o in usable if o["unit_count"] == best_cover]
+    totals = [o for o in tied if o["is_total_row"]]
+    pick = totals[0] if totals else max(tied, key=lambda o: o["total"])
 
     if len(usable) == 1:
         why = msg.text("dai.mot-gia-tri")
-    elif pick["là_dòng_tổng"]:
-        why = msg.text("dai.la-dong-tong", units=pick["số_đơn_vị"])
+    elif pick["is_total_row"]:
+        why = msg.text("dai.la-dong-tong", units=pick["unit_count"])
     else:
-        why = msg.text("dai.phu-nhieu-nhat", units=pick["số_đơn_vị"])
-    return {**pick, "vì_sao": why,
-            "phương_án_khác": [o["giá_trị"] for o in usable if o["giá_trị"] != pick["giá_trị"]][:6]}
+        why = msg.text("dai.phu-nhieu-nhat", units=pick["unit_count"])
+    return {**pick, "why": why,
+            "alternatives": [o["value"] for o in usable if o["value"] != pick["value"]][:6]}
 
 
 # --- numerator / denominator pairs ---------------------------------------
@@ -378,7 +378,7 @@ def ratio_pairs(names: Iterable[Any]) -> list[dict[str, str]]:
         if split:
             stem, role = split
             found[stem][role] = str(raw).strip()
-    return [{"tên": stem, "tử_số": roles["num"], "mẫu_số": roles["den"]}
+    return [{"name": stem, "numerator": roles["num"], "denominator": roles["den"]}
             for stem, roles in sorted(found.items())
             if "num" in roles and "den" in roles]
 

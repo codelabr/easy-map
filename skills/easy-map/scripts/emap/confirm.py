@@ -32,7 +32,7 @@ from . import messages
 #: read aloud and retype.
 LENGTH = 8
 
-STATUS = "chờ_xác_nhận"
+STATUS = "awaiting_confirmation"
 
 
 def token(settings: dict[str, Any]) -> str:
@@ -82,12 +82,12 @@ def gate(settings: dict[str, Any], numbered: list[dict[str, Any]],
         guidance += "".join(messages.text("cổng.chưa-nêu-ngôn-ngữ", lang)
                             for lang in messages.LANGUAGES)
     return {
-        "trạng_thái": STATUS,
-        "mã_xác_nhận": None if must_ask else code,
-        "phương_án": numbered,
-        "phải_hỏi": must_ask,
-        **({"gợi_ý_ngôn_ngữ": language_hint} if language_hint else {}),
-        "cảnh_báo": warnings,
-        "hướng_dẫn": guidance,
-        "lệnh_khi_đã_đồng_ý": None if must_ask else f"{command} --confirmed {code}",
+        "status": STATUS,
+        "confirm_code": None if must_ask else code,
+        "settings": numbered,
+        "must_ask": must_ask,
+        **({"language_hint": language_hint} if language_hint else {}),
+        "warnings": warnings,
+        "guidance": guidance,
+        "command_when_agreed": None if must_ask else f"{command} --confirmed {code}",
     }

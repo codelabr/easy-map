@@ -83,28 +83,28 @@ class TestNothingButTheRightCodeOpensTheGate(unittest.TestCase):
 class TestWhatTheAgentIsHandedInstead(unittest.TestCase):
     def setUp(self):
         self.out = confirm.gate(
-            plan(), [{"số": 1, "mục": "Dữ liệu", "giá_trị": "a.xlsx"}],
+            plan(), [{"number": 1, "item": "Dữ liệu", "value": "a.xlsx"}],
             [{"id": "coverage-thap", "severity": "warning"}], [],
             "python easy_map.py render --excel a.xlsx")
 
     def test_it_says_plainly_that_nothing_was_drawn(self):
         """An agent skimming the reply must not read it as a finished job."""
-        self.assertEqual(self.out["trạng_thái"], confirm.STATUS)
-        self.assertIn("CHƯA VẼ GÌ CẢ", self.out["hướng_dẫn"])
+        self.assertEqual(self.out["status"], confirm.STATUS)
+        self.assertIn("CHƯA VẼ GÌ CẢ", self.out["guidance"])
 
     def test_it_carries_the_plan_and_the_warnings(self):
-        self.assertEqual(len(self.out["phương_án"]), 1)
-        self.assertEqual(len(self.out["cảnh_báo"]), 1)
-        self.assertEqual(self.out["phải_hỏi"], [])
+        self.assertEqual(len(self.out["settings"]), 1)
+        self.assertEqual(len(self.out["warnings"]), 1)
+        self.assertEqual(self.out["must_ask"], [])
 
     def test_the_ready_made_command_carries_the_matching_code(self):
         """Handing back the exact command removes the last excuse for guessing."""
-        code = self.out["mã_xác_nhận"]
-        self.assertTrue(self.out["lệnh_khi_đã_đồng_ý"].endswith(f"--confirmed {code}"))
+        code = self.out["confirm_code"]
+        self.assertTrue(self.out["command_when_agreed"].endswith(f"--confirmed {code}"))
         self.assertTrue(confirm.matches(code, plan()))
 
     def test_it_tells_the_agent_to_wait_rather_than_to_continue(self):
-        self.assertIn("DỪNG LẠI CHỜ TRẢ LỜI", self.out["hướng_dẫn"])
+        self.assertIn("DỪNG LẠI CHỜ TRẢ LỜI", self.out["guidance"])
 
 
 class TestAPlanWithAQuestionStillOpenGetsNoCode(unittest.TestCase):
@@ -117,24 +117,24 @@ class TestAPlanWithAQuestionStillOpenGetsNoCode(unittest.TestCase):
 
     def setUp(self):
         self.open_question = confirm.gate(
-            plan(), [{"số": 1, "mục": "Dữ liệu", "giá_trị": "a.xlsx"}], [],
-            [{"mục": "language", "câu_hỏi": "Chữ trên bản đồ in bằng tiếng gì?",
-              "lựa_chọn": [{"giá_trị": "vi"}, {"giá_trị": "en"}]}],
+            plan(), [{"number": 1, "item": "Dữ liệu", "value": "a.xlsx"}], [],
+            [{"item": "language", "question": "Chữ trên bản đồ in bằng tiếng gì?",
+              "choices": [{"value": "vi"}, {"value": "en"}]}],
             "python easy_map.py render --excel a.xlsx")
 
     def test_no_code_is_issued_at_all(self):
-        self.assertIsNone(self.open_question["mã_xác_nhận"])
-        self.assertIsNone(self.open_question["lệnh_khi_đã_đồng_ý"])
+        self.assertIsNone(self.open_question["confirm_code"])
+        self.assertIsNone(self.open_question["command_when_agreed"])
 
     def test_the_reply_says_why_and_what_to_do(self):
-        guidance = self.open_question["hướng_dẫn"]
+        guidance = self.open_question["guidance"]
         self.assertIn("KHÔNG có mã nào dùng được", guidance)
-        self.assertIn("phải_hỏi", guidance)
+        self.assertIn("must_ask", guidance)
         self.assertNotIn("--confirmed " + confirm.token(plan()), guidance)
 
     def test_the_same_plan_with_nothing_open_does_get_one(self):
         answered = confirm.gate(plan(), [], [], [], "python easy_map.py render")
-        self.assertEqual(answered["mã_xác_nhận"], confirm.token(plan()))
+        self.assertEqual(answered["confirm_code"], confirm.token(plan()))
 
 
 class TestTheGuidanceFollowsTheConversation(unittest.TestCase):
@@ -150,8 +150,8 @@ class TestTheGuidanceFollowsTheConversation(unittest.TestCase):
 
     #: the keys of the output contract, which appear inside the guidance because
     #: the agent is told which fields to read
-    KEYS = ("phương_án", "ghi_chú", "phải_hỏi", "lựa_chọn", "câu_hỏi",
-            "nhãn", "mô_tả", "khuyến_nghị")
+    KEYS = ("settings", "note", "must_ask", "choices", "question",
+            "label", "description", "recommended")
 
     ACCENTS = re.compile(
         "[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]",
@@ -166,7 +166,7 @@ class TestTheGuidanceFollowsTheConversation(unittest.TestCase):
     def guidance(self, lang: str, **over) -> str:
         msg.use(lang)
         return confirm.gate(plan(), [], [], over.pop("must_ask", []),
-                            "python easy_map.py render", **over)["hướng_dẫn"]
+                            "python easy_map.py render", **over)["guidance"]
 
     def test_an_english_conversation_gets_english_instructions(self):
         text = self.guidance("en")
@@ -192,7 +192,7 @@ class TestTheGuidanceFollowsTheConversation(unittest.TestCase):
 
     def test_the_pending_and_agreed_branches_are_translated_too(self):
         """Both halves of the fork, or half the reply reverts."""
-        open_q = self.guidance("en", must_ask=[{"mục": "language"}])
+        open_q = self.guidance("en", must_ask=[{"item": "language"}])
         self.assertIn("NO code exists", open_q)
         self.assertIn("--confirmed", self.guidance("en"))
 

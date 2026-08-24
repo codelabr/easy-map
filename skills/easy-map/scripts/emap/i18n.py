@@ -78,6 +78,14 @@ STRINGS: dict[str, dict[str, str]] = {
         "insight_points": "{points} vị trí được chấm theo toạ độ trên nền {total} đơn vị hành chính.",
         "insight_plain": "{with_data}/{total} đơn vị có số liệu.",
         "insight_category": "{with_data}/{total} đơn vị có số liệu. Nhóm phổ biến nhất là {name} ({count} đơn vị).",
+        # Column headings of the CSV written beside each plate. They follow
+        # ``--language`` like everything else the reader sees, because the file
+        # is opened next to the map it belongs to and the two should agree.
+        "csv_unit": "đơn_vị",
+        "csv_value": "giá_trị",
+        "csv_formatted": "hiển_thị",
+        "csv_symbol": "vòng_tròn",
+        "csv_symbol_formatted": "hiển_thị_vòng_tròn",
         "source": "Nguồn: {file}; ranh giới hành chính từ shapefile của dự án.",
         "method_classes": "Màu chia {classes} nhóm theo {method}.",
         "method_symbol": "Diện tích vòng tròn tỷ lệ với số lượng.",
@@ -113,6 +121,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "insight_points": "{points} locations plotted from coordinates over {total} administrative units.",
         "insight_plain": "{with_data} of {total} units have data.",
         "insight_category": "{with_data} of {total} units have data. The most common group is {name} ({count} units).",
+        "csv_unit": "unit",
+        "csv_value": "value",
+        "csv_formatted": "formatted",
+        "csv_symbol": "symbol",
+        "csv_symbol_formatted": "symbol_formatted",
         "source": "Source: {file}; administrative boundaries from the project shapefile.",
         "method_classes": "Colour is split into {classes} classes by {method}.",
         "method_symbol": "Circle area is proportional to the count.",
@@ -204,11 +217,11 @@ def suggest(country_language: str | None = None) -> dict[str, Any]:
             seen.add(code)
             ordered.append(code)
     return {
-        "máy": machine,
-        "quốc_gia": country_language,
-        "gợi_ý": ordered or [DEFAULT],
-        "trùng_nhau": agreed,
-        "ghi_chú": ("hệ điều hành và quốc gia của dữ liệu cùng cho một kết quả"
+        "machine": machine,
+        "country": country_language,
+        "suggestion": ordered or [DEFAULT],
+        "duplicates": agreed,
+        "note": ("hệ điều hành và quốc gia của dữ liệu cùng cho một kết quả"
                     if agreed else
                     "hệ điều hành và quốc gia của dữ liệu cho hai kết quả khác nhau"
                     if machine and country_language else

@@ -162,8 +162,8 @@ def archipelago_inset(ax, plan: dict, painted, *, label: str | None = None):
     stroked more heavily than on the main map. Without that they render as
     nothing at all: a box the reader cannot interpret is worse than no box.
     """
-    x0, y0, w, h = plan["ô_khung_phụ"]
-    iminx, iminy, imaxx, imaxy = plan["vùng_quần_đảo"]
+    x0, y0, w, h = plan["inset_box"]
+    iminx, iminy, imaxx, imaxy = plan["archipelago_bounds"]
 
     # position the child axes over that rectangle of the parent's data space
     bounds = _axes_fraction(ax, x0, y0, w, h)

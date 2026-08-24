@@ -332,7 +332,7 @@ def _magnitude(info: dict[str, Any]) -> float:
 STAT_MIN = "nhỏ_nhất"
 STAT_MEDIAN = "trung_vị"
 STAT_MAX = "lớn_nhất"
-STAT_SUM = "tổng"
+STAT_SUM = "total"
 
 #: mean relative error allowed before a numerator/denominator pair is accepted.
 #: Row-wise agreement is either near-exact or plainly wrong, so this stays tight;

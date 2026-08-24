@@ -32,7 +32,7 @@ def view_bounds(frame, lon: float | None
     plan = insets.view(frame, lon)
     if plan is None:
         return tuple(float(v) for v in frame.total_bounds), None
-    return plan["khung_nhìn"], plan
+    return plan["view_bounds"], plan
 
 
 def geometry_aspect(frame, lon: float | None) -> float:
@@ -78,7 +78,7 @@ def draw(deps, *, frame, spec: dict[str, Any], fonts: dict[str, str],
     """Render one map and return the plate plus a drawing report."""
     # Which meridian, if any, splits this country's offshore territory off. It
     # arrives already decided, the same way the projection does.
-    inset_lon = spec.get("kinh_tuyến_khung_phụ")
+    inset_lon = spec.get("inset_meridian")
     aspect = geometry_aspect(frame, inset_lon)
     plate = lay.build(
         spec.get("layout", "report"), aspect,
@@ -159,8 +159,8 @@ def draw(deps, *, frame, spec: dict[str, Any], fonts: dict[str, str],
     inset_box = None
     if inset_plan is not None:
         furn.archipelago_inset(ax, inset_plan, painted,
-                               label=spec.get("nhãn_khung_phụ"))
-        ix, iy, iw, ih = inset_plan["ô_khung_phụ"]
+                               label=spec.get("inset_label"))
+        ix, iy, iw, ih = inset_plan["inset_box"]
         inset_box = (ix, iy, ix + iw, iy + ih)
 
     # --- symbols ----------------------------------------------------------
@@ -193,11 +193,11 @@ def draw(deps, *, frame, spec: dict[str, Any], fonts: dict[str, str],
                    s=pts.get("sizes") or spec.get("point_size", 34),
                    c=pts.get("colours") or furn.PRIMARY,
                    edgecolors="white", linewidths=0.7, alpha=0.9, zorder=6)
-        point_report = {"số_điểm": len(pts["x"])}
+        point_report = {"point_count": len(pts["x"])}
 
     # --- labels -----------------------------------------------------------
     label_mode = spec.get("labels", "names")
-    label_report: dict[str, Any] = {"đã_vẽ": 0}
+    label_report: dict[str, Any] = {"drawn": 0}
 
     # a proportional-symbol map has no colour column, so its labels come from
     # the symbol column instead
@@ -300,11 +300,11 @@ def draw(deps, *, frame, spec: dict[str, Any], fonts: dict[str, str],
     # runs off the paper is written to the PNG without complaint, and only
     # somebody looking at the image would ever know
     return {"plate": plate, "labels": label_report, "points": point_report,
-            "tràn_khung": lay.overflow(plate.fig, panels=[plate.panel_ax]),
+            "overflow": lay.overflow(plate.fig, panels=[plate.panel_ax]),
             "legend_classes": len(legend_pairs), "locator": locator_drawn,
             # what the framing decided: whether an inset was drawn, and how much
             # of the width the mainland ended up with
-            "khung_phụ": insets.summary(inset_plan),
+            "inset": insets.summary(inset_plan),
             # the rows **as drawn**: an animation recolours ``data_layer`` path
             # by path, so it has to count parts on the same geometry that
             # produced those paths. Handing back the unclipped rows would make

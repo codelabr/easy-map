@@ -32,9 +32,9 @@ from typing import Any, Sequence
 
 #: How sure the reading is. Three words rather than a number, because the
 #: number would invite arithmetic on it and there is nothing to compute.
-SURE = "chắc chắn"
-LIKELY = "khá chắc"
-ASK = "phải hỏi"
+SURE = "sure"
+LIKELY = "likely"
+ASK = "ask"
 
 VIETNAM, GADM, GEOBOUNDARIES, GENERIC = "viet-nam", "gadm", "geoboundaries", "generic"
 
@@ -167,17 +167,17 @@ def identify(gdf) -> dict[str, Any]:
         merged = _by_name(gdf, ["sap_nhap"])
         evidence = ", ".join(c for c in (province, commune, merged) if c)
         return {
-            "bộ": VIETNAM,
-            "độ_tin_cậy": SURE,
-            "bằng_chứng": f"có cột {evidence}",
-            "cột_tên": commune or province,
-            "cột_cha": province if commune else None,
-            "quốc_gia": "Việt Nam",
-            "cấp": 2 if commune else 1,
+            "dataset": VIETNAM,
+            "confidence": SURE,
+            "evidence": f"có cột {evidence}",
+            "name_column": commune or province,
+            "parent_column": province if commune else None,
+            "country": "Việt Nam",
+            "level": 2 if commune else 1,
             # The merger history is Vietnam's alone. No other source carries a
             # column like it, which is why the crosswalk belongs to this
             # detector rather than to a tier.
-            "cột_sáp_nhập": merged,
+            "merger_column": merged,
         }
 
     # --- GADM ------------------------------------------------------------
@@ -190,22 +190,22 @@ def identify(gdf) -> dict[str, Any]:
             country = values[0] if values else None
         if level == 0:
             return {
-                "bộ": GADM, "độ_tin_cậy": SURE,
-                "bằng_chứng": f"có GID_0 và {country_column or 'COUNTRY'}, "
+                "dataset": GADM, "confidence": SURE,
+                "evidence": f"có GID_0 và {country_column or 'COUNTRY'}, "
                               f"không có NAME_1 — đây là đường viền quốc gia",
-                "cột_tên": country_column, "cột_cha": None,
-                "quốc_gia": country, "cấp": 0, "là_đường_viền_quốc_gia": True,
+                "name_column": country_column, "parent_column": None,
+                "country": country, "level": 0, "is_country_outline": True,
             }
         return {
-            "bộ": GADM, "độ_tin_cậy": SURE,
-            "bằng_chứng": f"có GID_0 và NAME_{level}",
-            "cột_tên": _by_name(gdf, [f"NAME_{level}"]),
-            "cột_cha": _by_name(gdf, [f"NAME_{level - 1}"]) if level > 1 else None,
-            "quốc_gia": country, "cấp": level,
+            "dataset": GADM, "confidence": SURE,
+            "evidence": f"có GID_0 và NAME_{level}",
+            "name_column": _by_name(gdf, [f"NAME_{level}"]),
+            "parent_column": _by_name(gdf, [f"NAME_{level - 1}"]) if level > 1 else None,
+            "country": country, "level": level,
             # An unaccented spelling of every name, which is exactly what the
             # matcher builds for itself — worth handing over rather than
             # recomputing.
-            "cột_không_dấu": _by_name(gdf, [f"VARNAME_{level}"]),
+            "unaccented_column": _by_name(gdf, [f"VARNAME_{level}"]),
         }
 
     # --- geoBoundaries ---------------------------------------------------
@@ -216,11 +216,11 @@ def identify(gdf) -> dict[str, Any]:
         kind = (_text_values(gdf, shape_type, limit=1) or [""])[0] if shape_type else ""
         digits = re.sub(r"\D", "", kind)
         return {
-            "bộ": GEOBOUNDARIES, "độ_tin_cậy": SURE,
-            "bằng_chứng": f"có shapeName và shapeGroup" + (f", shapeType={kind}" if kind else ""),
-            "cột_tên": shape_name, "cột_cha": None,
-            "quốc_gia": (_text_values(gdf, shape_group, limit=1) or [None])[0],
-            "cấp": int(digits) if digits else None,
+            "dataset": GEOBOUNDARIES, "confidence": SURE,
+            "evidence": f"có shapeName và shapeGroup" + (f", shapeType={kind}" if kind else ""),
+            "name_column": shape_name, "parent_column": None,
+            "country": (_text_values(gdf, shape_group, limit=1) or [None])[0],
+            "level": int(digits) if digits else None,
         }
 
     # --- everything else -------------------------------------------------
@@ -229,22 +229,22 @@ def identify(gdf) -> dict[str, Any]:
     best = scored[0] if scored else (0.0, None)
     if best[0] <= 0.0:
         return {
-            "bộ": GENERIC, "độ_tin_cậy": ASK, "bằng_chứng":
+            "dataset": GENERIC, "confidence": ASK, "evidence":
                 f"không cột nào đọc như tên địa danh; các cột: {', '.join(columns)}",
-            "cột_tên": None, "cột_cha": None, "quốc_gia": None, "cấp": None,
+            "name_column": None, "parent_column": None, "country": None, "level": None,
         }
     runner_up = scored[1][0] if len(scored) > 1 else 0.0
     clear = best[0] - runner_up
     return {
-        "bộ": GENERIC,
+        "dataset": GENERIC,
         # A clear winner is worth acting on; a photo finish between two text
         # columns is worth a question, because picking wrong here labels every
         # unit on the map with the wrong string and nothing downstream notices.
-        "độ_tin_cậy": LIKELY if clear >= 0.25 else ASK,
-        "bằng_chứng": f"'{best[1]}' đọc như tên địa danh ({best[0]:.2f}); "
+        "confidence": LIKELY if clear >= 0.25 else ASK,
+        "evidence": f"'{best[1]}' đọc như tên địa danh ({best[0]:.2f}); "
                       f"cột kế tiếp {scored[1][1] if len(scored) > 1 else '-'} "
                       f"({runner_up:.2f})",
-        "cột_tên": best[1], "cột_cha": None, "quốc_gia": None, "cấp": None,
+        "name_column": best[1], "parent_column": None, "country": None, "level": None,
     }
 
 
@@ -282,11 +282,11 @@ def link_tiers(coarse, coarse_reading: dict[str, Any],
     rather than replacing it: the answer is the same, and a claim that does not
     survive its own check is worth knowing about.
     """
-    known = {v.strip() for v in _text_values(coarse, coarse_reading["cột_tên"], 5000)} \
-        if coarse_reading.get("cột_tên") else set()
+    known = {v.strip() for v in _text_values(coarse, coarse_reading["name_column"], 5000)} \
+        if coarse_reading.get("name_column") else set()
     if not known or fine is None:
-        return {"cột_cha": None, "độ_tin_cậy": ASK,
-                "bằng_chứng": "không đọc được cột tên của cấp thô"}
+        return {"parent_column": None, "confidence": ASK,
+                "evidence": "không đọc được cột tên của cấp thô"}
 
     best, best_share = None, 0.0
     for column in (str(c) for c in fine.columns if c != "geometry"):
@@ -297,19 +297,19 @@ def link_tiers(coarse, coarse_reading: dict[str, Any],
         if share > best_share:
             best, best_share = column, share
 
-    claimed = fine_reading.get("cột_cha")
+    claimed = fine_reading.get("parent_column")
     if best_share < 0.5:
         return {
-            "cột_cha": claimed, "độ_tin_cậy": ASK,
-            "bằng_chứng": f"không cột nào của cấp mịn khớp tên cấp thô quá một nửa "
+            "parent_column": claimed, "confidence": ASK,
+            "evidence": f"không cột nào của cấp mịn khớp tên cấp thô quá một nửa "
                           f"(cao nhất {best or '-'} {best_share:.0%})",
         }
     matched = sum(1 for v in _text_values(fine, best, 5000) if v in known)
     total = len(_text_values(fine, best, 5000))
     return {
-        "cột_cha": best,
-        "độ_tin_cậy": SURE if best_share >= 0.999 else LIKELY,
-        "bằng_chứng": f"{matched}/{total} giá trị của '{best}' có trong tập tên "
+        "parent_column": best,
+        "confidence": SURE if best_share >= 0.999 else LIKELY,
+        "evidence": f"{matched}/{total} giá trị của '{best}' có trong tập tên "
                       f"cấp thô" + ("" if claimed in (None, best)
                                     else f"; lược đồ khai '{claimed}'"),
     }

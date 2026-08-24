@@ -70,15 +70,15 @@ class TestBuild(unittest.TestCase):
         first = webpage.build(self.run_dir, webpage.STILL)
         webpage.stash(self.run_dir, "bao-phu_en", make(lang="en", family="coverage"))
         second = webpage.build(self.run_dir, webpage.STILL)
-        self.assertEqual(first["số_bản_đồ_trong_trang"], 1)
-        self.assertEqual(second["số_bản_đồ_trong_trang"], 2)
-        self.assertEqual(second["ngôn_ngữ"], ["en", "vi"])
-        self.assertEqual(first["tệp"], second["tệp"])
+        self.assertEqual(first["maps_in_page"], 1)
+        self.assertEqual(second["maps_in_page"], 2)
+        self.assertEqual(second["language"], ["en", "vi"])
+        self.assertEqual(first["files"], second["files"])
 
     def test_rendering_the_same_map_again_does_not_duplicate_it(self):
         webpage.stash(self.run_dir, "bao-phu_vi", make())
         webpage.stash(self.run_dir, "bao-phu_vi", make())
-        self.assertEqual(webpage.build(self.run_dir, webpage.STILL)["số_bản_đồ_trong_trang"], 1)
+        self.assertEqual(webpage.build(self.run_dir, webpage.STILL)["maps_in_page"], 1)
 
     def test_still_maps_and_a_time_series_land_in_separate_files(self):
         webpage.stash(self.run_dir, "bao-phu_vi", make())
@@ -86,9 +86,9 @@ class TestBuild(unittest.TestCase):
                       make(kind=webpage.SERIES, family="ca-moi", periods=("2024", "2025")))
         still = webpage.build(self.run_dir, webpage.STILL)
         series = webpage.build(self.run_dir, webpage.SERIES)
-        self.assertNotEqual(still["tệp"], series["tệp"])
-        self.assertEqual(still["số_bản_đồ_trong_trang"], 1)
-        self.assertEqual(series["số_bản_đồ_trong_trang"], 1)
+        self.assertNotEqual(still["files"], series["files"])
+        self.assertEqual(still["maps_in_page"], 1)
+        self.assertEqual(series["maps_in_page"], 1)
 
     def test_page_title_prefers_the_vietnamese_edition(self):
         webpage.stash(self.run_dir, "coverage_en",
@@ -96,14 +96,14 @@ class TestBuild(unittest.TestCase):
                                     family="coverage", label="Coverage",
                                     images=["x"], shapes=[]))
         webpage.stash(self.run_dir, "z-bao-phu_vi", make())
-        page = Path(webpage.build(self.run_dir, webpage.STILL)["tệp"])
+        page = Path(webpage.build(self.run_dir, webpage.STILL)["files"])
         self.assertIn("<title>Bao phủ 2026</title>", page.read_text(encoding="utf-8"))
 
     def test_a_damaged_capture_does_not_take_the_page_down(self):
         webpage.stash(self.run_dir, "bao-phu_vi", make())
         (self.run_dir / webpage.CACHE_DIR / webpage.STILL / "broken.json").write_text(
             "{not json", encoding="utf-8")
-        self.assertEqual(webpage.build(self.run_dir, webpage.STILL)["số_bản_đồ_trong_trang"], 1)
+        self.assertEqual(webpage.build(self.run_dir, webpage.STILL)["maps_in_page"], 1)
 
 
 class TestSelfContained(unittest.TestCase):
@@ -113,7 +113,7 @@ class TestSelfContained(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.run_dir = Path(self._tmp.name)
         webpage.stash(self.run_dir, "bao-phu_vi", make())
-        self.page = Path(webpage.build(self.run_dir, webpage.STILL)["tệp"]
+        self.page = Path(webpage.build(self.run_dir, webpage.STILL)["files"]
                          ).read_text(encoding="utf-8")
 
     def tearDown(self):
@@ -242,7 +242,7 @@ class TestLabelContract(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp)
             webpage.stash(run_dir, "bao-phu_vi", make())
-            page = Path(webpage.build(run_dir, webpage.STILL)["tệp"]).read_text(encoding="utf-8")
+            page = Path(webpage.build(run_dir, webpage.STILL)["files"]).read_text(encoding="utf-8")
         data = json.loads(re.search(r"const D = (\{.*?\});\n", page, re.S).group(1))
         self.assertEqual(set(data["text"]), {"vi", "en"})
 
@@ -317,14 +317,14 @@ class TestTellingTwoLayoutsApart(unittest.TestCase):
             webpage.stash(self.run_dir, f"bao-phu_{layout}_vi", payload)
 
     def labels(self) -> list[str]:
-        page = Path(webpage.build(self.run_dir, webpage.STILL)["tệp"]).read_text(
+        page = Path(webpage.build(self.run_dir, webpage.STILL)["files"]).read_text(
             encoding="utf-8")
         data = json.loads(re.search(r"const D = (\{.*?\});\n", page, re.S).group(1))
         return [e["label"] for e in data["entries"]]
 
     def test_both_layouts_reach_the_page(self):
         self.stash_both_layouts()
-        self.assertEqual(webpage.build(self.run_dir, webpage.STILL)["số_bản_đồ_trong_trang"], 2)
+        self.assertEqual(webpage.build(self.run_dir, webpage.STILL)["maps_in_page"], 2)
 
     def test_the_picker_does_not_offer_the_same_line_twice(self):
         self.stash_both_layouts()

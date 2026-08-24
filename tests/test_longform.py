@@ -33,8 +33,8 @@ class TestLooksLong(unittest.TestCase):
     def test_many_rows_per_place_over_one_measure_is_long(self):
         found = longform.looks_long(LONG, row_count=70080, distinct_places=13)
         self.assertIsNotNone(found)
-        self.assertEqual(found["cột_giá_trị"], "Value")
-        self.assertGreater(found["dòng_trên_mỗi_đơn_vị"], 100)
+        self.assertEqual(found["value_column"], "Value")
+        self.assertGreater(found["rows_per_unit"], 100)
 
     def test_two_measures_mean_it_is_not_the_single_value_shape(self):
         two = LONG + [col("Target", "count")]
@@ -46,8 +46,8 @@ class TestLooksLong(unittest.TestCase):
 
     def test_the_verdict_explains_itself(self):
         found = longform.looks_long(LONG, 70080, 13)
-        self.assertIn("Value", found["vì_sao"])
-        self.assertIn("quan sát", found["vì_sao"])
+        self.assertIn("Value", found["why"])
+        self.assertIn("quan sát", found["why"])
 
 
 class TestMeasureColumn(unittest.TestCase):
@@ -96,11 +96,11 @@ class TestVaryingAxes(unittest.TestCase):
         }
 
     def test_a_column_that_is_constant_within_a_place_is_not_reported(self):
-        names = [a["cột"] for a in longform.varying_axes(self.places, self.axes)]
+        names = [a["column"] for a in longform.varying_axes(self.places, self.axes)]
         self.assertNotIn("Quarter", names)
 
     def test_the_columns_that_split_a_place_are_named(self):
-        names = [a["cột"] for a in longform.varying_axes(self.places, self.axes)]
+        names = [a["column"] for a in longform.varying_axes(self.places, self.axes)]
         self.assertEqual(sorted(names), ["Age", "Sex"])
 
     def test_one_row_per_place_raises_nothing(self):
@@ -127,39 +127,39 @@ class TestIndicatorSlices(unittest.TestCase):
     def test_the_indicator_covering_most_places_comes_first(self):
         out = longform.indicator_slices(self.indicators, self.places, self.values,
                                         self.periods)
-        self.assertEqual(out[0]["chỉ_số"], "TX_CURR")
-        self.assertEqual(out[0]["số_đơn_vị_có_mặt"], 3)
+        self.assertEqual(out[0]["indicator"], "TX_CURR")
+        self.assertEqual(out[0]["units_present"], 3)
 
     def test_a_place_counted_twice_still_counts_once_as_coverage(self):
-        out = {d["chỉ_số"]: d for d in longform.indicator_slices(
+        out = {d["indicator"]: d for d in longform.indicator_slices(
             self.indicators, self.places, self.values, self.periods)}
-        self.assertEqual(out["HTS_TST"]["số_dòng"], 2)
-        self.assertEqual(out["HTS_TST"]["số_đơn_vị_có_mặt"], 1)
+        self.assertEqual(out["HTS_TST"]["row_count"], 2)
+        self.assertEqual(out["HTS_TST"]["units_present"], 1)
 
     def test_the_periods_each_indicator_actually_has_are_listed(self):
-        out = {d["chỉ_số"]: d for d in longform.indicator_slices(
+        out = {d["indicator"]: d for d in longform.indicator_slices(
             self.indicators, self.places, self.values, self.periods)}
-        self.assertEqual(out["TX_CURR"]["kỳ_có_sẵn"], ["Q1", "Q2"])
-        self.assertEqual(out["HTS_TST"]["kỳ_có_sẵn"], ["Q2"])
+        self.assertEqual(out["TX_CURR"]["available_periods"], ["Q1", "Q2"])
+        self.assertEqual(out["HTS_TST"]["available_periods"], ["Q2"])
 
     def test_text_in_the_value_column_does_not_take_the_run_down(self):
         out = longform.indicator_slices(["A", "A"], ["Ha Noi", "Hue"],
                                         [5, "không có"])
-        self.assertEqual(out[0]["tổng_thô"], 5.0)
+        self.assertEqual(out[0]["raw_total"], 5.0)
 
 
 class TestRatioPairs(unittest.TestCase):
     def test_a_num_den_pair_is_recognised(self):
         pairs = longform.ratio_pairs(["TX_PVLS Num", "TX_PVLS Den", "TX_CURR"])
-        self.assertEqual(pairs, [{"tên": "TX_PVLS", "tử_số": "TX_PVLS Num",
-                                  "mẫu_số": "TX_PVLS Den"}])
+        self.assertEqual(pairs, [{"name": "TX_PVLS", "numerator": "TX_PVLS Num",
+                                  "denominator": "TX_PVLS Den"}])
 
     def test_a_numerator_with_no_denominator_is_not_a_pair(self):
         self.assertEqual(longform.ratio_pairs(["TX_PVLS Num", "TX_CURR"]), [])
 
     def test_underscore_and_vietnamese_spellings_work_too(self):
         self.assertEqual(
-            [p["tên"] for p in longform.ratio_pairs(
+            [p["name"] for p in longform.ratio_pairs(
                 ["TX_TB_Num", "TX_TB_Den", "Sàng lọc tử số", "Sàng lọc mẫu số"])],
             ["Sàng lọc", "TX_TB"])
 
@@ -217,8 +217,8 @@ class TestDoubleCountingAxes(unittest.TestCase):
         axes = {"Disaggregate": ["(total)", "By Age", "By Age", "By Age",
                                  "(total)", "By Age"]}
         found = longform.double_counting_axes(self.places, axes)
-        self.assertEqual([a["cột"] for a in found], ["Disaggregate"])
-        self.assertEqual(found[0]["giá_trị_tổng"], ["(total)"])
+        self.assertEqual([a["column"] for a in found], ["Disaggregate"])
+        self.assertEqual(found[0]["total_value"], ["(total)"])
 
     def test_a_column_of_nothing_but_totals_is_not_a_hazard(self):
         axes = {"Disaggregate": ["(total)"] * 6}
@@ -260,11 +260,11 @@ class TestChoosingTheSlice(unittest.TestCase):
         return longform.pin_options(self.values, self.places, self.amounts)
 
     def test_each_candidate_is_measured_not_assumed(self):
-        by_value = {o["giá_trị"]: o for o in self.options()}
-        self.assertEqual(by_value["(total)"]["số_đơn_vị"], 3)
-        self.assertEqual(by_value["(total)"]["tổng"], 200.0)
-        self.assertEqual(by_value["By Age - Sex"]["số_đơn_vị"], 3)
-        self.assertEqual(by_value["By CD4"]["số_đơn_vị"], 2)
+        by_value = {o["value"]: o for o in self.options()}
+        self.assertEqual(by_value["(total)"]["unit_count"], 3)
+        self.assertEqual(by_value["(total)"]["total"], 200.0)
+        self.assertEqual(by_value["By Age - Sex"]["unit_count"], 3)
+        self.assertEqual(by_value["By CD4"]["unit_count"], 2)
 
     def test_values_adding_up_to_the_same_thing_are_reported_together(self):
         found = longform.duplicated_totals(self.options())
@@ -275,24 +275,24 @@ class TestChoosingTheSlice(unittest.TestCase):
 
     def test_the_publishers_own_total_wins_a_tie_on_coverage(self):
         pick = longform.recommend_pin(self.options())
-        self.assertEqual(pick["giá_trị"], "(total)")
-        self.assertIn("dòng tổng", pick["vì_sao"])
+        self.assertEqual(pick["value"], "(total)")
+        self.assertIn("dòng tổng", pick["why"])
 
     def test_without_a_total_row_the_widest_coverage_wins(self):
         values = ["By Age - Sex"] * 3 + ["By CD4"] * 2
         places = ["Ha Noi", "Hue", "Can Tho", "Ha Noi", "Hue"]
         pick = longform.recommend_pin(longform.pin_options(values, places, [1] * 5))
-        self.assertEqual(pick["giá_trị"], "By Age - Sex")
-        self.assertIn("phủ nhiều đơn vị nhất", pick["vì_sao"])
+        self.assertEqual(pick["value"], "By Age - Sex")
+        self.assertIn("phủ nhiều đơn vị nhất", pick["why"])
 
     def test_the_alternatives_are_offered_rather_than_hidden(self):
         pick = longform.recommend_pin(self.options())
-        self.assertIn("By Age - Sex", pick["phương_án_khác"])
+        self.assertIn("By Age - Sex", pick["alternatives"])
 
     def test_a_single_candidate_needs_no_justification(self):
         pick = longform.recommend_pin(
             longform.pin_options(["(total)"] * 2, ["Ha Noi", "Hue"], [5, 5]))
-        self.assertIn("chỉ có một giá trị", pick["vì_sao"])
+        self.assertIn("chỉ có một giá trị", pick["why"])
 
     def test_nothing_to_pin_returns_nothing(self):
         self.assertIsNone(longform.recommend_pin([]))

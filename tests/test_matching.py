@@ -353,8 +353,8 @@ class TestAdminLevelSanity(unittest.TestCase):
     def test_a_third_of_the_names_missing_raises_the_tier_question(self):
         found = self.guard(unmatched=30, fuzzy=3)
         self.assertEqual(len(found), 1)
-        self.assertIn("cấp huyện", found[0]["vì_sao"])
-        self.assertIn("SNU2", found[0]["vì_sao"])
+        self.assertIn("cấp huyện", found[0]["why"])
+        self.assertIn("SNU2", found[0]["why"])
 
     def test_a_clean_commune_join_says_nothing(self):
         self.assertEqual(self.guard(unmatched=1), [])

@@ -201,13 +201,13 @@ def build(deps, *, frame, periods: Sequence[Any], values_by_period: dict[Any, di
     plt.close(plate.fig)
 
     return {
-        "tệp": str(path),
-        "định_dạng": container,
+        "files": str(path),
+        "format": container,
         "ffmpeg": writer_name == "ffmpeg",
-        "số_kỳ": len(periods),
-        "số_khung_hình": len(plan),
-        "thời_lượng_giây": round(len(plan) / FPS, 1),
-        "ghi_chú": msg.text("video.mp4-bằng-ffmpeg" if writer_name == "ffmpeg"
+        "period_count": len(periods),
+        "frame_count": len(plan),
+        "duration_s": round(len(plan) / FPS, 1),
+        "note": msg.text("video.mp4-bằng-ffmpeg" if writer_name == "ffmpeg"
                             else "video.không-có-ffmpeg"),
     }
 

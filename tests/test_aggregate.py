@@ -31,7 +31,7 @@ class TestResolvingTheMethod(unittest.TestCase):
 
     def test_a_share_is_recomputed_by_weight_when_there_is_one(self):
         info = sem.infer("Tỷ lệ bao phủ (%)", [51.3, 86.0], True)
-        info["cột_trọng_số"] = "Dân số"
+        info["weight_column"] = "Dân số"
         self.assertEqual(aggregate.resolve("auto", info), "weighted-mean")
 
     def test_a_share_asks_for_a_weighted_mean_even_before_a_weight_is_found(self):
@@ -44,7 +44,7 @@ class TestResolvingTheMethod(unittest.TestCase):
 
 
 class TestCombining(unittest.TestCase):
-    COLUMNS = ["tỉnh", "ca", "tỷ_lệ", "dân_số"]
+    COLUMNS = ["province", "ca", "tỷ_lệ", "dân_số"]
     ROWS = [["Hà Nội", 100, 60.0, 900_000],
             ["Hà Nội", 40, 90.0, 100_000],
             ["Huế", 25, 80.0, 500_000]]
@@ -55,7 +55,7 @@ class TestCombining(unittest.TestCase):
         self.share = sem.infer("Tỷ lệ (%)", [60.0, 90.0], True)
 
     def combine(self, column, info, method, weight=None):
-        return aggregate.combine(None, self.df, "tỉnh", column, info, method,
+        return aggregate.combine(None, self.df, "province", column, info, method,
                                  weight_column=weight)
 
     def test_counts_are_added(self):
@@ -90,16 +90,16 @@ class TestCombining(unittest.TestCase):
         on the column's dtype, and what matters is that it is not 0."""
         import pandas as pd
 
-        self.df = frame([["Hà Nội", None], ["Hà Nội", None]], ["tỉnh", "ca"])
-        out = aggregate.combine(None, self.df, "tỉnh", "ca", self.count, "sum")
+        self.df = frame([["Hà Nội", None], ["Hà Nội", None]], ["province", "ca"])
+        out = aggregate.combine(None, self.df, "province", "ca", self.count, "sum")
         self.assertTrue(pd.isna(out["Hà Nội"]))
         self.assertNotEqual(out["Hà Nội"], 0)
 
     def test_a_category_takes_the_most_frequent_group(self):
         self.df = frame([["Hà Nội", "Cao"], ["Hà Nội", "Cao"], ["Hà Nội", "Thấp"]],
-                        ["tỉnh", "mức"])
+                        ["province", "mức"])
         info = sem.infer("Mức ưu tiên", ["Cao", "Thấp"], False)
-        self.assertEqual(aggregate.combine(None, self.df, "tỉnh", "mức", info,
+        self.assertEqual(aggregate.combine(None, self.df, "province", "mức", info,
                                            "mode")["Hà Nội"], "Cao")
 
 
@@ -120,12 +120,12 @@ class TestReporting(unittest.TestCase):
         self.assertEqual(aggregate.describe("kỳ_lạ", info, None, "vi"), "kỳ_lạ")
 
     def test_duplicates_are_counted_so_the_user_can_be_told(self):
-        df = frame([["Hà Nội", 1], ["Hà Nội", 2], ["Huế", 3]], ["tỉnh", "ca"])
-        self.assertEqual(aggregate.duplicate_count(df, "tỉnh"), 1)
+        df = frame([["Hà Nội", 1], ["Hà Nội", 2], ["Huế", 3]], ["province", "ca"])
+        self.assertEqual(aggregate.duplicate_count(df, "province"), 1)
 
     def test_a_tidy_table_reports_no_duplicates(self):
-        df = frame([["Hà Nội", 1], ["Huế", 3]], ["tỉnh", "ca"])
-        self.assertEqual(aggregate.duplicate_count(df, "tỉnh"), 0)
+        df = frame([["Hà Nội", 1], ["Huế", 3]], ["province", "ca"])
+        self.assertEqual(aggregate.duplicate_count(df, "province"), 0)
 
 
 if __name__ == "__main__":

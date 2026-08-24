@@ -69,6 +69,6 @@ def build(deps, *, frame, periods: Sequence[Any],
     )
     webpage.stash(out_dir, name, payload)
     report = webpage.build(out_dir, webpage.SERIES) or {}
-    report["số_kỳ"] = len(periods)
-    report["số_đơn_vị_rê_chuột_được"] = len(shapes)
+    report["period_count"] = len(periods)
+    report["hoverable_units"] = len(shapes)
     return report

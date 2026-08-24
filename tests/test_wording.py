@@ -113,9 +113,9 @@ class TestNoFlagTokenReachesTheReader(unittest.TestCase):
 class TestTheMenu(unittest.TestCase):
     def test_the_current_value_leads_and_is_the_recommendation(self):
         offered = wording.options("classification", "natural-breaks", "vi")
-        self.assertEqual(offered[0]["giá_trị"], "natural-breaks")
-        self.assertTrue(offered[0]["khuyến_nghị"])
-        self.assertFalse(any(o["khuyến_nghị"] for o in offered[1:]))
+        self.assertEqual(offered[0]["value"], "natural-breaks")
+        self.assertTrue(offered[0]["recommended"])
+        self.assertFalse(any(o["recommended"] for o in offered[1:]))
 
     def test_it_stays_short_enough_to_read(self):
         for setting in wording.VALUES:
@@ -127,18 +127,18 @@ class TestTheMenu(unittest.TestCase):
         """``aggregate`` has nine values and a menu holds three; the one in use
         must not be the one that falls off the end."""
         offered = wording.options("aggregate", "first", "vi")
-        self.assertEqual(offered[0]["giá_trị"], "first")
+        self.assertEqual(offered[0]["value"], "first")
 
     def test_among_narrows_the_pool_to_what_applies(self):
         offered = wording.options("map_scope", "national", "vi",
                                   among=("national", "province-series"))
-        self.assertEqual({o["giá_trị"] for o in offered},
+        self.assertEqual({o["value"] for o in offered},
                          {"national", "province-series"})
 
     def test_every_option_carries_the_flag_that_would_set_it(self):
         for option in wording.options("layout", "report", "vi"):
-            self.assertEqual(option["cờ"],
-                             f"--layout {option['giá_trị']}")
+            self.assertEqual(option["flag"],
+                             f"--layout {option['value']}")
 
     def test_a_question_with_one_answer_is_not_asked(self):
         self.assertIsNone(wording.menu("map_scope", "national", "vi",
@@ -148,9 +148,9 @@ class TestTheMenu(unittest.TestCase):
     def test_the_menu_follows_the_conversation_language(self):
         previous = msg.use("en")
         try:
-            self.assertEqual(wording.options("language", "vi")[0]["nhãn"], "Vietnamese")
+            self.assertEqual(wording.options("language", "vi")[0]["label"], "Vietnamese")
             msg.use("vi")
-            self.assertEqual(wording.options("language", "vi")[0]["nhãn"], "Tiếng Việt")
+            self.assertEqual(wording.options("language", "vi")[0]["label"], "Tiếng Việt")
         finally:
             msg.use(previous)
 
@@ -180,40 +180,40 @@ class TestThePlanTable(unittest.TestCase):
     def plan(self, *, scope="national", prepared=None, method="sum",
              bins=DEFAULT_BINS, value_column="Tỷ lệ", **over):
         return self.cli._plan(self.args(**over), "a.xlsx", [1] * 34, value_column,
-                              scope, prepared or [{"tên": "toàn quốc"}], method, bins)
+                              scope, prepared or [{"name": "national"}], method, bins)
 
     def rows(self, numbered):
-        return {r["mục"]: r for r in numbered}
+        return {r["item"]: r for r in numbered}
 
     def test_no_row_shows_a_flag_value(self):
         _, numbered, _ = self.plan(map_type="choropleth-symbol", symbol_column="Số ca",
                                    method="weighted-mean")
         for row in numbered:
             for token in JARGON:
-                with self.subTest(row=row["mục"], token=token):
-                    self.assertNotIn(token, row["giá_trị"].lower())
+                with self.subTest(row=row["item"], token=token):
+                    self.assertNotIn(token, row["value"].lower())
 
     def test_a_csv_does_not_claim_to_have_a_sheet(self):
         _, numbered, _ = self.plan(sheet=None)
-        self.assertNotIn("sheet", self.rows(numbered)["Dữ liệu"]["giá_trị"])
+        self.assertNotIn("sheet", self.rows(numbered)["Dữ liệu"]["value"])
 
     def test_a_single_national_map_is_not_described_twice(self):
         _, numbered, _ = self.plan(scope="national")
-        self.assertEqual(self.rows(numbered)["Phạm vi bản đồ"]["giá_trị"],
+        self.assertEqual(self.rows(numbered)["Phạm vi bản đồ"]["value"],
                          "Một tấm toàn quốc")
 
     def test_a_series_names_the_maps_it_will_draw(self):
         _, numbered, _ = self.plan(scope="province-series",
-                                   prepared=[{"tên": "Hà Nội"}, {"tên": "Huế"}])
-        value = self.rows(numbered)["Phạm vi bản đồ"]["giá_trị"]
+                                   prepared=[{"name": "Hà Nội"}, {"name": "Huế"}])
+        value = self.rows(numbered)["Phạm vi bản đồ"]["value"]
         self.assertIn("2 tấm", value)
         self.assertIn("Hà Nội, Huế", value)
 
     def test_settings_the_skill_chose_are_marked_as_such(self):
         _, numbered, _ = self.plan(chosen_explicitly={"layout"})
         rows = self.rows(numbered)
-        self.assertNotIn("ghi_chú", rows["Bố cục"])
-        self.assertIn("ghi_chú", rows["Nhãn trên bản đồ"])
+        self.assertNotIn("note", rows["Bố cục"])
+        self.assertIn("note", rows["Nhãn trên bản đồ"])
 
     def test_the_headings_follow_the_conversation_language(self):
         msg.use("en")
@@ -222,11 +222,11 @@ class TestThePlanTable(unittest.TestCase):
 
     def test_the_unasked_settings_come_back_as_finished_questions(self):
         _, _, must_ask = self.plan()
-        self.assertEqual([q["mục"] for q in must_ask], ["language", "layout"])
+        self.assertEqual([q["item"] for q in must_ask], ["language", "layout"])
         for question in must_ask:
-            self.assertTrue(question["câu_hỏi"].endswith("?"))
-            self.assertGreaterEqual(len(question["lựa_chọn"]), 2)
-            self.assertTrue(question["lựa_chọn"][0]["khuyến_nghị"])
+            self.assertTrue(question["question"].endswith("?"))
+            self.assertGreaterEqual(len(question["choices"]), 2)
+            self.assertTrue(question["choices"][0]["recommended"])
 
     def test_a_setting_given_on_the_command_line_is_not_asked_about(self):
         _, _, must_ask = self.plan(chosen_explicitly={"language", "layout"})
@@ -234,9 +234,9 @@ class TestThePlanTable(unittest.TestCase):
 
     def test_the_map_type_menu_appears_only_when_both_channels_are_filled(self):
         _, with_both, _ = self.plan(map_type="choropleth-symbol", symbol_column="Số ca")
-        self.assertIn("lựa_chọn", self.rows(with_both)["Loại bản đồ"])
+        self.assertIn("choices", self.rows(with_both)["Loại bản đồ"])
         _, fill_only, _ = self.plan(symbol_column=None)
-        self.assertNotIn("lựa_chọn", self.rows(fill_only)["Loại bản đồ"])
+        self.assertNotIn("choices", self.rows(fill_only)["Loại bản đồ"])
 
     def test_no_menu_ever_offers_to_hide_the_units_without_data(self):
         """``matched-only`` turns "we surveyed 12 of 34 provinces" into a
@@ -244,26 +244,26 @@ class TestThePlanTable(unittest.TestCase):
         unreachable by menu."""
         for scope in ("national", "province-series", "single-province"):
             _, numbered, _ = self.plan(scope=scope,
-                                       prepared=[{"tên": "Hà Nội"}, {"tên": "Huế"}])
+                                       prepared=[{"name": "Hà Nội"}, {"name": "Huế"}])
             for row in numbered:
-                with self.subTest(scope=scope, row=row["mục"]):
+                with self.subTest(scope=scope, row=row["item"]):
                     self.assertNotIn("matched-only",
-                                     [o["giá_trị"] for o in row.get("lựa_chọn", [])])
+                                     [o["value"] for o in row.get("choices", [])])
 
     def test_the_menu_marks_the_resolved_value_rather_than_the_flag(self):
         """``--map-scope auto`` became a real framing; offering "auto" back as
         the current choice would offer the reader what they already have."""
         _, numbered, _ = self.plan(scope="province-series",
-                                   prepared=[{"tên": "Hà Nội"}, {"tên": "Huế"}])
-        offered = self.rows(numbered)["Phạm vi bản đồ"]["lựa_chọn"]
-        self.assertEqual(offered[0]["giá_trị"], "province-series")
-        self.assertTrue(offered[0]["khuyến_nghị"])
+                                   prepared=[{"name": "Hà Nội"}, {"name": "Huế"}])
+        offered = self.rows(numbered)["Phạm vi bản đồ"]["choices"]
+        self.assertEqual(offered[0]["value"], "province-series")
+        self.assertTrue(offered[0]["recommended"])
 
     def test_a_plan_with_no_classes_says_so_instead_of_breaking(self):
         _, numbered, _ = self.plan(bins={}, method="n/a")
         rows = self.rows(numbered)
-        self.assertEqual(rows["Chia nhóm màu"]["giá_trị"], "không áp dụng")
-        self.assertEqual(rows["Gộp dòng trùng"]["giá_trị"], "không áp dụng")
+        self.assertEqual(rows["Chia nhóm màu"]["value"], "không áp dụng")
+        self.assertEqual(rows["Gộp dòng trùng"]["value"], "không áp dụng")
 
     def test_the_hash_stands_for_what_the_reader_read(self):
         """Two plans that look identical to a reader must not unlock separately,
@@ -285,34 +285,34 @@ class TestTheFilePicker(unittest.TestCase):
         msg.use(self.previous)
 
     def files(self):
-        return [{"tệp": "a.xlsx", "sheet": [
-                    {"sheet": "Tỉnh", "dùng_được": True, "số_dòng_ước_tính": 34,
-                     "cấp_gợi_ý": "province"},
-                    {"sheet": "Ghi chú", "dùng_được": False}]},
-                {"tệp": "b.xlsx", "sheet": [
-                    {"sheet": "Xã", "dùng_được": True, "số_dòng_ước_tính": 1,
-                     "cấp_gợi_ý": "commune"}]}]
+        return [{"files": "a.xlsx", "sheet": [
+                    {"sheet": "Tỉnh", "usable": True, "estimated_rows": 34,
+                     "suggested_level": "province"},
+                    {"sheet": "Ghi chú", "usable": False}]},
+                {"files": "b.xlsx", "sheet": [
+                    {"sheet": "Xã", "usable": True, "estimated_rows": 1,
+                     "suggested_level": "commune"}]}]
 
     def test_only_the_sheets_that_can_become_a_map_are_offered(self):
         picked = self.cli._quick_pick(self.files())
-        self.assertEqual([o["sheet"] for o in picked["lựa_chọn"]][:2], ["Tỉnh", "Xã"])
+        self.assertEqual([o["sheet"] for o in picked["choices"]][:2], ["Tỉnh", "Xã"])
 
     def test_there_is_always_a_way_off_the_list(self):
         """input/ holds fixtures and other people's work. A menu with no exit
         invites someone to map a table that is not theirs."""
         picked = self.cli._quick_pick(self.files())
-        self.assertIsNone(picked["lựa_chọn"][-1]["tệp"])
-        self.assertEqual(picked["lựa_chọn"][-1]["số"], len(picked["lựa_chọn"]))
+        self.assertIsNone(picked["choices"][-1]["files"])
+        self.assertEqual(picked["choices"][-1]["number"], len(picked["choices"]))
 
     def test_each_option_says_what_is_in_it(self):
         picked = self.cli._quick_pick(self.files())
-        self.assertIn("34 dòng", picked["lựa_chọn"][0]["mô_tả"])
-        self.assertIn("xã/phường", picked["lựa_chọn"][1]["mô_tả"])
+        self.assertIn("34 dòng", picked["choices"][0]["description"])
+        self.assertIn("xã/phường", picked["choices"][1]["description"])
 
     def test_an_empty_folder_still_offers_the_way_off(self):
         picked = self.cli._quick_pick([])
-        self.assertEqual(len(picked["lựa_chọn"]), 1)
-        self.assertIsNone(picked["lựa_chọn"][0]["tệp"])
+        self.assertEqual(len(picked["choices"]), 1)
+        self.assertIsNone(picked["choices"][0]["files"])
 
 
 class TestCountedPhrases(unittest.TestCase):
@@ -401,22 +401,22 @@ class TestTheGateRefusesAPlanWithAQuestionStillOpen(unittest.TestCase):
 
     def test_no_code_comes_back_at_all(self):
         payload = self.render()
-        self.assertEqual(payload["trạng_thái"], "chờ_xác_nhận")
-        self.assertIsNone(payload["mã_xác_nhận"])
-        self.assertEqual([q["mục"] for q in payload["phải_hỏi"]], ["language", "layout"])
+        self.assertEqual(payload["status"], "awaiting_confirmation")
+        self.assertIsNone(payload["confirm_code"])
+        self.assertEqual([q["item"] for q in payload["must_ask"]], ["language", "layout"])
 
     def test_the_two_runs_would_otherwise_have_shared_a_code(self):
         """The heart of it. Answering the questions changes nothing a reader can
         see in the table, so the hash is identical — which is exactly why the
         hash alone could not be the thing that forces the question."""
         answered = self.render("--language", "vi", "--layout", "report")
-        self.assertEqual(answered["phải_hỏi"], [])
-        self.assertIsNotNone(answered["mã_xác_nhận"])
-        self.assertEqual([r["giá_trị"] for r in answered["phương_án"]],
-                         [r["giá_trị"] for r in self.render()["phương_án"]])
+        self.assertEqual(answered["must_ask"], [])
+        self.assertIsNotNone(answered["confirm_code"])
+        self.assertEqual([r["value"] for r in answered["settings"]],
+                         [r["value"] for r in self.render()["settings"]])
 
     def test_the_code_from_the_answered_run_does_not_unlock_the_unanswered_one(self):
-        code = self.render("--language", "vi", "--layout", "report")["mã_xác_nhận"]
+        code = self.render("--language", "vi", "--layout", "report")["confirm_code"]
         payload = self.render("--confirmed", code)
-        self.assertEqual(payload["trạng_thái"], "chờ_xác_nhận")
+        self.assertEqual(payload["status"], "awaiting_confirmation")
         self.assertFalse((self.REPO / "output" / self.FOLDER).exists())

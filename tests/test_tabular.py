@@ -241,8 +241,8 @@ class TestCoerceColumn(unittest.TestCase):
     def test_a_text_column_of_numbers_is_converted_and_reported(self):
         out, note = tabular.coerce_column(["1.234", "2.500", "-", "980"])
         self.assertEqual(out, [1234.0, 2500.0, None, 980.0])
-        self.assertEqual(note["số_ô_đã_đổi"], 3)
-        self.assertEqual(note["số_ô_không_đọc_được"], 0)
+        self.assertEqual(note["cells_changed"], 3)
+        self.assertEqual(note["unreadable_cells"], 0)
 
     def test_a_genuine_text_column_is_left_alone(self):
         self.assertIsNone(tabular.coerce_column(["Hà Nội", "Huế", "1.234"]))
@@ -251,8 +251,8 @@ class TestCoerceColumn(unittest.TestCase):
         result = tabular.coerce_column(["1.234"] * 19 + ["khoảng 500"])
         self.assertIsNotNone(result)
         _, note = result
-        self.assertEqual(note["số_ô_không_đọc_được"], 1)
-        self.assertEqual(note["ví_dụ_không_đọc_được"], ["khoảng 500"])
+        self.assertEqual(note["unreadable_cells"], 1)
+        self.assertEqual(note["unreadable_examples"], ["khoảng 500"])
 
     def test_an_empty_column_converts_nothing(self):
         self.assertIsNone(tabular.coerce_column([None, "", "-"]))
@@ -267,17 +267,17 @@ class TestUsability(unittest.TestCase):
         columns = ["Duplicate", "(All)"] + [f"Unnamed: {i}" for i in range(2, 20)]
         found = tabular.usability(columns, row_count=97, place_column=None)
         self.assertIsNotNone(found)
-        self.assertIn("không có tên", found["lý_do"])
-        self.assertIn("pivot", found["nên_làm"])
+        self.assertIn("không có tên", found["reason"])
+        self.assertIn("pivot", found["fix"])
 
     def test_a_sheet_with_no_rows_is_refused(self):
         found = tabular.usability(["A", "B"], row_count=0, place_column="A")
-        self.assertIn("không có dòng dữ liệu", found["lý_do"])
+        self.assertIn("không có dòng dữ liệu", found["reason"])
 
     def test_a_clean_sheet_with_no_place_column_is_refused_for_that_reason(self):
         found = tabular.usability(["Ngày", "Số ca"], row_count=50, place_column=None)
-        self.assertIn("tên tỉnh", found["lý_do"])
-        self.assertIn("--province-column", found["nên_làm"])
+        self.assertIn("tên tỉnh", found["reason"])
+        self.assertIn("--province-column", found["fix"])
 
 
 
@@ -291,43 +291,43 @@ class TestPlaceColumns(unittest.TestCase):
         rows = [["Ha Noi", 12], ["Hai Phong", 9], ["Thai Nguyen", 4]]
         found = tabular.place_columns(["SNU1", "Value"], rows,
                                       self.PROVINCES, self.COMMUNES)
-        self.assertEqual(found["tỉnh"], "SNU1")
-        self.assertIsNone(found["xã"])
+        self.assertEqual(found["province"], "SNU1")
+        self.assertIsNone(found["commune"])
 
     def test_a_name_that_is_both_does_not_make_a_commune_column(self):
         """'Hà Nội' is in both lists; that alone must not imply commune data."""
         rows = [["Ha Noi", 1], ["Hai Phong", 2]]
         found = tabular.place_columns(["Tỉnh", "Value"], rows,
                                       self.PROVINCES, self.COMMUNES)
-        self.assertIsNone(found["xã"])
+        self.assertIsNone(found["commune"])
 
     def test_a_commune_column_is_found_beside_a_province_column(self):
         rows = [["Hai Phong", "Cam Giang"], ["Hai Phong", "An Duong"],
                 ["Hai Phong", "Vinh Bao"]]
         found = tabular.place_columns(["SNU1", "SNU2"], rows,
                                       self.PROVINCES, self.COMMUNES)
-        self.assertEqual(found["tỉnh"], "SNU1")
-        self.assertEqual(found["xã"], "SNU2")
+        self.assertEqual(found["province"], "SNU1")
+        self.assertEqual(found["commune"], "SNU2")
 
     def test_a_column_of_something_else_is_not_a_place(self):
         rows = [["TX_CURR", 1], ["HTS_TST", 2], ["TX_NEW", 3]]
         found = tabular.place_columns(["Indicator", "Value"], rows,
                                       self.PROVINCES, self.COMMUNES)
-        self.assertIsNone(found["tỉnh"])
-        self.assertIsNone(found["xã"])
+        self.assertIsNone(found["province"])
+        self.assertIsNone(found["commune"])
 
     def test_one_place_repeated_is_one_piece_of_evidence(self):
         """Counting cells would let a single name outvote three wrong ones."""
         rows = [["Ha Noi", 1]] * 50 + [["Khong Phai", 2], ["Cung Khong", 3]]
         found = tabular.place_columns(["A", "Value"], rows,
                                       self.PROVINCES, self.COMMUNES)
-        self.assertIsNone(found["tỉnh"])
+        self.assertIsNone(found["province"])
 
     def test_blank_cells_are_not_counted_against_a_column(self):
         rows = [["Ha Noi", 1], [None, 2], ["", 3], ["Hai Phong", 4]]
         found = tabular.place_columns(["A", "Value"], rows,
                                       self.PROVINCES, self.COMMUNES)
-        self.assertEqual(found["tỉnh"], "A")
+        self.assertEqual(found["province"], "A")
 
 if __name__ == "__main__":
     unittest.main()
@@ -358,13 +358,13 @@ class TestTheCommuneBarIsOneNumber(unittest.TestCase):
         communes = {f"xa {i}" for i in range(10)} | {"binh chanh", "cu chi"}
         rows = [["Binh Chanh"], ["Cu Chi"], ["District 5"], ["District 10"]]
         found = tabular.place_columns(["SNU2"], rows, set(), communes)
-        self.assertIsNone(found["xã"])
+        self.assertIsNone(found["commune"])
 
     def test_a_real_commune_column_still_clears_it(self):
         communes = {"cam giang", "an duong", "vinh bao", "tan hoa"}
         rows = [["Cam Giang"], ["An Duong"], ["Vinh Bao"], ["Tan Hoa"]]
         found = tabular.place_columns(["Xã/phường"], rows, set(), communes)
-        self.assertEqual(found["xã"], "Xã/phường")
+        self.assertEqual(found["commune"], "Xã/phường")
 
 
 class TestASheetHoldingTwoTables(unittest.TestCase):
@@ -405,8 +405,8 @@ class TestASheetHoldingTwoTables(unittest.TestCase):
     def test_the_second_table_is_reported(self):
         path = self.workbook({"S": self.TWO})
         found = self.cli._tables_in_sheet(path, "S")
-        self.assertEqual(found["số_bảng_trong_sheet"], 2)
-        self.assertEqual(len(found["vị_trí_các_bảng"]), 2)
+        self.assertEqual(found["tables_in_sheet"], 2)
+        self.assertEqual(len(found["table_positions"]), 2)
 
     def test_one_table_says_nothing(self):
         path = self.workbook({"S": self.ONE})
@@ -414,10 +414,10 @@ class TestASheetHoldingTwoTables(unittest.TestCase):
 
     def test_it_looks_at_the_sheet_it_was_given(self):
         """Two sheets, one tidy and one not; the answer must follow the name."""
-        path = self.workbook({"gọn": self.ONE, "lộn xộn": self.TWO})
-        self.assertEqual(self.cli._tables_in_sheet(path, "gọn"), {})
+        path = self.workbook({"compact": self.ONE, "lộn xộn": self.TWO})
+        self.assertEqual(self.cli._tables_in_sheet(path, "compact"), {})
         self.assertEqual(
-            self.cli._tables_in_sheet(path, "lộn xộn")["số_bảng_trong_sheet"], 2)
+            self.cli._tables_in_sheet(path, "lộn xộn")["tables_in_sheet"], 2)
 
     def test_a_delimited_file_has_no_second_table_to_find(self):
         csv = self.folder / "flat.csv"
@@ -464,10 +464,10 @@ class TestASheetHoldingTwoTables(unittest.TestCase):
         finally:
             shutil.rmtree(repo / "output" / folder, ignore_errors=True)
 
-        self.assertIn("nhiều_bảng_trong_sheet", report)
-        self.assertEqual(report["nhiều_bảng_trong_sheet"]["số_bảng_trong_sheet"], 2)
-        self.assertTrue(any(n.get("việc") == "nhiều_bảng"
-                            for n in report.get("cách_đọc_sheet", [])))
+        self.assertIn("many_tables_in_sheet", report)
+        self.assertEqual(report["many_tables_in_sheet"]["tables_in_sheet"], 2)
+        self.assertTrue(any(n.get("action") == "many_tables"
+                            for n in report.get("sheet_reading", [])))
 
 
 if __name__ == "__main__":
