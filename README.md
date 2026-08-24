@@ -1,9 +1,9 @@
 # easy-map
 
-Turn a spreadsheet of Vietnamese health data into a print-ready map, by
-describing what you want. No GIS knowledge needed: the skill reads the data,
-recommends how to show it, warns about choices that would mislead, and draws
-nothing until you have agreed to a numbered plan.
+Turn a spreadsheet of figures by place into a print-ready map, by describing
+what you want. No GIS knowledge needed: the skill reads the data, recommends how
+to show it, warns about choices that would mislead, and draws nothing until you
+have agreed to a numbered plan.
 
 <p align="center">
   <!-- Served from github.com rather than raw.githubusercontent.com. A
@@ -17,10 +17,25 @@ nothing until you have agreed to a numbered plan.
   <sub>One request, drawn from <b>simulated</b> data.</sub>
 </p>
 
-**Vietnam only**, at the two tiers left by the 2025 reform to a two-tier local
-government model: **province** and **commune**. The district tier the reform
-abolished is not supported; district figures can only be aggregated up to
-province.
+**Vietnam ships with it**, at the two tiers left by the 2025 reform to a
+two-tier local government model: **province** and **commune**. The district tier
+the reform abolished is not supported; district figures can only be aggregated
+up to province.
+
+**Any other country works too**, by dropping its boundary files into a folder:
+
+```text
+shapefiles/
+├── viet-nam/{province,commune}/
+└── united-states/state/
+```
+
+A tier folder takes one dataset, as `.shp`, `.geojson`, `.json` or `.kml`. The
+folder names are yours — which tier is the coarser one is decided by counting
+units, not by reading the name — and a country with a single tier is drawn at
+the tier it has. Boundaries from **GADM** and **geoBoundaries** are read
+directly; anything else has its name column worked out from the data, and the
+skill says what it concluded and how sure it is.
 
 ## What you get
 
@@ -92,11 +107,20 @@ automated tests.
 
 ## Limitations
 
-- **Post-reform Vietnam only.** No other country, and no district tier.
+- **The bundled boundaries are post-reform Vietnam.** Other countries work, but
+  you supply the files.
+- **The offshore inset is Vietnam's.** Hoàng Sa and Trường Sa go in a corner box
+  because a meridian measured for Vietnam puts them there. No such box is placed
+  automatically for another country's distant territory — the skill warns when
+  the frame has stretched to hold it and says how much of the page was lost, but
+  it will not decide the framing for you.
+- **Place-name prefixes are Vietnamese.** "Xã Alder" normalises; "Alder
+  District" does not.
 - **Not evaluated with users.** Everything above is what the tool does, not
   what it has been shown to change.
 - A series crossing the 2025 boundary needs the `sap_nhap` field in the
-  shapefile; without it, older province names will not join.
+  shapefile; without it, older province names will not join. That field is
+  Vietnam's alone — no other source carries a merger history.
 - Your spreadsheet is read by an AI assistant, so its contents leave your
   machine. The drawing itself runs locally.
 
@@ -104,7 +128,14 @@ automated tests.
 
 The repository ships **no data**. `tools/generate_*.py` builds simulated
 datasets to try the skill on; they are not for reporting or programme
-decisions.
+decisions. `tools/generate_fixture_country.py` builds an invented country used
+to check that nothing in the engine is quietly wired to Vietnam.
+
+Where to find boundaries for another country: [GADM](https://gadm.org) covers
+most of the world but **forbids redistribution**, so keep those files to
+yourself. [geoBoundaries](https://www.geoboundaries.org) is open under ODbL 1.0.
+A shapefile from either may arrive without a `.cpg` file, in which case accented
+names decode wrongly — the skill detects that, repairs it, and tells you.
 
 ## Licence
 

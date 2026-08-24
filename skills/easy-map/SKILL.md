@@ -1,6 +1,6 @@
 ---
 name: easy-map
-description: "Turn an Excel dataset in a project's input folder into a print-ready Vietnam GIS map using the project's province and commune shapefiles. Vietnam only, and only the two tiers that exist after the 2025 reform to a two-tier local government model: province and commune, with no district tier. Use when a user wants a map of Vietnamese administrative data and does not know GIS - the skill reads and interprets the dataset first, recommends a scientifically sound map in plain language, matches place names without requiring admin codes, warns about misleading choices, and renders print-ready PNG maps plus a self-contained interactive HTML page into a timestamped output folder. Also use when an experienced user states directly what map they want."
+description: "Turn a spreadsheet into a print-ready administrative map, for someone who does not know GIS. Works for any country whose boundary files are installed - Vietnam ships with the skill at province and commune level, and others are added by dropping a shapefile, GeoJSON or KML into a folder. The skill reads and interprets the dataset first, recommends a scientifically sound map in plain language, matches place names without requiring admin codes, warns about misleading choices, and renders print-ready PNG maps plus a self-contained interactive HTML page into a timestamped output folder. The map can be lettered in any language. Also use when an experienced user states directly what map they want."
 ---
 
 # Easy Map
@@ -38,7 +38,7 @@ they wanted. These six come before every other instruction in this file.
 
 ## What this skill is for
 
-Someone has an Excel file of Vietnamese data. They want a map that is **beautiful, scientifically correct, and immediately usable** in a report or a slide deck. They may know nothing about GIS, statistics, or map design.
+Someone has an Excel file of figures by place. They want a map that is **beautiful, scientifically correct, and immediately usable** in a report or a slide deck. They may know nothing about GIS, statistics, or map design.
 
 Your job is to be the analyst they do not have. Read their data first, work out what it is about, then guide them with a small number of plain questions.
 
@@ -152,10 +152,56 @@ question: print all of it at once, then ask about the rows in `phải_hỏi`.
 ## Project layout
 
 - `input/` — datasets: `.xlsx`, `.xlsm`, `.xls`, and `.csv` / `.tsv` / `.txt`
-- `shapefiles/provinces/` and `shapefiles/communes/` — Vietnam, 34 provinces and ~3.300 communes
+- `shapefiles/<country>/<tier>/` — one folder per country, one per tier inside it. Vietnam ships as `viet-nam/province/` (34) and `viet-nam/commune/` (~3.300)
 - `output/` — one timestamped folder per render job
 - `.easy-map/` — remembered choices and confirmed name corrections
 - `tools/generate_complex_demo.py` — rebuilds the test workbook; not part of a normal run
+
+## Which country, and which tier
+
+Run `list` first when you do not already know. It reports every country
+installed, every tier inside it, how many units each holds, and what the engine
+read the boundary files to be.
+
+**One country installed → say nothing.** Commands find it on their own.
+**More than one → every command needs `--country <folder>`**, and a command
+without it is refused with the list of names. Do not guess on the user's behalf;
+the folder names are theirs and one of them may be an old copy.
+
+**Tier folder names are the country's own.** `--admin-level` takes either the
+role — `province` for the coarser tier, `commune` for the finer — or the
+folder's own name, so a United States boundary set answers to both `province`
+and `state`. Which folder is the coarser one is decided by counting units, never
+by the name.
+
+A country may have only one tier, and that is not an error: it is drawn at the
+tier it has.
+
+### What `list` tells you about a country, and when to act on it
+
+Each country carries the reading the engine made of its boundary files, with the
+evidence beside it. Read the evidence, not the confidence word:
+
+- `nhận_diện.bộ` — which scheme the files are in: `viet-nam`, `gadm`,
+  `geoboundaries`, or `generic` where nothing matched and the name column was
+  worked out from the values.
+- `cha_con.bằng_chứng` — how well the finer tier's parent names line up with the
+  coarser tier. `3321/3321` needs no comment. `26/34` is worth stopping for.
+- `nhận_diện.độ_tin_cậy` of `phải hỏi` means two columns looked equally like the
+  name column. Ask which one before drawing; picking wrong labels every unit on
+  the map with the wrong string and nothing downstream notices.
+
+### Boundary files the engine repairs or refuses
+
+- A shapefile with no `.cpg` has its text decoded wrongly — `Québec` arrives as
+  `QuÃ©bec`. The engine detects and repairs this, and reports it under
+  `sửa_bảng_mã_ranh_giới`. **Tell the user it happened**, because place names on
+  their map changed.
+- Two datasets in one tier folder is refused by name. So is a `.shp` without its
+  `.shx` and `.dbf`.
+- A GADM download holds four files and the first is the outline of the whole
+  country. It is recognised and given no tier role, but it is tidier not to
+  unpack it into a tier folder at all.
 
 ## First: where is the data?
 
@@ -604,9 +650,43 @@ opposite (`35,156`, `99.74%`). This applies to the legend, the labels, the
 subtitle, the scale bar and the interactive page's hover box alike, so one plate
 never gives the same character two meanings.
 
+### `--map-text KEY=VALUE` — any other language
+
+Vietnamese and English are built in because they are the two the *warnings* are
+written in. The map itself is not limited to them. `--map-text` replaces any
+one of those generated strings, repeatable, so a map for a Lao ministry or a
+Romanian county council is a matter of passing the sentences:
+
+```bash
+--map-text "no_data=Fără date" --map-text "method_symbol=Aria cercului este proporțională cu numărul." --map-text "thousands= " --map-text "decimal=,"
+```
+
+The keys are the ones `list` and the error message name; `thousands` and
+`decimal` are among them, so a language that groups with a space can say so. A
+key that does not exist is refused by name — accepted silently, a typo would
+leave the map in the built-in language while the run reported the text had been
+set.
+
+**When to reach for it.** Only when the user wants the map in a language that is
+neither Vietnamese nor English. Ask them for the sentences rather than
+translating yourself: these are the phrases a ministry will read, and your
+translation is not reviewable by anyone in the conversation.
+
+### Which language to offer
+
+`render`'s plan carries `gợi_ý_ngôn_ngữ` when it has anything to say. It reports
+two sources separately — what the machine is set to, and the language of the
+country whose boundaries are being drawn — because they disagree often: somebody
+writing to you in English very often wants a Vietnamese map for a Vietnamese
+health department.
+
+It is a suggestion for the question you ask, never an answer. Where the two
+agree there is one obvious option; where they differ, offer both. The user may
+also name a language neither mentioned, and `--map-text` is how you honour that.
+
 Three things the script will **not** translate, because they are not its text to translate:
 
-- **Place names.** A Vietnamese commune keeps its Vietnamese name on an English map. That is correct cartographic practice, not a gap.
+- **Place names.** A Vietnamese commune keeps its Vietnamese name on an English map, and a Romanian judeţ keeps its Romanian one. That is correct cartographic practice, not a gap.
 - **The title.** Pass `--title` in the chosen language.
 - **Legend titles**, which default to the Excel column headings. On an English map, pass `--legend-title` and `--symbol-legend-title` yourself, otherwise the legend will still read "Bao phủ 2026 (%)" on an otherwise English page.
 
@@ -640,7 +720,14 @@ MP4 needs ffmpeg. Without it the run falls back to GIF and says so in the result
 
 Say plainly what animation costs: a viewer cannot compare a frame against one they saw three seconds ago. If the user's real question is "which provinces changed most", a change map or several maps side by side answers it better. Offer that once; if they still want video, build the video.
 
-## Provinces before and after the 2025 merger
+## Provinces before and after the 2025 merger — Vietnam only
+
+Everything in this section is about Vietnam and only Vietnam. The merger history
+lives in a column called `sap_nhap` that no other boundary source carries, so
+the engine offers this conversion where it finds that column and nowhere else.
+For any other country, a table reported on units that no longer exist is a
+matching problem like any other: it shows up in the review as unmatched rows,
+and the user has to say what they want done.
 
 Vietnam went from 63 provinces to 34 in 2025. Any series that starts earlier is reported on names that do not exist on the map, and those rows would silently disappear from the join.
 
@@ -676,12 +763,21 @@ python skills/easy-map/scripts/easy_map.py fix-match --project-root . --admin-le
 
 Let `--map-scope auto` decide unless the user asks otherwise:
 
-- province-level data → national map of all 34 provinces
+- coarse-tier data → one national map of every unit at that tier
 - commune data in one province → that province's full commune set, with no-data communes kept as context
 - commune data in a few provinces (≤5) → one map per province, sharing one colour scale and one symbol scale
 - commune data spread wider → national commune map
 
 The figure size is computed from the shape of the area, so a tall province gets a tall page and a wide one gets a wide page. Do not force 16:9.
+
+**A country with land far from its main body will warn.** Vietnam's map carries
+Hoàng Sa and Trường Sa in a corner box, which is why its frame is tight. Where a
+country has distant territory and no such box is drawn, the frame stretches to
+hold it and the part the reader came for shrinks — the United States framed from
+the Aleutians to Maine leaves the lower 48 with 43% of the page width. The
+engine says so, with that number. Relay it: the answer is usually to draw the
+main body on its own, but it is the user's call, because sometimes the distant
+territory is exactly what the map is about.
 
 **One request, one `render`, and no maps nobody asked for.** The scope you agree
 in the plan is the whole job: `auto` already returns every map the request needs
@@ -774,6 +870,14 @@ Render after the user confirms the match review, into the same folder:
 
 ```bash
 uv run --with pandas --with openpyxl --with geopandas --with matplotlib --with mapclassify --with rapidfuzz python skills/easy-map/scripts/easy_map.py render --project-root . --run-folder 2026-08-05_14-30-00 --excel "input/example.xlsx" --sheet "Sheet1" --admin-level commune --province-column "Tỉnh/thành phố" --commune-column "Xã/phường" --map-type choropleth-symbol --value-column "Bao phủ 2026 (%)" --symbol-column "Số ca phát hiện 2026" --layout report --language vi --title "..."
+```
+
+With more than one country installed, every command that touches boundaries —
+`survey`, `profile`, `render`, `fix-match` — needs `--country`, and the tier can
+be named the country's own way:
+
+```bash
+uv run --with pandas --with openpyxl --with geopandas --with matplotlib --with mapclassify --with rapidfuzz python skills/easy-map/scripts/easy_map.py render --project-root . --country united-states --run-folder 2026-08-05_14-30-00 --excel "input/example.csv" --admin-level state --province-column "State" --value-column "Positive" --layout report --language en --title "..."
 ```
 
 On Windows, keep uv's cache inside the project if it lacks permissions elsewhere:

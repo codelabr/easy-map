@@ -1,27 +1,28 @@
 name: easy-map
 description: >-
-  Turn a table of figures into a Vietnamese GIS map at province or commune level
-  in a consistent publication style. Vietnam only, and only the two tiers left by
-  the 2025 reform to a two-tier local government model: province and commune,
-  with no district tier. For someone who knows nothing about GIS. Accepts a
-  file attached to the conversation, a table pasted into it, or a file already in
-  input/ (.xlsx, .xlsm, .xls, .csv). Reads and interprets the data before asking
-  anything, recommends a map type in plain language, matches place names without
-  administrative codes, warns about choices that would mislead, then writes PNG
-  images and a self-contained interactive HTML page into a timestamped folder
-  under output/. Converses in Vietnamese or English, and letters the map in
-  either, as two separate settings.
+  Turn a table of figures into an administrative map in a consistent publication
+  style, for someone who knows nothing about GIS. Works for any country whose
+  boundary files are installed: Vietnam ships with the skill at province and
+  commune level, and another country is added by dropping a shapefile, GeoJSON
+  or KML into a folder of its own. Accepts a file attached to the conversation,
+  a table pasted into it, or a file already in input/ (.xlsx, .xlsm, .xls,
+  .csv). Reads and interprets the data before asking anything, recommends a map
+  type in plain language, matches place names without administrative codes,
+  warns about choices that would mislead, then writes PNG images and a
+  self-contained interactive HTML page into a timestamped folder under output/.
+  Converses in Vietnamese or English; the map itself can be lettered in any
+  language.
   ——
-  Biến bảng số liệu thành bản đồ GIS Việt Nam cấp tỉnh hoặc cấp xã theo một
-  phong cách trình bày thống nhất. Chỉ dùng cho Việt Nam, và chỉ hai cấp còn lại
-  sau khi chuyển sang mô hình chính quyền địa phương 2 cấp năm 2025: cấp tỉnh và
-  cấp xã, không có cấp huyện. Dành cho người không biết gì về GIS. Nhận tệp người dùng đính
-  kèm vào cuộc trò chuyện, bảng dán trực tiếp, hoặc tệp có sẵn trong input/
-  (.xlsx, .xlsm, .xls, .csv). Đọc hiểu dữ liệu trước khi hỏi, đề xuất loại bản đồ
-  phù hợp bằng ngôn ngữ thường ngày, ghép tên địa danh không cần mã hành chính,
-  cảnh báo khi lựa chọn sai về bản đồ học, rồi xuất ảnh PNG kèm một trang HTML
-  tương tác tự chứa vào thư mục output/ theo dấu thời gian của yêu cầu. Trò
-  chuyện được bằng tiếng Việt hoặc tiếng Anh, và in chữ trên bản đồ theo ngôn ngữ
-  chọn riêng.
+  Biến bảng số liệu thành bản đồ hành chính theo một phong cách trình bày thống
+  nhất, dành cho người không biết gì về GIS. Dùng được cho bất kỳ quốc gia nào
+  đã cài dữ liệu ranh giới: Việt Nam đi kèm sẵn ở cấp tỉnh và cấp xã, quốc gia
+  khác chỉ cần thả tệp shapefile, GeoJSON hoặc KML vào một thư mục riêng. Nhận
+  tệp người dùng đính kèm vào cuộc trò chuyện, bảng dán trực tiếp, hoặc tệp có
+  sẵn trong input/ (.xlsx, .xlsm, .xls, .csv). Đọc hiểu dữ liệu trước khi hỏi,
+  đề xuất loại bản đồ phù hợp bằng ngôn ngữ thường ngày, ghép tên địa danh không
+  cần mã hành chính, cảnh báo khi lựa chọn sai về bản đồ học, rồi xuất ảnh PNG
+  kèm một trang HTML tương tác tự chứa vào thư mục output/ theo dấu thời gian
+  của yêu cầu. Trò chuyện bằng tiếng Việt hoặc tiếng Anh; chữ in trên bản đồ thì
+  ngôn ngữ nào cũng được.
 instructions: SKILL.md
 entrypoint: scripts/easy_map.py
