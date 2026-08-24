@@ -88,6 +88,54 @@ class TestEveryValueTheCommandAcceptsHasWords(unittest.TestCase):
                     self.assertTrue(wording.field(name, lang).strip())
 
 
+class TestWhenAPlaceColumnIsRequired(unittest.TestCase):
+    """The guard that turns ``KeyError: None`` into a sentence.
+
+    Its first version was one condition written inline, and it blocked the one
+    run that legitimately has no place column — a point map placed from
+    coordinates. Every test in this project stayed green while it did, which is
+    why the rule now has a name and this class.
+    """
+
+    def args(self, **over):
+        import argparse
+
+        base = dict(map_type="choropleth", admin_level="province",
+                    province_column=None, commune_column=None)
+        base.update(over)
+        return argparse.Namespace(**base)
+
+    def setUp(self):
+        self.cli = context.cli()
+
+    def test_a_map_with_no_place_column_is_stopped(self):
+        for level in ("province", "commune"):
+            self.assertTrue(self.cli._needs_place_column(
+                self.args(admin_level=level)), level)
+
+    def test_naming_the_column_satisfies_it(self):
+        self.assertFalse(self.cli._needs_place_column(
+            self.args(province_column="Tỉnh")))
+        self.assertFalse(self.cli._needs_place_column(
+            self.args(admin_level="commune", commune_column="Xã")))
+
+    def test_a_commune_column_alone_is_not_enough_at_province_level(self):
+        """The parent name is what a province map joins on."""
+        self.assertTrue(self.cli._needs_place_column(
+            self.args(admin_level="province", commune_column="Xã")))
+
+    def test_a_point_map_from_coordinates_needs_no_place_column(self):
+        """The case the first guard broke. ``command_render`` calls it
+        ``coordinates_only`` and does no name matching for it at all."""
+        self.assertFalse(self.cli._needs_place_column(self.args(map_type="point")))
+
+    def test_a_point_map_that_does_name_places_is_still_checked(self):
+        """Naming one column and not the other is the mistake, not the mode."""
+        self.assertTrue(self.cli._needs_place_column(
+            self.args(map_type="point", admin_level="province",
+                      commune_column="Xã")))
+
+
 class TestNoFlagTokenReachesTheReader(unittest.TestCase):
     def test_no_label_or_sentence_carries_command_line_vocabulary(self):
         for setting, values in wording.VALUES.items():

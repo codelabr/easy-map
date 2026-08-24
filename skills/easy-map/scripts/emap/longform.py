@@ -391,11 +391,11 @@ def parse_where(expressions: Sequence[str]) -> list[tuple[str, str]]:
     for raw in expressions or []:
         text = str(raw)
         if "=" not in text:
-            raise ValueError(f"--where cần dạng CỘT=GIÁ_TRỊ, nhận được: {raw!r}")
+            raise ValueError(msg.text("error.where-bad-format", given=repr(raw)))
         column, _, value = text.partition("=")
         column, value = column.strip(), value.strip()
         if not column:
-            raise ValueError(f"--where thiếu tên cột: {raw!r}")
+            raise ValueError(msg.text("error.where-missing-column", given=repr(raw)))
         out.append((column, value))
     return out
 

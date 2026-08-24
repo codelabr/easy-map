@@ -14,6 +14,7 @@ they walk it from the *code* side too: every id the engine asks for must exist.
 from __future__ import annotations
 
 import ast
+import re
 import unittest
 from pathlib import Path
 
@@ -96,6 +97,42 @@ class TestEveryEntryHasBothLanguages(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertNotEqual(_forms(entry["vi"]), _forms(entry["en"]),
                                     f"{key} looks untranslated")
+
+
+class TestNoStopCarriesItsOwnSentence(unittest.TestCase):
+    """A rule, not an example: no ``raise`` in the engine may hold a sentence.
+
+    Thirty-two of them did, so ``--messages en`` answered every one of those
+    stops in Vietnamese — and a stop is the message a person is most likely to
+    read. The measurement that found it is kept here as the guard, because the
+    same mistake is one convenient f-string away at any time.
+    """
+
+    #: a Vietnamese letter no English word carries
+    ACCENTS = re.compile(
+        "[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]",
+        re.I)
+
+    def test_no_raise_in_the_engine_holds_vietnamese_prose(self):
+        engine = Path(__file__).resolve().parents[1] / "skills/easy-map/scripts"
+        offenders = []
+        for path in sorted(engine.rglob("*.py")):
+            if "__pycache__" in str(path) or path.name == "messages.py":
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not (isinstance(node, ast.Raise)
+                        and isinstance(node.exc, ast.Call)):
+                    continue
+                for piece in ast.walk(node.exc):
+                    if not (isinstance(piece, ast.Constant)
+                            and isinstance(piece.value, str)):
+                        continue
+                    text = piece.value
+                    # a message id is one token; a sentence has spaces in it
+                    if self.ACCENTS.search(text) and " " in text.strip():
+                        offenders.append(f"{path.name}:{node.lineno} {text[:60]}")
+        self.assertEqual(offenders, [])
 
 
 class TestEveryKeyTheCodeAsksForExists(unittest.TestCase):

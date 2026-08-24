@@ -67,13 +67,16 @@ WHAT, WHY, FIX = "problem", "why", "fix"
 #: sits beside the plural form rather than in a rule engine: there are two
 #: languages here, not forty, and a sentence a reader can check beats a rule they
 #: cannot. Vietnamese entries carry no override, which is not an omission.
-ONE = "một"
+ONE = "one"
 
 
 #: Sentence fragments that are glued into a larger sentence rather than standing
 #: on their own. Kept here so a clause does not end up in one language inside a
 #: sentence in the other.
 FRAGMENTS: dict[str, dict[str, str]] = {
+    "tử-số": {"vi": "tử số", "en": "numerator"},
+    "mẫu-số": {"vi": "mẫu số", "en": "denominator"},
+
     "cot-dia-danh-xa": {
         "vi": "Cột địa danh cấp xã ",
         "en": "The commune name column ",
@@ -1295,6 +1298,143 @@ TEXT: dict[str, dict[str, str]] = {
     },
 
     # --- hard stops the user has to act on --------------------------------
+    # --- stops written where they happen ---------------------------------
+    # These 32 sentences used to sit in the modules that raise them, which meant
+    # --messages en answered every one of them in Vietnamese. A stop is the
+    # message a person is most likely to read, so it is the last place to leave
+    # untranslated.
+    "error.place-column-required": {
+        "vi": "Cần {flag} để biết cột nào chứa địa danh cấp {level}. "
+              "Chạy 'profile' trước để engine đề xuất cột.",
+        "en": "{flag} is needed to say which column holds the {level} place names. "
+              "Run 'profile' first and the engine will suggest one.",
+    },
+    "error.workbook-not-found": {
+        "vi": "Không tìm thấy workbook: {file}",
+        "en": "No such workbook: {file}",
+    },
+    "error.where-unknown-column": {
+        "vi": "--where trỏ vào cột không có: {column}. Các cột hiện có: {available}",
+        "en": "--where names a column that is not there: {column}. Columns present: {available}",
+    },
+    "error.where-no-rows": {
+        "vi": "--where '{column}={value}' không khớp dòng nào. Giá trị đang có: {near}",
+        "en": "--where '{column}={value}' matches no rows. Values present: {near}",
+    },
+    "error.where-empty-result": {
+        "vi": "Sau khi lọc --where không còn dòng nào.",
+        "en": "The --where filters leave no rows.",
+    },
+    "error.where-bad-format": {
+        "vi": "--where cần dạng CỘT=GIÁ_TRỊ, nhận được: {given}",
+        "en": "--where takes COLUMN=VALUE; received: {given}",
+    },
+    "error.where-missing-column": {
+        "vi": "--where thiếu tên cột: {given}",
+        "en": "--where has no column name: {given}",
+    },
+    "error.layer-unknown-column": {
+        "vi": "--layer trỏ vào cột không có: {column}. Các cột hiện có: {available}",
+        "en": "--layer names a column that is not there: {column}. Columns present: {available}",
+    },
+    "error.layer-value-not-in-column": {
+        "vi": "--layer '{value}' không có trong cột {column}. Giá trị gần đúng: {near}",
+        "en": "--layer '{value}' does not appear in column {column}. Nearest values: {near}",
+    },
+    "error.layer-slice-unknown-column": {
+        "vi": "Lát của --layer '{layer}' trỏ vào cột không có: {column}",
+        "en": "The slice on --layer '{layer}' names a column that is not there: {column}",
+    },
+    "error.indicator-column-unknown": {
+        "vi": "--indicator-column trỏ vào cột không có: {column}. Các cột hiện có: {available}",
+        "en": "--indicator-column names a column that is not there: {column}. "
+              "Columns present: {available}",
+    },
+    "error.indicator-column-required": {
+        "vi": "Cần --indicator-column (hoặc --ratio-column) để biết cột nào chứa tên chỉ số.",
+        "en": "--indicator-column (or --ratio-column) is needed to say which column "
+              "holds the indicator names.",
+    },
+    "error.long-table-needs-value-column": {
+        "vi": "Bảng dạng dài cần --value-column trỏ vào cột chứa số.",
+        "en": "A long table needs --value-column pointing at the column of numbers.",
+    },
+    "error.no-rows-for-indicator": {
+        "vi": "Không có dòng nào cho {label} '{value}'. Giá trị đang có: {near}",
+        "en": "No rows for the {label} '{value}'. Values present: {near}",
+    },
+    "error.slice-unknown-column": {
+        "vi": "Lát của '{indicator}' trỏ vào cột không có: {column}",
+        "en": "The slice on '{indicator}' names a column that is not there: {column}",
+    },
+    "error.slice-no-rows": {
+        "vi": "Lát '{column}={value}' không khớp dòng nào của '{indicator}'. "
+              "Giá trị đang có: {near}",
+        "en": "The slice '{column}={value}' matches no rows of '{indicator}'. "
+              "Values present: {near}",
+    },
+    "error.ratio-needs-both": {
+        "vi": "Chế độ tỷ số cần đủ --numerator và --denominator.",
+        "en": "Ratio mode needs both --numerator and --denominator.",
+    },
+    "error.point-colour-column-unknown": {
+        "vi": "--point-color-column trỏ vào cột không có: {column}",
+        "en": "--point-color-column names a column that is not there: {column}",
+    },
+    "error.point-size-column-unknown": {
+        "vi": "--point-size-column trỏ vào cột không có: {column}",
+        "en": "--point-size-column names a column that is not there: {column}",
+    },
+    "error.no-unit-with-shape-id": {
+        "vi": "Không có đơn vị nào mang shape_id={shape_id}",
+        "en": "No unit carries shape_id={shape_id}",
+    },
+    "error.animation-needs-period-column": {
+        "vi": "Bản đồ video cần --period-column để biết đâu là trục thời gian.",
+        "en": "A map over time needs --period-column to say which column is the time axis.",
+    },
+    "error.animation-needs-two-periods": {
+        # English inflects around the count and Vietnamese does not, so the
+        # singular is a variant here rather than a string built in the caller.
+        "vi": "Cột '{column}' chỉ có {count} kỳ; cần ít nhất 2 kỳ để dựng video.",
+        "en": {ONE: "Column '{column}' holds only {count} period; at least 2 are "
+                    "needed to build a map over time.",
+               "many": "Column '{column}' holds only {count} periods; at least 2 "
+                       "are needed to build a map over time."},
+    },
+    "error.no-values-after-periods": {
+        "vi": "Không còn giá trị nào sau khi ghép địa danh và tách kỳ.",
+        "en": "No values are left once the place names are matched and the periods split.",
+    },
+    "error.no-rows-matched": {
+        "vi": "Không ghép được dòng nào với bản đồ. Xem lại {file}.",
+        "en": "No row could be matched to the map. Look at {file}.",
+    },
+    "error.change-needs-two-columns": {
+        "vi": "Bản đồ thay đổi cần cả --baseline-column và --comparison-column.",
+        "en": "A change map needs both --baseline-column and --comparison-column.",
+    },
+    "error.graduated-needs-symbol-column": {
+        "vi": "Bản đồ ký hiệu tỷ lệ cần --symbol-column.",
+        "en": "A proportional-symbol map needs --symbol-column.",
+    },
+    "error.needs-value-column": {
+        "vi": "Cần --value-column (hoặc --category-column) cho loại bản đồ này.",
+        "en": "This kind of map needs --value-column (or --category-column).",
+    },
+    "error.point-needs-coordinates": {
+        "vi": "Bản đồ điểm cần cột kinh độ và vĩ độ. Chỉ định --lon-column và --lat-column.",
+        "en": "A point map needs a longitude and a latitude column. "
+              "Name them with --lon-column and --lat-column.",
+    },
+    "error.no-rows-with-coordinates": {
+        "vi": "Không có dòng nào có đủ toạ độ trong '{lon}' và '{lat}'.",
+        "en": "No row carries both coordinates in '{lon}' and '{lat}'.",
+    },
+    "error.no-values-after-matching": {
+        "vi": "Sau khi ghép địa danh, không còn giá trị nào để vẽ.",
+        "en": "Once the place names are matched, no value is left to draw.",
+    },
     "loi.thiếu-thư-viện": {
         "vi": "Thiếu thư viện {library}. Chạy lại với: uv run --with {library} ...",
         "en": "{library} is not installed. Run again with: uv run --with {library} ...",

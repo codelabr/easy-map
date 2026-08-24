@@ -282,7 +282,7 @@ def _survey_payload(args: argparse.Namespace) -> dict[str, Any]:
     if args.excel:
         one = dataio.project_path(root, args.excel)
         if one is None or not one.exists():
-            raise SystemExit(f"Không tìm thấy workbook: {args.excel}")
+            raise SystemExit(messages.text("error.workbook-not-found", file=args.excel))
         books = [one]
     else:
         # No file named: survey everything, so the question that follows can name
@@ -544,7 +544,7 @@ def command_profile(args: argparse.Namespace) -> None:
     deps = dataio.load(require_geo=True)
     excel = dataio.project_path(root, args.excel)
     if excel is None or not excel.exists():
-        raise SystemExit(f"Không tìm thấy workbook: {args.excel}")
+        raise SystemExit(messages.text("error.workbook-not-found", file=args.excel))
 
     sheets = dataio.read_sheets(deps, excel)
     reading: list[dict[str, Any]] = []
@@ -746,17 +746,18 @@ def _apply_where(df, expressions):
         return df, None
     for column, wanted in pairs:
         if column not in df.columns:
-            raise SystemExit(f"--where trỏ vào cột không có: {column!r}. "
-                             f"Các cột hiện có: {', '.join(map(str, df.columns))}")
+            raise SystemExit(messages.text(
+                "error.where-unknown-column", column=repr(column),
+                available=", ".join(map(str, df.columns))))
         near = longform.unknown_values(column, wanted, df[column].tolist())
         if near is not None:
-            raise SystemExit(
-                f"--where '{column}={wanted}' không khớp dòng nào. "
-                f"Giá trị đang có: {', '.join(repr(v) for v in near)}")
+            raise SystemExit(messages.text(
+                "error.where-no-rows", column=column, value=wanted,
+                near=", ".join(repr(v) for v in near)))
         df = df[df[column].astype(str).str.strip() == wanted]
     df = df.reset_index(drop=True)
     if df.empty:
-        raise SystemExit("Sau khi lọc --where không còn dòng nào.")
+        raise SystemExit(messages.text("error.where-empty-result"))
     return df, longform.describe_filters(pairs)
 
 
@@ -800,16 +801,18 @@ def _layer_requests(args, deps, frame) -> list[dict[str, Any]]:
         out = []
         for name in args.layer:
             if name not in known:
-                raise SystemExit(f"--layer trỏ vào cột không có: {name!r}. "
-                                 f"Các cột hiện có: {', '.join(map(str, frame.columns))}")
+                raise SystemExit(messages.text(
+                    "error.layer-unknown-column", column=repr(name),
+                    available=", ".join(map(str, frame.columns))))
             out.append({"name": name, "semantic": known[name]["semantic"], "column": name})
         return out
 
     if axis not in frame.columns:
-        raise SystemExit(f"--indicator-column trỏ vào cột không có: {axis!r}. "
-                         f"Các cột hiện có: {', '.join(map(str, frame.columns))}")
+        raise SystemExit(messages.text(
+            "error.indicator-column-unknown", column=repr(axis),
+            available=", ".join(map(str, frame.columns))))
     if not args.value_column:
-        raise SystemExit("Bảng dạng dài cần --value-column trỏ vào cột chứa số.")
+        raise SystemExit(messages.text("error.long-table-needs-value-column"))
 
     codes = frame[axis].astype(str).str.strip()
     present = set(codes)
@@ -818,8 +821,9 @@ def _layer_requests(args, deps, frame) -> list[dict[str, Any]]:
         if value in present:
             return
         near = longform.unknown_values(axis, value, frame[axis].tolist()) or []
-        raise SystemExit(f"--layer '{value}' không có trong cột {axis!r}. "
-                         f"Giá trị gần đúng: {', '.join(repr(v) for v in near)}")
+        raise SystemExit(messages.text(
+            "error.layer-value-not-in-column", value=value, column=repr(axis),
+            near=", ".join(repr(v) for v in near)))
 
     out = []
     for raw in args.layer:
@@ -838,7 +842,8 @@ def _layer_requests(args, deps, frame) -> list[dict[str, Any]]:
         rows = frame[codes == head]
         for column, value in longform.parse_where(pins):
             if column not in rows.columns:
-                raise SystemExit(f"Lát của --layer '{head}' trỏ vào cột không có: {column!r}")
+                raise SystemExit(messages.text("error.layer-slice-unknown-column",
+                                               layer=head, column=repr(column)))
             rows = rows[rows[column].astype(str).str.strip() == value]
         info = indicator_semantic(rows[args.value_column].tolist(), head)
         out.append({"name": head, "semantic": info["semantic"], "indicator": head, "slice": pins})
@@ -973,7 +978,8 @@ def _dress_points(points: dict[str, Any], rows, args, by_name) -> None:
     colour_col = args.point_color_column
     if colour_col:
         if colour_col not in rows.columns:
-            raise SystemExit(f"--point-color-column trỏ vào cột không có: {colour_col!r}")
+            raise SystemExit(messages.text("error.point-colour-column-unknown",
+                                           column=repr(colour_col)))
         labels = [str(v) for v in rows[colour_col]]
         cats, mapping = classify.category_colours(labels)
         points["colours"] = [mapping[v] for v in labels]
@@ -983,7 +989,8 @@ def _dress_points(points: dict[str, Any], rows, args, by_name) -> None:
     size_col = args.point_size_column
     if size_col:
         if size_col not in rows.columns:
-            raise SystemExit(f"--point-size-column trỏ vào cột không có: {size_col!r}")
+            raise SystemExit(messages.text("error.point-size-column-unknown",
+                                           column=repr(size_col)))
         values = [None if v != v else float(v) for v in rows[size_col]]
         finite = [v for v in values if v is not None and v > 0]
         vmax = max(finite) if finite else 1.0
@@ -1013,12 +1020,13 @@ def _build_long_columns(args, joined, by_name):
     """
     axis = args.indicator_column or args.ratio_column
     if not axis:
-        raise SystemExit("Cần --indicator-column (hoặc --ratio-column) để biết "
-                         "cột nào chứa tên chỉ số.")
+        raise SystemExit(messages.text("error.indicator-column-required"))
     if axis not in joined.columns:
-        raise SystemExit(f"--indicator-column trỏ vào cột không có: {axis!r}")
+        raise SystemExit(messages.text(
+            "error.indicator-column-unknown", column=repr(axis),
+            available=", ".join(map(str, joined.columns))))
     if not args.value_column:
-        raise SystemExit("Bảng dạng dài cần --value-column trỏ vào cột chứa số.")
+        raise SystemExit(messages.text("error.long-table-needs-value-column"))
 
     codes = joined[axis].astype(str).str.strip()
 
@@ -1034,17 +1042,19 @@ def _build_long_columns(args, joined, by_name):
         part = joined[codes == wanted]
         if part.empty:
             near = longform.unknown_values(axis, wanted, joined[axis].tolist()) or []
-            raise SystemExit(f"Không có dòng nào cho {label} '{wanted}'. "
-                             f"Giá trị đang có: {', '.join(repr(v) for v in near)}")
+            raise SystemExit(messages.text(
+                "error.no-rows-for-indicator", label=label, value=wanted,
+                near=", ".join(repr(v) for v in near)))
         for column, value in longform.parse_where(pins or []):
             if column not in part.columns:
-                raise SystemExit(f"Lát của '{wanted}' trỏ vào cột không có: {column!r}")
+                raise SystemExit(messages.text("error.slice-unknown-column",
+                                               indicator=wanted, column=repr(column)))
             pinned = part[part[column].astype(str).str.strip() == value]
             if pinned.empty:
                 have = sorted({str(v).strip() for v in part[column].tolist()})[:8]
-                raise SystemExit(
-                    f"Lát '{column}={value}' không khớp dòng nào của '{wanted}'. "
-                    f"Giá trị đang có: {', '.join(map(repr, have))}")
+                raise SystemExit(messages.text(
+                    "error.slice-no-rows", column=column, value=value,
+                    indicator=wanted, near=", ".join(map(repr, have))))
             part = pinned
         return part
 
@@ -1054,10 +1064,10 @@ def _build_long_columns(args, joined, by_name):
 
     if args.numerator or args.denominator:
         if not (args.numerator and args.denominator):
-            raise SystemExit("Chế độ tỷ số cần đủ --numerator và --denominator.")
-        top = rows_for("tử số", args.numerator, args.fill_where) \
+            raise SystemExit(messages.text("error.ratio-needs-both"))
+        top = rows_for(messages.fragment("tử-số"), args.numerator, args.fill_where) \
             .groupby("__shape_id")[args.value_column].sum()
-        bottom = rows_for("mẫu số", args.denominator, args.fill_where) \
+        bottom = rows_for(messages.fragment("mẫu-số"), args.denominator, args.fill_where) \
             .groupby("__shape_id")[args.value_column].sum()
         share = (top / bottom.replace(0, float("nan")) * 100.0).dropna()
         name = f"{args.numerator} ÷ {args.denominator} (%)"
@@ -1299,7 +1309,8 @@ def command_fix_match(args: argparse.Namespace) -> None:
     field = fields["commune"] if args.admin_level == "commune" else fields["province"]
     row = gdf[gdf["__shape_id"] == int(args.shape_id)]
     if row.empty:
-        raise SystemExit(f"Không có đơn vị nào mang shape_id={args.shape_id}")
+        raise SystemExit(messages.text("error.no-unit-with-shape-id",
+                                       shape_id=args.shape_id))
     path = prefs.remember_override(root, args.admin_level, args.province, args.name,
                                    int(args.shape_id), str(row.iloc[0][field]))
     emit({"remembered": {"name_in_table": args.name,
@@ -1489,12 +1500,13 @@ def _animation(deps, args, run_dir, joined, contexts, thematic, provinces_gdf,
     with itself.
     """
     if not args.period_column:
-        raise SystemExit("Bản đồ video cần --period-column để biết đâu là trục thời gian.")
+        raise SystemExit(messages.text("error.animation-needs-period-column"))
 
     frames = period_utils.ordered(joined[args.period_column])
     if len(frames) < 2:
-        raise SystemExit(f"Cột '{args.period_column}' chỉ có {len(frames)} kỳ; "
-                         "cần ít nhất 2 kỳ để dựng video.")
+        raise SystemExit(messages.text("error.animation-needs-two-periods",
+                                       singular=len(frames) == 1,
+                                       column=args.period_column, count=len(frames)))
     unreadable = period_utils.unreadable(joined[args.period_column])
     if unreadable:
         issues.append(guardrails._issue(
@@ -1520,7 +1532,7 @@ def _animation(deps, args, run_dir, joined, contexts, thematic, provinces_gdf,
     pooled = [v for table in values_by_period.values() for v in table.values()
               if v is not None and not (isinstance(v, float) and v != v)]
     if not pooled:
-        raise SystemExit("Không còn giá trị nào sau khi ghép địa danh và tách kỳ.")
+        raise SystemExit(messages.text("error.no-values-after-periods"))
     bins = classify.compute_bins(pooled, args.classification, args.classes, value_info,
                                  center_zero=(args.map_type == "change"))
     bins["notes"].append(messages.text("doc.dùng-chung-nhóm-video"))
@@ -1585,6 +1597,25 @@ def _settle_language(args: argparse.Namespace) -> None:
         args.language = i18n.DEFAULT
 
 
+def _needs_place_column(args) -> bool:
+    """Whether this run has to be told which column holds the place names.
+
+    Written as a function rather than a condition inside the guard because the
+    first version of that guard was a condition, and it blocked the one case
+    that legitimately has no place column: a point map placed from coordinates.
+    Every test stayed green while it did, which is the argument for naming the
+    rule and testing it directly.
+
+    The exemption is not a new idea — ``command_render`` already calls that case
+    ``coordinates_only``. This has to agree with it, or the two drift apart.
+    """
+    if args.map_type == "point" and not args.province_column             and not args.commune_column:
+        return False                      # coordinates_only: no matching at all
+    if args.province_column:
+        return False
+    return args.admin_level == "province" or not args.commune_column
+
+
 def command_render(args: argparse.Namespace) -> None:
     _settle_language(args)
     if getattr(args, "layer", None):
@@ -1594,6 +1625,14 @@ def command_render(args: argparse.Namespace) -> None:
     font_info = fonts.install(deps.matplotlib)
 
     excel = dataio.project_path(root, args.excel)
+    # Both of these used to reach pandas and come back as a traceback: a missing
+    # workbook as FileNotFoundError, a missing place column as KeyError: None.
+    # A person reading either one learns nothing about what to do next.
+    if excel is None or not excel.exists():
+        raise SystemExit(messages.text("error.workbook-not-found", file=args.excel))
+    if _needs_place_column(args):
+        raise SystemExit(messages.text("error.place-column-required",
+                                       flag="--province-column", level="province"))
     df = dataio.read_table(deps, excel, args.sheet)
     sheets = dataio.read_sheets(deps, excel)
     dictionary = dataio.read_data_dictionary(deps, excel, sheets)
@@ -1678,7 +1717,7 @@ def command_render(args: argparse.Namespace) -> None:
         joined = df[df["__shape_id"].notna()].copy()
         joined["__shape_id"] = joined["__shape_id"].astype(int)
         if joined.empty:
-            raise SystemExit("Không ghép được dòng nào với bản đồ. Xem lại match_review.csv.")
+            raise SystemExit(messages.text("error.no-rows-matched", file="match_review.csv"))
 
     # --- semantics + aggregation -----------------------------------------
     columns = profiling.describe_columns(deps, df, dictionary)
@@ -1696,15 +1735,15 @@ def command_render(args: argparse.Namespace) -> None:
         value_column, joined, ratio_note = _build_long_columns(args, joined, by_name)
     if args.map_type == "change":
         if not (args.baseline_column and args.comparison_column):
-            raise SystemExit("Bản đồ thay đổi cần cả --baseline-column và --comparison-column.")
+            raise SystemExit(messages.text("error.change-needs-two-columns"))
         value_column = f"Thay đổi: {args.comparison_column} − {args.baseline_column}"
         joined[value_column] = joined[args.comparison_column] - joined[args.baseline_column]
         by_name[value_column] = sem._pack(sem.POINT, value_column, "điểm phần trăm")
     if args.map_type == "graduated-symbol" and not args.symbol_column:
-        raise SystemExit("Bản đồ ký hiệu tỷ lệ cần --symbol-column.")
+        raise SystemExit(messages.text("error.graduated-needs-symbol-column"))
     # a proportional-symbol map needs only the symbol column; area fills need a value
     if not value_column and args.map_type not in ("boundary", "point", "graduated-symbol"):
-        raise SystemExit("Cần --value-column (hoặc --category-column) cho loại bản đồ này.")
+        raise SystemExit(messages.text("error.needs-value-column"))
 
     # --- coordinates for point maps --------------------------------------
     points = None
@@ -1715,12 +1754,11 @@ def command_render(args: argparse.Namespace) -> None:
             lon_col = lon_col or coords["lon"]
             lat_col = lat_col or coords["lat"]
         if not (lon_col and lat_col):
-            raise SystemExit(
-                "Bản đồ điểm cần cột kinh độ và vĩ độ. Chỉ định --lon-column và --lat-column."
-            )
+            raise SystemExit(messages.text("error.point-needs-coordinates"))
         valid = joined[joined[lon_col].notna() & joined[lat_col].notna()]
         if valid.empty:
-            raise SystemExit(f"Không có dòng nào có đủ toạ độ trong '{lon_col}' và '{lat_col}'.")
+            raise SystemExit(messages.text("error.no-rows-with-coordinates",
+                                           lon=lon_col, lat=lat_col))
         located = deps.gpd.GeoSeries(
             deps.gpd.points_from_xy(valid[lon_col], valid[lat_col]), crs="EPSG:4326"
         ).to_crs(thematic_crs)
@@ -1785,7 +1823,7 @@ def command_render(args: argparse.Namespace) -> None:
         groups = {c["name"]: c["frame"]["__value"].dropna().tolist() for c in prepared}
         pooled = [v for vals in groups.values() for v in vals]
         if not pooled:
-            raise SystemExit("Sau khi ghép địa danh, không còn giá trị nào để vẽ.")
+            raise SystemExit(messages.text("error.no-values-after-matching"))
         center_zero = args.map_type == "change"
         bins = (classify.shared_bins(groups, args.classification, args.classes,
                                      value_info, center_zero)
