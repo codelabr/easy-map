@@ -17,21 +17,26 @@ INTERNAL_EDGE = "#ffffff"
 LABEL_COLORS = {"name": furn.INK, "value": furn.PRIMARY, "leader": "#8a969e"}
 
 
-def view_bounds(frame) -> tuple[tuple[float, float, float, float], dict | None]:
+def view_bounds(frame, lon: float | None
+                ) -> tuple[tuple[float, float, float, float], dict | None]:
     """The rectangle the map looks at, and the inset plan that goes with it.
 
     Single source of truth for framing: the page's aspect ratio and the axes
     limits both come from here, because computing them apart is how a map ends
     up with the right shape and the wrong crop.
+
+    ``lon`` is the meridian the country declared, read from its profile and not
+    worked out again here. None means the country declared none, and the frame
+    is then simply the geometry's own bounds.
     """
-    plan = insets.view(frame)
+    plan = insets.view(frame, lon)
     if plan is None:
         return tuple(float(v) for v in frame.total_bounds), None
     return plan["khung_nhìn"], plan
 
 
-def geometry_aspect(frame) -> float:
-    minx, miny, maxx, maxy = view_bounds(frame)[0]
+def geometry_aspect(frame, lon: float | None) -> float:
+    minx, miny, maxx, maxy = view_bounds(frame, lon)[0]
     height = maxy - miny
     return (maxx - minx) / height if height else 1.0
 
@@ -71,7 +76,10 @@ def symbol_radii(values: Sequence[float], scale: dict[str, float],
 def draw(deps, *, frame, spec: dict[str, Any], fonts: dict[str, str],
          provinces=None, locator_name: str | None = None) -> dict[str, Any]:
     """Render one map and return the plate plus a drawing report."""
-    aspect = geometry_aspect(frame)
+    # Which meridian, if any, splits this country's offshore territory off. It
+    # arrives already decided, the same way the projection does.
+    inset_lon = spec.get("kinh_tuyến_khung_phụ")
+    aspect = geometry_aspect(frame, inset_lon)
     plate = lay.build(
         spec.get("layout", "report"), aspect,
         kicker=spec.get("kicker", ""), title=spec.get("title", ""),
@@ -91,7 +99,7 @@ def draw(deps, *, frame, spec: dict[str, Any], fonts: dict[str, str],
 
     # Framing has to be decided before the first polygon is drawn: when the
     # archipelagos go to an inset, the main map draws the mainland only.
-    inset_plan = insets.view(frame)
+    inset_plan = insets.view(frame, inset_lon)
 
     # every polygon layer, remembered with its **full** geometry, so the inset
     # repaints the same rows in the same colours instead of deciding again
@@ -138,7 +146,7 @@ def draw(deps, *, frame, spec: dict[str, Any], fonts: dict[str, str],
     insets.clip_for_drawing(frame, inset_plan).dissolve().boundary.plot(
         ax=ax, edgecolor=OUTLINE, linewidth=1.15, zorder=3)
 
-    (minx, miny, maxx, maxy), _ = view_bounds(frame)
+    (minx, miny, maxx, maxy), _ = view_bounds(frame, inset_lon)
     padx, pady = (maxx - minx) * 0.045, (maxy - miny) * 0.045
     ax.set_xlim(minx - padx, maxx + padx)
     ax.set_ylim(miny - pady, maxy + pady)
@@ -150,7 +158,8 @@ def draw(deps, *, frame, spec: dict[str, Any], fonts: dict[str, str],
     # parked over the inset would be unreadable and would say nothing useful
     inset_box = None
     if inset_plan is not None:
-        furn.archipelago_inset(ax, inset_plan, painted)
+        furn.archipelago_inset(ax, inset_plan, painted,
+                               label=spec.get("nhãn_khung_phụ"))
         ix, iy, iw, ih = inset_plan["ô_khung_phụ"]
         inset_box = (ix, iy, ix + iw, iy + ih)
 

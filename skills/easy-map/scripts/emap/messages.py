@@ -108,16 +108,21 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
             WHY: "Quốc gia này có đất nằm xa phần đất chính, và khung phải giãn ra để "
                  "chứa hết, nên {lost} bề ngang trang giấy là biển. Vùng người đọc "
                  "thực sự nhìn vào bị thu nhỏ lại tương ứng.",
-            FIX: "Cân nhắc vẽ riêng phần đất chính, hoặc giữ khung rộng nếu các vùng "
-                 "xa chính là điều bản đồ muốn nói.",
+            FIX: "Nếu phần đất xa nằm hẳn về một phía theo kinh độ, khai kinh tuyến "
+                 "chia trong hồ sơ quốc gia ({field}) để nó vào khung phụ. Nếu không "
+                 "tách được bằng một kinh tuyến, cân nhắc vẽ riêng phần đất chính, "
+                 "hoặc giữ khung rộng nếu các vùng xa chính là điều bản đồ muốn nói.",
         },
         "en": {
             WHAT: "The main body of land occupies only {width} of the map frame's width.",
             WHY: "This country has land far from its main body and the frame has to "
                  "stretch to hold it, so {lost} of the page width is sea. The part the "
                  "reader is actually looking at shrinks by the same amount.",
-            FIX: "Consider drawing the main body on its own, or keep the wide frame if "
-                 "the distant land is what the map is about.",
+            FIX: "If the distant land lies wholly to one side by longitude, declare the "
+                 "dividing meridian in the country profile ({field}) and it goes to an "
+                 "inset. If one meridian cannot separate it, consider drawing the main "
+                 "body on its own, or keep the wide frame if the distant land is what "
+                 "the map is about.",
         },
     },
     "coverage-thap": {
@@ -1191,9 +1196,11 @@ TEXT: dict[str, dict[str, str]] = {
     },
     "chọn.map_scope.national.nhãn": {"vi": "Một tấm toàn quốc", "en": "One national map"},
     "chọn.map_scope.national.mô_tả": {
-        "vi": "Cả nước trên một tấm, kèm khung phụ cho Hoàng Sa và Trường Sa.",
-        "en": "The whole country on one sheet, with an inset for Hoàng Sa and "
-              "Trường Sa.",
+        # Named no islands: this sentence is shown for whichever country is
+        # being drawn, and it used to offer Vietnam's to all of them.
+        "vi": "Cả nước trên một tấm; lãnh thổ ngoài khơi đã khai nằm trong khung phụ.",
+        "en": "The whole country on one sheet; declared offshore territory goes "
+              "in an inset.",
     },
     "chọn.map_scope.single-province.nhãn": {
         "vi": "Một tấm cho một tỉnh",
@@ -1346,6 +1353,12 @@ TEXT: dict[str, dict[str, str]] = {
     "loi.không-có-quốc-gia": {
         "vi": "Không có dữ liệu ranh giới cho '{country}'. Đang có: {available}",
         "en": "No boundary data for '{country}'. Available: {available}",
+    },
+    "loi.khai-báo-khung-phụ-sai": {
+        "vi": "'{field}' trong {file} phải là kinh độ từ -180 đến 180, hoặc null "
+              "nếu quốc gia này không dùng khung phụ. Đang là {given}.",
+        "en": "'{field}' in {file} has to be a longitude between -180 and 180, or "
+              "null if this country uses no inset. It reads {given}.",
     },
     "loi.nhiều-quốc-gia": {
         "vi": "Có ranh giới của nhiều quốc gia nên phải nói rõ vẽ nước nào: {available}",

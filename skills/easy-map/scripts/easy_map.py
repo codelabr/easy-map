@@ -45,7 +45,8 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from emap import (aggregate, animate, classify, confirm, crosswalk, dataio, detect,  # noqa: E402
-                  fonts, furniture, guardrails, i18n, interactive, matching, messages,
+                  fonts, furniture, guardrails, i18n, insets, interactive, matching,
+                  messages,
                   periods as period_utils,
                   layers, longform, prefs, profile as profiling, render,
                   semantics as sem,
@@ -1730,6 +1731,11 @@ def command_render(args: argparse.Namespace) -> None:
     country_profile = dataio.read_country(
         deps, dataio.shapefile_root(root), tier["quốc_gia"])
     detached = country_profile.get("lãnh_thổ_rời")
+    # Read from the profile, not decided here. Vietnam's 111°E used to be a
+    # constant inside the drawing code, which meant no other country could ever
+    # have an inset and none was ever told why.
+    inset_lon = insets.meridian(country_profile)
+    inset_label = insets.inset_label(country_profile)
     values = None
     method = "n/a"
     if value_column and args.map_type != "boundary" and not coordinates_only:
@@ -1760,7 +1766,13 @@ def command_render(args: argparse.Namespace) -> None:
         frame["__value"] = frame["__shape_id"].map(values) if values is not None else None
         if symbols is not None:
             frame["__symbol"] = frame["__shape_id"].map(symbols)
-        prepared.append({**ctx, "frame": frame})
+        # carried on the context rather than passed down: both the still and the
+        # animation build their spec from a context, and a meridian that reached
+        # only one of them would frame the two editions of the same map
+        # differently
+        prepared.append({**ctx, "frame": frame,
+                         "kinh_tuyến_khung_phụ": inset_lon,
+                         "nhãn_khung_phụ": inset_label})
 
     # one classification and one symbol scale for the whole job, so the same
     # colour and the same circle size mean the same thing on every sheet
@@ -1969,6 +1981,8 @@ def _build_spec(args, ctx, value_column, value_info, symbol_info, bins,
         "source": source, "method": method_note,
         "locator": args.locator != "off",
         "province_name_field": "ten_tinh",
+        "kinh_tuyến_khung_phụ": ctx.get("kinh_tuyến_khung_phụ"),
+        "nhãn_khung_phụ": ctx.get("nhãn_khung_phụ"),
         "dpi": args.dpi,
     }
 

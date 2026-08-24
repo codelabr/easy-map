@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
-from . import messages as msg, semantics as sem
+from . import insets, messages as msg, semantics as sem
 
 CRITICAL = "critical"
 WARNING = "warning"
@@ -215,7 +215,10 @@ def check_detached_territory(land: dict[str, Any] | None, inset_drawn: bool,
     return [_issue(
         "lanh-tho-roi-khong-khung-phu",
         CRITICAL if width < 0.5 else WARNING, lang=lang,
-        fmt={"width": f"{width:.0%}", "lost": f"{1 - width:.0%}"},
+        fmt={"width": f"{width:.0%}", "lost": f"{1 - width:.0%}",
+             # the way out, named where the reader can act on it: the inset is
+             # no longer a mechanism only Vietnam can reach
+             "field": insets.HAND_KEY},
         extra={"phần_bề_ngang_khối_chính": width,
                "số_khối": land.get("số_khối")},
     )]

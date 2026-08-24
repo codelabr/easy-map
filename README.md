@@ -109,11 +109,14 @@ automated tests.
 
 - **The bundled boundaries are post-reform Vietnam.** Other countries work, but
   you supply the files.
-- **The offshore inset is Vietnam's.** Hoàng Sa and Trường Sa go in a corner box
-  because a meridian measured for Vietnam puts them there. No such box is placed
-  automatically for another country's distant territory — the skill warns when
-  the frame has stretched to hold it and says how much of the page was lost, but
-  it will not decide the framing for you.
+- **The offshore inset has to be declared, and only Vietnam's is built in.** The
+  dividing meridian is a cartographic decision the geometry does not contain, so
+  no country gets a corner box until somebody writes the meridian into the
+  country profile. The skill warns when a frame has stretched to hold distant
+  land, says how much of the page was lost, and names the line to write — it
+  will not pick the meridian for you. One meridian cannot separate every
+  country's territory: the United States has Alaska to the west and Puerto Rico
+  to the east.
 - **Place-name prefixes are Vietnamese.** "Xã Alder" normalises; "Alder
   District" does not.
 - **Not evaluated with users.** Everything above is what the tool does, not

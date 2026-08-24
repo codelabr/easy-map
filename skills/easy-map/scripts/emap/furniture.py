@@ -144,18 +144,13 @@ def _km(metres: float, lang: str | None = None) -> str:
             else f"{sem.group_digits(metres, lang)} m")
 
 
-#: The inset's caption. Fixed rather than derived: the shapefile carries only
-#: province names, so nothing in the data says "Hoàng Sa". Left untranslated on
-#: an English map for the same reason every other Vietnamese toponym is.
-ARCHIPELAGO_LABEL = "Hoàng Sa · Trường Sa"
-
 #: How far each island fragment is grown in the inset, as a share of the
 #: archipelago region's width. Purely a legibility device — see the note in
 #: ``archipelago_inset``.
 ISLAND_MARK = 0.012
 
 
-def archipelago_inset(ax, plan: dict, painted, *, label: str = ARCHIPELAGO_LABEL):
+def archipelago_inset(ax, plan: dict, painted, *, label: str | None = None):
     """A framed corner box carrying the offshore island groups.
 
     The layers are repainted exactly as the main map painted them — same subset,
@@ -211,9 +206,47 @@ def archipelago_inset(ax, plan: dict, painted, *, label: str = ARCHIPELAGO_LABEL
     box.set_ylim(iminy - pady, imaxy + pady)
     box.set_aspect("equal")
 
-    box.text(0.5, 0.985, label, transform=box.transAxes, ha="center", va="top",
-             fontsize=6.4, color=INK, zorder=9)
+    # No caption unless the country declared one. This used to default to
+    # "Hoàng Sa · Trường Sa", which meant the first map ever drawn with a
+    # second country's inset captioned that country's islands with Vietnam's.
+    if label:
+        _fit_caption(box, label)
     return box
+
+
+#: Caption size, and the smallest it may shrink to before the box is simply too
+#: narrow for the words in it.
+CAPTION_PT = 6.4
+CAPTION_MIN_PT = 4.2
+
+
+def _fit_caption(box, label: str):
+    """The caption, shrunk until it sits inside its box.
+
+    The box is as wide as the islands are, in their own proportions, so a
+    country whose offshore territory is tall and narrow gets a narrow box — and
+    a caption set at a fixed size then runs out both sides of it. Vietnam's box
+    is wide enough that this never showed; the first map drawn for another
+    country showed it immediately.
+
+    Measured against the box rather than guessed from the string length, since
+    the same number of characters is a different width in every typeface. If the
+    backend cannot measure, the caption is drawn at its ordinary size — an
+    overhanging caption is worth more than a crash.
+    """
+    text = box.text(0.5, 0.985, label, transform=box.transAxes, ha="center",
+                    va="top", fontsize=CAPTION_PT, color=INK, zorder=9)
+    try:
+        renderer = box.figure.canvas.get_renderer()
+        room = box.get_window_extent(renderer).width * 0.94
+        size = CAPTION_PT
+        while size > CAPTION_MIN_PT and \
+                text.get_window_extent(renderer).width > room:
+            size = max(CAPTION_MIN_PT, size - 0.2)
+            text.set_fontsize(size)
+    except (AttributeError, RuntimeError, ValueError):   # pragma: no cover
+        pass
+    return text
 
 
 def _axes_fraction(ax, x0: float, y0: float, w: float, h: float) -> list[float]:

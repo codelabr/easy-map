@@ -32,6 +32,7 @@ are in the plan; the values are repeated here so a failure says what it broke.
 from __future__ import annotations
 
 import glob
+import json
 import shutil
 import tempfile
 import unittest
@@ -77,6 +78,12 @@ def fixture(kind: str, tier: str):
     if not found:
         raise unittest.SkipTest("chưa dựng fixture: tools/generate_fixture_country.py")
     return gpd.read_file(found[0])
+
+
+#: Vietnam's split meridian, read from the declaration table rather than from a
+#: module constant. It stopped being a constant in wave 4: a number every map in
+#: the world was measured against became a number one country declares.
+VN_LON = insets.declared("Việt Nam")["kinh_tuyến"]
 
 
 def mainland(gdf, meridian: float):
@@ -155,7 +162,7 @@ class TestVietnamBoundaryFacts(unittest.TestCase):
         self.assertAlmostEqual(centre_lon(vietnam("province")), 109.7686, places=3)
 
     def test_the_mainland_alone_puts_it_at_106_39(self):
-        land = mainland(vietnam("province"), insets.ARCHIPELAGO_LON)
+        land = mainland(vietnam("province"), VN_LON)
         self.assertAlmostEqual(centre_lon(land), 106.3919, places=3)
         self.assertAlmostEqual(land.total_bounds[0], 102.1439, places=3)
         self.assertAlmostEqual(land.total_bounds[2], 110.6398, places=3)
@@ -164,7 +171,7 @@ class TestVietnamBoundaryFacts(unittest.TestCase):
         """1.90 tall to wide. Half of why a locator box sized for Vietnam
         cannot be reused unchanged for a country shaped differently."""
         self.assertAlmostEqual(aspect(mainland(vietnam("province"),
-                                               insets.ARCHIPELAGO_LON)),
+                                               VN_LON)),
                                1.9032, places=3)
 
 
@@ -227,7 +234,7 @@ class TestVietnamStaysDrawnTheSameWay(unittest.TestCase):
         """
         old = 106.0
         by_the_plans_rule = centre_lon(mainland(vietnam("province"),
-                                                insets.ARCHIPELAGO_LON))
+                                                VN_LON))
         now = float(dataio.thematic_crs(vietnam("province"))
                     .split("+lon_0=")[1].split()[0])
 
@@ -936,6 +943,111 @@ class TestTheCountryProfile(OwnBoundariesOnly):
             again = dataio.read_country(deps, root, "atlantis")
         self.assertEqual(first, again)
 
+    def test_it_records_that_nobody_has_declared_an_inset(self):
+        """"No inset here" and "nobody has said" are different states, and the
+        profile has to tell them apart — otherwise a map framed the ordinary way
+        looks like a map that was examined and found not to need a box."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.country(folder, region={"NAME_1": ["Ardenne", "Beluar"],
+                                                "GID_0": ["ATL", "ATL"],
+                                                "COUNTRY": ["Atlantis"] * 2})
+            reading = dataio.read_country(dataio.load(require_geo=True),
+                                          root, "atlantis")
+        self.assertIsNone(reading["khung_phụ"]["kinh_tuyến"])
+        self.assertEqual(reading["khung_phụ"]["nguồn"], "chưa khai")
+        self.assertIn(insets.HAND_KEY, reading["khung_phụ"]["cách_khai"])
+        self.assertIn(dataio.PROFILE, reading["khung_phụ"]["cách_khai"])
+
+    def test_a_declaration_written_by_hand_survives_a_rebuild(self):
+        """Everything else in the profile is the machine's reading and is thrown
+        away the moment a boundary file changes size. A declaration is not a
+        reading: losing it because somebody replaced a shapefile would undo a
+        decision nobody asked to undo."""
+        gpd = geopandas_or_skip()
+        import shapely.geometry as sg
+
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.country(folder, region={"NAME_1": ["Ardenne", "Beluar"],
+                                                "GID_0": ["ATL", "ATL"],
+                                                "COUNTRY": ["Atlantis"] * 2})
+            deps = dataio.load(require_geo=True)
+            dataio.read_country(deps, root, "atlantis")
+
+            store = root / dataio.PROFILE
+            saved = json.loads(store.read_text(encoding="utf-8"))
+            saved["atlantis"]["khai_báo"] = {insets.HAND_KEY: 0.5}
+            store.write_text(json.dumps(saved, ensure_ascii=False),
+                             encoding="utf-8")
+
+            declared = dataio.read_country(deps, root, "atlantis", rebuild=True)
+            self.assertEqual(declared["khung_phụ"]["kinh_tuyến"], 0.5)
+            self.assertEqual(declared["khung_phụ"]["nguồn"], "người dùng khai")
+
+            # a boundary file changes size, so every reading is recomputed
+            place = root / "atlantis" / "district"
+            place.mkdir()
+            gpd.GeoDataFrame(
+                {"NAME_2": ["Alder", "Brann", "Calvet"], "GID_0": ["ATL"] * 3,
+                 "NAME_1": ["Ardenne", "Ardenne", "Beluar"]},
+                geometry=[sg.box(i, 0, i + 1, 1) for i in range(3)],
+                crs="EPSG:4326").to_file(place / "district.shp")
+            after = dataio.read_country(deps, root, "atlantis")
+
+        self.assertEqual(len(after["tầng"]), 2)          # it did rebuild
+        self.assertEqual(after["khung_phụ"]["kinh_tuyến"], 0.5)
+
+    def test_a_declaration_takes_effect_without_waiting_for_a_rebuild(self):
+        """The cache is keyed on the boundary files, and editing the profile
+        changes none of them. Without reading the declaration back on every
+        command, somebody writes a meridian, runs the command, and gets exactly
+        the map they had before — with nothing anywhere saying why."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.country(folder, region={"NAME_1": ["Ardenne", "Beluar"],
+                                                "GID_0": ["ATL", "ATL"],
+                                                "COUNTRY": ["Atlantis"] * 2})
+            deps = dataio.load(require_geo=True)
+            self.assertIsNone(
+                dataio.read_country(deps, root, "atlantis")["khung_phụ"]["kinh_tuyến"])
+
+            store = root / dataio.PROFILE
+            saved = json.loads(store.read_text(encoding="utf-8"))
+            saved["atlantis"]["khai_báo"] = {insets.HAND_KEY: 0.5}
+            store.write_text(json.dumps(saved, ensure_ascii=False),
+                             encoding="utf-8")
+
+            # no rebuild: the boundary files are untouched and the version matches
+            again = dataio.read_country(deps, root, "atlantis")
+            self.assertEqual(again["khung_phụ"]["kinh_tuyến"], 0.5)
+            self.assertEqual(
+                json.loads(store.read_text(encoding="utf-8"))
+                ["atlantis"]["khung_phụ"]["kinh_tuyến"], 0.5)
+
+    def test_a_profile_from_an_older_engine_is_rebuilt(self):
+        """The cache is keyed on the boundary files, which is right for "the
+        data changed" and useless for "the engine changed". A profile written
+        before ``khung_phụ`` existed is valid by that key and answers None to a
+        question it was never asked — Vietnam would lose its inset on every
+        machine that already had a profile, and nothing would say why."""
+        with tempfile.TemporaryDirectory() as folder:
+            root = self.country(folder, region={"NAME_1": ["Ardenne", "Beluar"],
+                                                "GID_0": ["ATL", "ATL"],
+                                                "COUNTRY": ["Atlantis"] * 2})
+            deps = dataio.load(require_geo=True)
+            dataio.read_country(deps, root, "atlantis")
+
+            store = root / dataio.PROFILE
+            saved = json.loads(store.read_text(encoding="utf-8"))
+            stale = dict(saved["atlantis"])
+            stale.pop("khung_phụ")
+            stale.pop("__phiên_bản")           # as the older engine wrote it
+            store.write_text(json.dumps({"atlantis": stale}, ensure_ascii=False),
+                             encoding="utf-8")
+
+            again = dataio.read_country(deps, root, "atlantis")
+
+        self.assertIn("khung_phụ", again)
+        self.assertEqual(again["__phiên_bản"], dataio.PROFILE_VERSION)
+
     def test_adding_a_tier_invalidates_it(self):
         """Kept by file name and size rather than by contents: hashing 135 MB
         on every command to notice a file nobody touched would cost more than
@@ -1344,14 +1456,29 @@ class TestWhatIsStillPinnedToVietnam(unittest.TestCase):
         self.assertEqual(furniture.locator_aspect(boxes([(0, 0, 200, 1)])), low)
         self.assertEqual(furniture.locator_aspect(boxes([(0, 0, 1, 200)])), high)
 
-    def test_the_archipelago_meridian_is_vietnams_and_misses_the_islands(self):
-        """111.0°E sits east of everything Fictavia has, so its two island
-        groups are read as mainland and the frame stretches to hold them.
-        Wave 4."""
-        self.assertEqual(insets.ARCHIPELAGO_LON, 111.0)
+    def test_the_archipelago_meridian_is_no_longer_everyones(self):
+        """This line used to record the opposite.
+
+        It read: 111.0°E sits east of everything Fictavia has, so its two island
+        groups are read as mainland and the frame stretches to hold them. That
+        was true of every country in the world except one, because 111.0 was a
+        module constant every frame was measured against.
+
+        It is now a declaration, so the sentence has two halves. Vietnam's
+        number is unchanged and still misses Fictavia — a country that declares
+        nothing gets no inset rather than Vietnam's. And Fictavia can declare
+        42.0 and have its own islands set aside, which is the half that did not
+        exist before.
+        """
+        self.assertEqual(VN_LON, 111.0)
         whole = fixture("shp", "region")
-        self.assertEqual(len(mainland(whole, insets.ARCHIPELAGO_LON)),
-                         len(whole.explode(index_parts=False, ignore_index=True)))
+        parts = len(whole.explode(index_parts=False, ignore_index=True))
+        self.assertEqual(len(mainland(whole, VN_LON)), parts)
+        self.assertIsNone(insets.declared("Fictavia"))
+
+        own = insets.declaration("Fictavia", {insets.HAND_KEY: 42.0})["kinh_tuyến"]
+        self.assertEqual(own, 42.0)
+        self.assertLess(len(mainland(whole, own)), parts)
 
     def test_the_coordinate_rule_now_covers_the_whole_world(self):
         """This line used to record the opposite.

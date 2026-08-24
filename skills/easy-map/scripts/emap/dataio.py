@@ -855,6 +855,14 @@ def run_thematic_crs(deps: Deps, project_root: Path,
 #: shared set and the reading belongs to them.
 PROFILE = "ho_so_quoc_gia.json"
 
+#: Raised whenever this file learns a new field. The cache is keyed on the
+#: boundary files, which is right for "the data changed" and useless for "the
+#: engine changed": a profile written before ``khung_phụ`` existed is valid by
+#: that key and answers None to a question it was never asked, so Vietnam loses
+#: its inset on every machine that already had a profile and nothing says why.
+#: Bump this in the same commit as any new field.
+PROFILE_VERSION = 2
+
 
 def _profile_key(root: Path, country: str) -> list[str]:
     """What the profile was read from, so a changed folder invalidates it.
@@ -892,11 +900,34 @@ def read_country(deps: Deps, root: Path, country: str,
         saved = json.loads(store.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         saved = {}
-    key = _profile_key(root, country)
-    if not rebuild and saved.get(country, {}).get("__nguồn") == key:
-        return saved[country]
+    from . import insets
 
-    reading: dict[str, Any] = {"__nguồn": key, "tầng": []}
+    key = _profile_key(root, country)
+    kept = saved.get(country, {})
+    if not rebuild and kept.get("__nguồn") == key \
+            and kept.get("__phiên_bản") == PROFILE_VERSION:
+        # The declaration is the one field a person edits by hand, so it is read
+        # back on every command instead of being cached with the machine's
+        # reading. The cache is keyed on the boundary files, and editing this
+        # file changes none of them: without this, somebody writes a meridian,
+        # runs the command, and gets the map they had before.
+        fresh = insets.declaration(kept.get("tên_quốc_gia") or country,
+                                   kept.get("khai_báo"), where=str(store))
+        if fresh != kept.get("khung_phụ"):
+            kept["khung_phụ"] = fresh
+            _write_profile(store, saved)
+        return kept
+
+    reading: dict[str, Any] = {"__phiên_bản": PROFILE_VERSION,
+                               "__nguồn": key, "tầng": []}
+    # What a person wrote about this country is carried across the rebuild
+    # untouched. Everything else in this file is the machine's reading and is
+    # thrown away the moment a boundary file changes size; a declaration is not
+    # a reading, and losing it because somebody replaced a shapefile would undo
+    # a decision nobody asked to undo.
+    by_hand = kept.get("khai_báo")
+    if by_hand:
+        reading["khai_báo"] = by_hand
     frames = {}
     for entry in tiers(root, country):
         gdf = deps.gpd.read_file(entry["__path"])
@@ -922,20 +953,27 @@ def read_country(deps: Deps, root: Path, country: str,
         }
         # Grouping the land takes seconds, so it is done here — once, cached —
         # rather than on every map that might want to mention it.
-        from . import insets
-
         reading["lãnh_thổ_rời"] = insets.land_masses(gdf.to_crs(crs))
+    # Recorded for every country, including the ones with nothing declared,
+    # because "no inset here" is worth telling apart from "nobody has said".
+    reading["khung_phụ"] = insets.declaration(
+        reading.get("tên_quốc_gia") or country, reading.get("khai_báo"),
+        where=str(store))
     if len(named) > 1:
         coarse, fine = frames[named[0]["thư_mục"]], frames[named[1]["thư_mục"]]
         reading["cha_con"] = detect.link_tiers(coarse[0], coarse[1], fine[0], fine[1])
 
     saved[country] = reading
+    _write_profile(store, saved)
+    return reading
+
+
+def _write_profile(store: Path, saved: dict[str, Any]) -> None:
     try:
         store.write_text(json.dumps(saved, ensure_ascii=False, indent=1),
                          encoding="utf-8")
     except OSError:            # a read-only boundary folder is not an error
         pass
-    return reading
 
 
 def to_thematic_crs(gdf, crs: str):

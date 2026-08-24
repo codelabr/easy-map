@@ -25,11 +25,48 @@ from __future__ import annotations
 
 from typing import Any
 
-#: Meridian separating the mainland from the offshore archipelagos. East of it
-#: there is no mainland territory at any latitude, so the split needs no
-#: latitude term. Measured, not guessed: the easternmost mainland point in the
-#: shapefile is 110.64°E and the westernmost island fragment is 111.45°E.
-ARCHIPELAGO_LON = 111.0
+#: Where a country's offshore territory is declared to begin. Vietnam's 111°E
+#: used to be a module constant here, which is the same as saying every country
+#: splits at 111°E — and every country that does not simply never got an inset.
+#:
+#: The number is a **declaration**, not a measurement, and that is the whole
+#: reason this is a table with reasons in it rather than a rule. Three attempts
+#: were made to derive 111°E from Vietnam's own geometry and none can: the land
+#: masses west of it reach 470 km from the mainland and are 2–36 km² in size,
+#: while the nearest one east of it is 298 km away and 63 km². Neither distance
+#: nor area separates them. The meridian says which islands the map is *for*.
+#:
+#: Keyed the way ``detect._COUNTRY_LANGUAGE`` is keyed — on the country name the
+#: boundary file reports — and holding one row for the same reason: this is the
+#: country whose cartography the project can speak for. A country not listed
+#: gets no inset, and gets a warning instead when its scattered land costs the
+#: reader enough of the page to matter.
+_VIETNAM = {
+    "kinh_tuyến": 111.0,
+    # What the box is captioned. It cannot come from the data — the shapefile
+    # carries province names, and the islands are fragments of two of them — so
+    # it is declared with the meridian, and a country that declares a meridian
+    # without a caption gets an unlabelled box rather than Vietnam's caption.
+    "nhãn": "Hoàng Sa · Trường Sa",
+    "nguồn": "khai báo sẵn cho Việt Nam",
+    "bằng_chứng": "điểm đất liền đông nhất trong shapefile là 110,64°E; "
+                  "mảnh đảo tây nhất là 111,45°E",
+}
+
+_DECLARED: dict[str, dict[str, Any]] = {
+    "viet nam": _VIETNAM, "vietnam": _VIETNAM, "việt nam": _VIETNAM,
+    "vnm": _VIETNAM, "vn": _VIETNAM,
+}
+
+#: The key a person writes to declare a meridian for a country the table does
+#: not cover. It goes in the profile's ``khai_báo`` block — the one part of that
+#: file the builder copies forward instead of computing.
+HAND_KEY = "kinh_tuyến_khung_phụ"
+
+#: The caption for that country's box, declared beside the meridian. Optional:
+#: without it the box is drawn unlabelled, which is the honest default — no
+#: other country's islands are called Hoàng Sa.
+HAND_LABEL_KEY = "nhãn_khung_phụ"
 
 #: Height of the inset as a share of the mainland's height. Large enough that
 #: the island groups read as more than specks, small enough to leave the
@@ -41,17 +78,58 @@ INSET_HEIGHT_SHARE = 0.30
 INSET_MARGIN = 0.045
 
 
-#: Latitude span the mask polygons cover. Wide enough for Vietnam and its seas,
-#: narrow enough that projecting it stays well inside the projection's valid
-#: area.
-_MASK_LAT = (0.0, 30.0)
-_MASK_LON = (95.0, 130.0)
+#: How far past the country's own extent the mask polygons reach, as a share of
+#: that extent. Only the meridian in the middle does any cutting; the outer
+#: edges exist to be somewhere the geometry is not, and half again each way is
+#: comfortably that for a country of any size.
+_MASK_PAD = 0.5
 
-#: Spacing, in degrees, at which the meridian is broken into segments before
-#: projecting. The map is drawn in an equal-area projection where a meridian is
-#: a curve, not a vertical line; a straight two-point edge would cut several
-#: kilometres off at the ends.
+#: Spacing, in degrees, at which each vertical edge is broken into segments
+#: before projecting. The map is drawn in an equal-area projection where a
+#: meridian is a curve, not a vertical line; a straight two-point edge would cut
+#: several kilometres off at the ends.
 _MASK_STEP = 0.25
+
+#: Room left below the poles. A polygon touching ±90° projects badly in the
+#: conic projections this engine infers.
+_MASK_LAT_LIMIT = 89.0
+
+
+def _extent(frame, lon: float) -> tuple[float, float, float, float]:
+    """The country's own bounds in degrees, padded, and sure to contain ``lon``.
+
+    This used to be two constants — ``lat 0..30``, ``lon 95..130`` — described in
+    a comment as "wide enough for Vietnam and its seas". It was, and it was
+    nowhere near anywhere else: a country outside that window put both mask
+    polygons somewhere its geometry is not, so both halves came back empty, so
+    the split returned None and no inset was ever drawn. Nothing raised. The
+    declared meridian would have been read, honoured, and quietly discarded.
+
+    **Not handled: a country straddling the antimeridian.** Its bounds in
+    degrees come back as the whole world, so the mask is the whole world and a
+    meridian near 180° puts almost everything on one side. Fiji and Kiribati are
+    the real cases. The honest position is that this is undone rather than
+    solved; nothing here pretends otherwise, and the projection this engine
+    infers has its own answer to the same wrap that this does not share.
+    """
+    import geopandas as gpd
+    import shapely.geometry as sg
+
+    minx, miny, maxx, maxy = (float(v) for v in frame.total_bounds)
+    corners = gpd.GeoSeries([sg.box(minx, miny, maxx, maxy)],
+                            crs=frame.crs or "EPSG:4326")
+    lon0, lat0, lon1, lat1 = (float(v) for v in
+                              corners.to_crs("EPSG:4326").total_bounds)
+    padx = max((lon1 - lon0) * _MASK_PAD, 1.0)
+    pady = max((lat1 - lat0) * _MASK_PAD, 1.0)
+    # The meridian has to sit inside the ring it divides. When a declaration
+    # falls outside the country's own longitudes the side beyond it comes back
+    # empty and the split declines — which is the right answer, and better than
+    # a bow-tie polygon raising from inside GEOS.
+    return (max(min(lon0 - padx, lon - 1.0), -180.0),
+            max(lat0 - pady, -_MASK_LAT_LIMIT),
+            min(max(lon1 + padx, lon + 1.0), 180.0),
+            min(lat1 + pady, _MASK_LAT_LIMIT))
 
 
 def _masks(frame, lon: float):
@@ -67,18 +145,22 @@ def _masks(frame, lon: float):
     import geopandas as gpd
     import shapely.geometry as sg
 
-    lat0, lat1 = _MASK_LAT
-    lon0, lon1 = _MASK_LON
+    lon0, lat0, lon1, lat1 = _extent(frame, lon)
     steps = [lat0 + i * _MASK_STEP
              for i in range(int((lat1 - lat0) / _MASK_STEP) + 1)] + [lat1]
-    meridian = [(lon, lat) for lat in steps]
+    down = list(reversed(steps))
 
-    # walk each ring in one direction: the meridian up, then back along the
-    # outer edge. Threading the outer corners in the wrong order makes a
-    # bow-tie, and intersecting with a self-crossing polygon raises deep inside
-    # GEOS with a message that says nothing about which polygon was at fault.
-    west = sg.Polygon([(lon0, lat0)] + meridian + [(lon0, lat1)])
-    east = sg.Polygon(meridian + [(lon1, lat1), (lon1, lat0)])
+    def edge(at: float, lats):
+        return [(at, lat) for lat in lats]
+
+    # walk each ring in one direction: up one edge and down the other. Threading
+    # the corners in the wrong order makes a bow-tie, and intersecting with a
+    # self-crossing polygon raises deep inside GEOS with a message that says
+    # nothing about which polygon was at fault. Both vertical edges are broken
+    # into segments, not just the dividing meridian: a country wide enough for
+    # its outer edge to matter is exactly the country this used to fail on.
+    west = sg.Polygon(edge(lon0, steps) + edge(lon, down))
+    east = sg.Polygon(edge(lon, steps) + edge(lon1, down))
     series = gpd.GeoSeries([west.buffer(0), east.buffer(0)], crs="EPSG:4326")
     if frame.crs is not None and frame.crs != series.crs:
         series = series.to_crs(frame.crs)
@@ -179,14 +261,97 @@ def land_masses(frame) -> dict[str, Any]:
     }
 
 
-def split_bounds(frame, lon: float = ARCHIPELAGO_LON) -> dict[str, Any] | None:
+def declared(country: str | None) -> dict[str, Any] | None:
+    """The built-in declaration for a country, or None if there is not one.
+
+    Hyphens and underscores read as spaces, because the name reaching this
+    function is sometimes the one the boundary file reports ("Việt Nam") and
+    sometimes the folder it sits in ("viet-nam").
+    """
+    if not country:
+        return None
+    name = str(country).strip().lower().replace("-", " ").replace("_", " ")
+    return _DECLARED.get(name)
+
+
+def declaration(country: str | None, by_hand: dict[str, Any] | None = None,
+                where: str | None = None) -> dict[str, Any]:
+    """What the country profile should record about this country's inset.
+
+    Three outcomes, and the profile says which of them happened rather than only
+    what the number is. A reader who finds ``"nguồn": "chưa khai"`` knows the map
+    was framed the ordinary way because nobody has decided otherwise — not
+    because the geometry was examined and found not to need an inset.
+
+    A hand-written declaration wins over the built-in table, including when it
+    is written as ``null``: turning Vietnam's inset off is a decision somebody
+    is allowed to make, and it has to be expressible.
+    """
+    if by_hand and HAND_KEY in by_hand:
+        lon = by_hand[HAND_KEY]
+        if lon is None:
+            return {"kinh_tuyến": None, "nhãn": None,
+                    "nguồn": "người dùng khai là không có",
+                    "bằng_chứng": f"hồ sơ ghi {HAND_KEY} = null"}
+        if isinstance(lon, bool) or not isinstance(lon, (int, float)) \
+                or not -180.0 <= float(lon) <= 180.0:
+            from . import messages as msg
+
+            raise SystemExit(msg.text("loi.khai-báo-khung-phụ-sai",
+                                      field=HAND_KEY, given=repr(lon),
+                                      file=where or "ho_so_quoc_gia.json"))
+        label = by_hand.get(HAND_LABEL_KEY)
+        return {"kinh_tuyến": float(lon),
+                "nhãn": str(label) if label else None,
+                "nguồn": "người dùng khai",
+                "bằng_chứng": f"hồ sơ ghi {HAND_KEY} = {float(lon)}"}
+    known = declared(country)
+    if known is not None:
+        return dict(known)
+    return {
+        "kinh_tuyến": None,
+        "nhãn": None,
+        "nguồn": "chưa khai",
+        "bằng_chứng": f"không có dòng nào cho '{country}' trong bảng khai báo "
+                      f"sẵn, và hồ sơ chưa có {HAND_KEY}",
+        "cách_khai": f"viết \"khai_báo\": {{\"{HAND_KEY}\": <kinh độ>, "
+                     f"\"{HAND_LABEL_KEY}\": \"<nhãn, không bắt buộc>\"}} vào "
+                     f"mục của quốc gia này trong "
+                     f"{where or 'ho_so_quoc_gia.json'}",
+    }
+
+
+def meridian(profile: dict[str, Any] | None) -> float | None:
+    """The declared meridian a country profile carries, or None.
+
+    Read, never re-derived — the same rule the projection follows. A map that
+    worked out its own meridian would be a second chance to answer differently
+    from the profile the plan was shown from.
+    """
+    return ((profile or {}).get("khung_phụ") or {}).get("kinh_tuyến")
+
+
+def inset_label(profile: dict[str, Any] | None) -> str | None:
+    """The caption declared for that country's box, or None for no caption."""
+    return ((profile or {}).get("khung_phụ") or {}).get("nhãn")
+
+
+def split_bounds(frame, lon: float | None) -> dict[str, Any] | None:
     """Mainland bounds and archipelago bounds, or None if the split is pointless.
 
-    Returns None — meaning "frame this the ordinary way" — when the frame holds
-    no offshore fragments, or holds nothing but them. A single-province map of
-    Khánh Hòa is a real case of the second: there is no mainland-versus-islands
-    story to tell, the reader asked for Khánh Hòa.
+    Returns None — meaning "frame this the ordinary way" — when the country has
+    declared no meridian, when the frame holds no offshore fragments, or when it
+    holds nothing but them. A single-province map of Khánh Hòa is a real case of
+    the last: there is no mainland-versus-islands story to tell, the reader asked
+    for Khánh Hòa.
+
+    ``lon`` has no default on purpose. Every caller has to say which meridian it
+    means, because the version of this that defaulted to Vietnam's gave every
+    other country the same split silently, and silently is how the United States
+    map came out with two thirds of its page at sea and nothing said.
     """
+    if lon is None:
+        return None
     minx, miny, maxx, maxy = (float(v) for v in frame.total_bounds)
     west_mask, east_mask = _masks(frame, lon)
 
@@ -202,7 +367,7 @@ def split_bounds(frame, lon: float = ARCHIPELAGO_LON) -> dict[str, Any] | None:
     return {"đất_liền": west, "quần_đảo": east, "mặt_nạ_tây": west_mask}
 
 
-def view(frame, lon: float = ARCHIPELAGO_LON) -> dict[str, Any] | None:
+def view(frame, lon: float | None) -> dict[str, Any] | None:
     """Where the map should look, and where the inset goes inside that view.
 
     Both in data coordinates, so the caller can hand one to ``set_xlim`` and the

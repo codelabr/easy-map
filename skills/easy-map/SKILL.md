@@ -779,6 +779,27 @@ engine says so, with that number. Relay it: the answer is usually to draw the
 main body on its own, but it is the user's call, because sometimes the distant
 territory is exactly what the map is about.
 
+**Any country can have that corner box; it has to be declared.** The dividing
+meridian is a cartographic decision and not something the geometry contains —
+Vietnam's own 111°E cannot be derived from its shapefile, and three attempts to
+do so are written up in `emap/insets.py`. So the engine holds one built-in
+declaration, Vietnam's, and reads any other from the country profile
+`shapefiles/ho_so_quoc_gia.json`:
+
+```json
+"canada": { "khai_báo": { "kinh_tuyến_khung_phụ": -100.0,
+                          "nhãn_khung_phụ": "Arctic Archipelago" } }
+```
+
+The caption is optional and there is no default: a box with nothing declared is
+drawn without a caption, never with Vietnam's. `khung_phụ` in the profile always
+says which of the three states applies — declared here, declared built-in, or
+`"nguồn": "chưa khai"` — and when nothing is declared it also carries
+`cách_khai`, the line to write and the file to write it in. Offer this when the
+warning above fires **and** the distant land lies wholly to one side by
+longitude. It cannot help the United States, whose Alaska is west and whose
+Puerto Rico is east; say so rather than suggesting a number that will not work.
+
 **One request, one `render`, and no maps nobody asked for.** The scope you agree
 in the plan is the whole job: `auto` already returns every map the request needs
 — a series of three provinces is one `render` call, not three. Do not follow it
