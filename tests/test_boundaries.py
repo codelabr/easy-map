@@ -1025,7 +1025,7 @@ class TestTheCountryProfile(OwnBoundariesOnly):
     def test_a_profile_from_an_older_engine_is_rebuilt(self):
         """The cache is keyed on the boundary files, which is right for "the
         data changed" and useless for "the engine changed". A profile written
-        before ``khung_phụ`` existed is valid by that key and answers None to a
+        before ``inset`` existed is valid by that key and answers None to a
         question it was never asked — Vietnam would lose its inset on every
         machine that already had a profile, and nothing would say why."""
         with tempfile.TemporaryDirectory() as folder:
@@ -1497,46 +1497,64 @@ class TestWhatIsStillPinnedToVietnam(unittest.TestCase):
             self.assertEqual(semantics.infer(column, values, True)["semantic"],
                              semantics.COORDINATE, (column, values))
 
-    def test_english_administrative_words_are_left_on_the_name(self):
-        """``matching._PREFIXES`` is Vietnamese, and the plan keeps it that
-        way — deriving prefixes from the data is outside this round. So this
-        line is a record of a known cost, not a target: the user's table says
-        "Alder District" and the boundary file says "Alder", and the two do
-        not normalise to the same string.
+    def test_the_administrative_words_now_come_from_the_boundary_file(self):
+        """This line used to record the opposite.
+
+        It read: ``matching._PREFIXES`` is Vietnamese and the plan keeps it that
+        way, so "Alder District" and "Alder" do not normalise to the same
+        string. The list is no longer Vietnamese and no longer a module
+        constant — it is read off the columns the boundary file uses to name its
+        own administrative types, which is not the same as guessing it from the
+        place names. The plan ruled the guess out; it did not rule out reading
+        what the file already says.
+
+        Vietnam's own list stays hand-written, because Vietnam's shapefile
+        carries no type column at all.
         """
-        self.assertEqual(matching.normalize("Xã Alder"), "alder")
-        self.assertEqual(matching.normalize("Alder District"), "alder district")
-        self.assertEqual(matching.normalize("Region of Ardenne"), "region of ardenne")
-        self.assertNotEqual(matching.normalize("Alder District"),
-                            matching.normalize("Alder"))
+        vietnam = matching.VIETNAM
+        self.assertEqual(matching.normalize("Xã Alder", vietnam), "alder")
 
-    def test_the_users_table_joins_to_nothing_and_says_so(self):
-        """The cost above, counted.
+        # what Fictavia's own file declares: TYPE_2 in its language, ENGTYPE_2
+        # in English
+        districts = matching.affixes_from_type_words(["Districtul", "District"])
+        regions = matching.affixes_from_type_words(["Regiune", "Region"])
+        self.assertEqual(matching.normalize("Alder District", districts), "alder")
+        self.assertEqual(matching.normalize("Districtul Alder", districts), "alder")
+        self.assertEqual(matching.normalize("Region of Ardenne", regions), "ardenne")
 
-        Forty rows, forty misses. The best fuzzy score any of them reaches is
-        60.9, well under the floor of 82, so nothing is quietly accepted — and
-        every row comes back ``unmatched`` rather than matched-with-a-caveat.
-        That last part is the one thing here that is already right, and it is
-        worth a line of its own: the module the plan calls the worst risk is
-        the module that currently fails loudest.
+        # and a country that declares nothing keeps its names whole, rather
+        # than having Vietnamese grammar applied to them
+        self.assertEqual(matching.normalize("Alder District", matching.NOTHING),
+                         "alder district")
+
+    def test_the_users_table_now_joins(self):
+        """This line used to record the opposite.
+
+        It read: forty rows, forty misses, best fuzzy score 60.9 — under the
+        floor of 82, so nothing was quietly accepted and every row came back
+        ``unmatched``. Failing loudly was the one thing that was already right.
+
+        The same forty rows now match exactly, on the words the boundary file
+        declares for itself.
         """
         rows = (FIXTURES / "fictavia_testing.csv").read_text(
             encoding="utf-8").splitlines()[1:]
         names = [line.split(",")[1] for line in rows]
+        shapes = fixture("shp", "district")
+        affixes = matching.affixes_from_type_words(shapes["TYPE_2"].tolist()
+                                                   + shapes["ENGTYPE_2"].tolist())
         index = matching.build_index(
-            [{"name": n, "shape_id": i}
-             for i, n in enumerate(fixture("shp", "district")["NAME_2"])])
+            [{"name": n, "shape_id": i} for i, n in enumerate(shapes["NAME_2"])],
+            affixes)
 
-        outcomes, best = [], 0.0
+        outcomes = []
         for name in names:
             feature, score, method = matching.match_one(name, index)
             outcomes.append((feature, matching.status_for(method, score)))
-            best = max(best, score)
 
         self.assertEqual(len(names), 40)
-        self.assertEqual({status for _, status in outcomes}, {"unmatched"})
-        self.assertEqual([f for f, _ in outcomes if f is not None], [])
-        self.assertLess(best, 82.0)
+        self.assertEqual({status for _, status in outcomes}, {"high-confidence"})
+        self.assertEqual([f for f, _ in outcomes if f is None], [])
 
 
 if __name__ == "__main__":

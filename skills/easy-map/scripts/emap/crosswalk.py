@@ -60,7 +60,8 @@ def build(gdf, name_field: str = "ten_tinh", merger_field: str = "sap_nhap") -> 
 
 
 def alias_features(gdf, name_field: str = "ten_tinh", merger_field: str = "sap_nhap",
-                   id_field: str = "__shape_id") -> list[dict[str, Any]]:
+                   id_field: str = "__shape_id",
+                   alias_field: str | None = None) -> list[dict[str, Any]]:
     """Match-index entries covering both current and former province names.
 
     Former names carry ``merged_from`` so the review can say a row was converted
@@ -71,7 +72,13 @@ def alias_features(gdf, name_field: str = "ten_tinh", merger_field: str = "sap_n
     for _, row in gdf.iterrows():
         current = str(row[name_field]).strip()
         shape_id = int(row[id_field])
-        features.append({"name": current, "shape_id": shape_id})
+        entry: dict[str, Any] = {"name": current, "shape_id": shape_id}
+        # a second spelling the boundary file itself gives, such as GADM's
+        # VARNAME_1; NA is how GADM writes an absent cell
+        alias = str(row.get(alias_field) or "").strip() if alias_field else ""
+        if alias and alias != "NA" and alias != current:
+            entry["aliases"] = [alias]
+        features.append(entry)
 
         formers = []
         raw = str(row.get(merger_field) or "").strip()
@@ -81,8 +88,8 @@ def alias_features(gdf, name_field: str = "ten_tinh", merger_field: str = "sap_n
         formers += [f for f, c in RENAMED.items() if c == current]
 
         for former in formers:
-            key = matching.normalize(former)
-            if key == matching.normalize(current) or key in seen:
+            key = matching.normalize(former, matching.VIETNAM)
+            if key == matching.normalize(current, matching.VIETNAM) or key in seen:
                 continue
             seen.add(key)
             features.append({"name": former, "shape_id": shape_id,

@@ -62,17 +62,17 @@ MENU = 3
 
 def label(setting: str, value: str, lang: str | None = None) -> str:
     """The short name of one value, as a person would say it."""
-    return messages.text(f"chọn.{setting}.{value}.nhãn", lang)
+    return messages.text(f"choice.{setting}.{value}.label", lang)
 
 
 def describe(setting: str, value: str, lang: str | None = None) -> str:
     """One sentence on what choosing this value does to the finished map."""
-    return messages.text(f"chọn.{setting}.{value}.mô_tả", lang)
+    return messages.text(f"choice.{setting}.{value}.description", lang)
 
 
 def field(name: str, lang: str | None = None) -> str:
     """The name of a row in the plan table."""
-    return messages.text(f"mục.{name}", lang)
+    return messages.text(f"field.{name}", lang)
 
 
 def count(key: str, field: str, number: int, lang: str | None = None) -> str:
@@ -113,7 +113,7 @@ def ask(setting: str, current: str | None, lang: str | None = None, *,
         among: Iterable[str] | None = None) -> dict[str, Any]:
     """One question, complete enough to hand to a picker without rewriting it."""
     return {"item": setting,
-            "question": messages.text(f"chọn.{setting}.câu_hỏi", lang),
+            "question": messages.text(f"choice.{setting}.question", lang),
             "choices": options(setting, current, lang, among=among)}
 
 

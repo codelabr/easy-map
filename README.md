@@ -117,8 +117,11 @@ automated tests.
   will not pick the meridian for you. One meridian cannot separate every
   country's territory: the United States has Alaska to the west and Puerto Rico
   to the east.
-- **Place-name prefixes are Vietnamese.** "Xã Alder" normalises; "Alder
-  District" does not.
+- **Place-name affixes are read from the boundary file, not guessed.** GADM
+  writes the words a country uses for its own administrative units in `TYPE_n`
+  and `ENGTYPE_n`, so "Alder District" reaches Alder. A file that names no type
+  gets nothing stripped, which is the honest reading. Vietnam's list is
+  hand-written, because its shapefile carries no type column at all.
 - **Not evaluated with users.** Everything above is what the tool does, not
   what it has been shown to change.
 - A series crossing the 2025 boundary needs the `sap_nhap` field in the

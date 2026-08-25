@@ -16,31 +16,31 @@ from emap import matching
 
 def index_of(*names: str):
     return matching.build_index(
-        [{"name": name, "shape_id": i} for i, name in enumerate(names)])
+        [{"name": name, "shape_id": i} for i, name in enumerate(names)], matching.VIETNAM)
 
 
 class TestNormalize(unittest.TestCase):
     def test_strips_accents_and_lowercases(self):
-        self.assertEqual(matching.normalize("Minh Châu"), "minh chau")
+        self.assertEqual(matching.normalize("Minh Châu", matching.VIETNAM), "minh chau")
 
     def test_strips_d_stroke(self):
-        self.assertEqual(matching.normalize("Đan Điền"), "dan dien")
+        self.assertEqual(matching.normalize("Đan Điền", matching.VIETNAM), "dan dien")
 
     def test_strips_the_word_prefix(self):
-        self.assertEqual(matching.normalize("Xã Minh Châu"), "minh chau")
-        self.assertEqual(matching.normalize("Phường Ba Đình"), "ba dinh")
-        self.assertEqual(matching.normalize("Thành phố Huế"), "hue")
+        self.assertEqual(matching.normalize("Xã Minh Châu", matching.VIETNAM), "minh chau")
+        self.assertEqual(matching.normalize("Phường Ba Đình", matching.VIETNAM), "ba dinh")
+        self.assertEqual(matching.normalize("Thành phố Huế", matching.VIETNAM), "hue")
 
     def test_strips_abbreviated_prefixes(self):
         """Punctuation is removed first, so 'P.' has to be matched bare."""
-        self.assertEqual(matching.normalize("P. Phú Hồ"), "phu ho")
-        self.assertEqual(matching.normalize("TT. Khe Tre"), "khe tre")
-        self.assertEqual(matching.normalize("TP. Cần Thơ"), "can tho")
+        self.assertEqual(matching.normalize("P. Phú Hồ", matching.VIETNAM), "phu ho")
+        self.assertEqual(matching.normalize("TT. Khe Tre", matching.VIETNAM), "khe tre")
+        self.assertEqual(matching.normalize("TP. Cần Thơ", matching.VIETNAM), "can tho")
 
     def test_does_not_eat_a_name_that_merely_starts_with_a_prefix_letter(self):
-        self.assertEqual(matching.normalize("Phú Hồ"), "phu ho")
-        self.assertEqual(matching.normalize("Xuân Mai"), "xuan mai")
-        self.assertEqual(matching.normalize("Hòa Bình"), "hoa binh")
+        self.assertEqual(matching.normalize("Phú Hồ", matching.VIETNAM), "phu ho")
+        self.assertEqual(matching.normalize("Xuân Mai", matching.VIETNAM), "xuan mai")
+        self.assertEqual(matching.normalize("Hòa Bình", matching.VIETNAM), "hoa binh")
 
     def test_collapses_whitespace_and_punctuation(self):
         """The hyphen goes with the rest of the punctuation.
@@ -48,13 +48,13 @@ class TestNormalize(unittest.TestCase):
         It used to survive, which meant "Ba Ria-Vung Tau" and "Bà Rịa - Vũng Tàu"
         reached each other only as a fuzzy guess needing review.
         """
-        self.assertEqual(matching.normalize("  Chân  Mây - Lăng Cô "),
+        self.assertEqual(matching.normalize("  Chân  Mây - Lăng Cô ", matching.VIETNAM),
                          "chan may lang co")
-        self.assertEqual(matching.normalize("Chân Mây-Lăng Cô"),
-                         matching.normalize("Chân Mây - Lăng Cô"))
+        self.assertEqual(matching.normalize("Chân Mây-Lăng Cô", matching.VIETNAM),
+                         matching.normalize("Chân Mây - Lăng Cô", matching.VIETNAM))
 
     def test_empty_input(self):
-        self.assertEqual(matching.normalize(None), "")
+        self.assertEqual(matching.normalize(None, matching.VIETNAM), "")
 
 
 class TestMatchOne(unittest.TestCase):
@@ -178,11 +178,11 @@ class TestReviewCommune(unittest.TestCase):
             "Hà Nội": matching.build_index([
                 {"name": "Minh Châu", "shape_id": 101},
                 {"name": "Tân Hòa", "shape_id": 102},
-            ]),
+            ], matching.VIETNAM),
             "Cần Thơ": matching.build_index([
                 {"name": "Tân Hòa", "shape_id": 201},
                 {"name": "Vị Thanh", "shape_id": 202},
-            ]),
+            ], matching.VIETNAM),
         }
 
     def review(self, rows):
@@ -314,18 +314,18 @@ class TestEnglishLanguageSources(unittest.TestCase):
     """
 
     def test_the_english_administrative_suffix_is_dropped(self):
-        self.assertEqual(matching.normalize("Ho Chi Minh City"),
-                         matching.normalize("TP. Hồ Chí Minh"))
-        self.assertEqual(matching.normalize("Thai Nguyen Province"),
-                         matching.normalize("Thái Nguyên"))
+        self.assertEqual(matching.normalize("Ho Chi Minh City", matching.VIETNAM),
+                         matching.normalize("TP. Hồ Chí Minh", matching.VIETNAM))
+        self.assertEqual(matching.normalize("Thai Nguyen Province", matching.VIETNAM),
+                         matching.normalize("Thái Nguyên", matching.VIETNAM))
 
     def test_a_name_that_merely_ends_in_those_letters_is_kept(self):
-        self.assertEqual(matching.normalize("Bac City Giang"), "bac city giang")
-        self.assertEqual(matching.normalize("Mỹ City"), "my")
+        self.assertEqual(matching.normalize("Bac City Giang", matching.VIETNAM), "bac city giang")
+        self.assertEqual(matching.normalize("Mỹ City", matching.VIETNAM), "my")
 
     def test_hyphen_spacing_does_not_turn_a_match_into_a_guess(self):
-        self.assertEqual(matching.normalize("Ba Ria-Vung Tau"),
-                         matching.normalize("Bà Rịa - Vũng Tàu"))
+        self.assertEqual(matching.normalize("Ba Ria-Vung Tau", matching.VIETNAM),
+                         matching.normalize("Bà Rịa - Vũng Tàu", matching.VIETNAM))
 
     def test_an_english_name_still_reaches_the_shapefile_feature(self):
         index = index_of("TP. Hồ Chí Minh", "Hải Phòng")
@@ -370,3 +370,42 @@ class TestAdminLevelSanity(unittest.TestCase):
 
         self.assertEqual(
             guardrails.check_admin_level({"total": 3, "unmatched": 2}, "commune"), [])
+
+
+class TestASecondSpellingFromTheBoundaryFile(unittest.TestCase):
+    """GADM's ``VARNAME_*`` was read into the profile and then never used.
+
+    De-accenting already handles the easy half — "Ba Ria - Vung Tau" and
+    "Bà Rịa - Vũng Tàu" normalise to one key without any alias. What an alias
+    earns is the other half: a variant that is a *different name*, which no
+    amount of normalising reaches.
+    """
+
+    FEATURES = [{"name": "Thành phố Hồ Chí Minh", "shape_id": 1,
+                 "aliases": ["Sai Gon"]},
+                {"name": "Hà Nội", "shape_id": 2}]
+
+    def index(self):
+        return matching.build_index(self.FEATURES, matching.VIETNAM)
+
+    def test_the_alias_finds_the_unit(self):
+        feature, score, method = matching.match_one("Sai Gon", self.index())
+        self.assertEqual(feature["shape_id"], 1)
+        self.assertEqual(score, 100.0)
+        self.assertNotEqual(method, matching.FUZZY)
+
+    def test_the_map_still_shows_the_name_not_the_alias(self):
+        feature, _, _ = matching.match_one("Sai Gon", self.index())
+        self.assertEqual(feature["name"], "Thành phố Hồ Chí Minh")
+
+    def test_a_unit_without_an_alias_is_untouched(self):
+        feature, _, method = matching.match_one("Hà Nội", self.index())
+        self.assertEqual(feature["shape_id"], 2)
+        self.assertEqual(method, matching.EXACT)
+
+    def test_an_alias_never_creates_a_second_unit(self):
+        """Both spellings lead to one feature, so a count of units is a count
+        of units."""
+        index = self.index()
+        found = {f["shape_id"] for bucket in index.values() for f in bucket}
+        self.assertEqual(found, {1, 2})

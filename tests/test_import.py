@@ -64,7 +64,7 @@ class TestAdoptFile(unittest.TestCase):
 
     def test_a_name_the_filesystem_refuses_is_cleaned_not_rejected(self):
         self.assertEqual(dataio.safe_name('so:lieu*2026?.csv'), "so_lieu_2026_.csv")
-        self.assertEqual(dataio.safe_name("   "), "du-lieu")
+        self.assertEqual(dataio.safe_name("   "), "data")
 
     def test_vietnamese_names_and_spaces_survive(self):
         """The user has to recognise their own file in the list afterwards."""

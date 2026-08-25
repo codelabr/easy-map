@@ -59,7 +59,7 @@ class TestBuild(unittest.TestCase):
 
 class TestMatchingThroughAliases(unittest.TestCase):
     def setUp(self):
-        self.index = matching.build_index(crosswalk.alias_features(PROVINCES))
+        self.index = matching.build_index(crosswalk.alias_features(PROVINCES), matching.VIETNAM)
 
     def test_a_former_name_resolves_to_the_current_shape(self):
         feature, score, method = matching.match_one("Sóc Trăng", self.index)

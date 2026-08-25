@@ -35,7 +35,7 @@ SIMPLIFY_PIXELS = 1.5
 
 CACHE_DIR = ".interactive"
 STILL, SERIES = "still", "series"
-PAGES = {STILL: "ban_do_tuong_tac.html", SERIES: "ban_do_theo_thoi_gian.html"}
+PAGES = {STILL: "interactive_map.html", SERIES: "map_over_time.html"}
 
 TEXT = {
     "vi": {
@@ -306,20 +306,25 @@ def build(run_dir: Path, kind: str) -> dict[str, Any] | None:
                  entries[0]["title"])
 
     path = run_dir / PAGES[kind]
-    path.write_text(_page(title, {"entries": entries, "text": TEXT}), encoding="utf-8")
+    path.write_text(_page(title, {"entries": entries, "text": TEXT},
+                          lang=preferred), encoding="utf-8")
     return {
         "files": str(path),
         "format": "html",
         "maps_in_page": len(entries),
         "language": languages,
         "size_mb": round(path.stat().st_size / 1_048_576, 2),
-        "note": "Một tệp tự chứa: gửi riêng tệp này vẫn xem được, không cần tệp nào khác.",
+        "note": "One self-contained file: send it on its own and it still opens, with nothing else beside it.",
     }
 
 
-def _page(title: str, payload: dict[str, Any]) -> str:
+def _page(title: str, payload: dict[str, Any], lang: str = "vi") -> str:
+    # The page's own text follows the reader's language already; the document's
+    # lang attribute did not, so an English page told the browser and every
+    # screen reader it was Vietnamese.
     return (PAGE
-            .replace("__TITLE__", html.escape(title or "Bản đồ"))
+            .replace("__LANG__", html.escape(lang))
+            .replace("__TITLE__", html.escape(title or TEXT[lang]["map"]))
             .replace("__ICON_PLAY__", ICON_PLAY)
             .replace("__ICON_PAUSE__", ICON_PAUSE)
             .replace("__ICON_IN__", ICON_IN)
@@ -333,7 +338,7 @@ def _page(title: str, payload: dict[str, Any]) -> str:
 #: JavaScript, and doubling every brace to survive formatting is how a working
 #: page becomes an unmaintainable one.
 PAGE = """<!doctype html>
-<html lang="vi">
+<html lang="__LANG__">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>

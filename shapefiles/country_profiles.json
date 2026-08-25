@@ -1,0 +1,159 @@
+{
+ "canada": {
+  "__version": 6,
+  "__from": [
+   "province/ca.dbf:806",
+   "province/ca.prj:132",
+   "province/ca.shp:1319060",
+   "province/ca.shx:204"
+  ],
+  "tiers": [
+   {
+    "folder": "province",
+    "files": "ca.shp",
+    "unit_count": 13,
+    "role": "province",
+    "name_column": "name",
+    "level": null,
+    "is_country_outline": false,
+    "type_words": [],
+    "alias_column": null
+   }
+  ],
+  "detected": {
+   "dataset": "generic",
+   "confidence": "likely",
+   "evidence": "'name' reads like place names (1.00); next best id (0.55)"
+  },
+  "country_name": null,
+  "projection": {
+   "crs": "+proj=aea +lat_1=48.6273 +lat_2=76.2187 +lat_0=62.4230 +lon_0=-99.3398 +datum=WGS84 +units=m +no_defs",
+   "source": "inferred from the coarse tier's geometry",
+   "evidence": "bounds [-141.0056, 41.7295, -52.6166, 83.1165]"
+  },
+  "detached_land": {
+   "mass_count": 289,
+   "main_mass_area_share": 0.8436,
+   "main_mass_width_share": 0.9302
+  },
+  "inset": {
+   "meridian": null,
+   "label": null,
+   "source": "undeclared",
+   "evidence": "no row for 'canada' in the built-in table, and the profile has no inset_meridian",
+   "how_to_declare": "write \"declared\": {\"inset_meridian\": <longitude>, \"inset_label\": \"<caption, optional>\"} into this country's entry in D:\\temp\\agentic-gis\\shapefiles\\country_profiles.json"
+  }
+ },
+ "united-states": {
+  "__version": 6,
+  "__from": [
+   "state/US_State_Boundaries.cpg:5",
+   "state/US_State_Boundaries.dbf:9980",
+   "state/US_State_Boundaries.prj:167",
+   "state/US_State_Boundaries.shp:10799236",
+   "state/US_State_Boundaries.shx:524"
+  ],
+  "tiers": [
+   {
+    "folder": "state",
+    "files": "US_State_Boundaries.shp",
+    "unit_count": 53,
+    "role": "province",
+    "name_column": "NAME",
+    "level": null,
+    "is_country_outline": false,
+    "type_words": [],
+    "alias_column": null
+   }
+  ],
+  "detected": {
+   "dataset": "generic",
+   "confidence": "likely",
+   "evidence": "'NAME' reads like place names (1.00); next best STATE_ABBR (0.55)"
+  },
+  "country_name": null,
+  "projection": {
+   "crs": "+proj=aea +lat_1=26.6269 +lat_2=62.4367 +lat_0=44.5318 +lon_0=-112.3970 +datum=WGS84 +units=m +no_defs",
+   "source": "inferred from the coarse tier's geometry",
+   "evidence": "bounds [-179.1473, 17.6744, 179.7784, 71.3892]"
+  },
+  "detached_land": {
+   "mass_count": 451,
+   "main_mass_area_share": 0.83508,
+   "main_mass_width_share": 0.4314
+  },
+  "inset": {
+   "meridian": null,
+   "label": null,
+   "source": "undeclared",
+   "evidence": "no row for 'united-states' in the built-in table, and the profile has no inset_meridian",
+   "how_to_declare": "write \"declared\": {\"inset_meridian\": <longitude>, \"inset_label\": \"<caption, optional>\"} into this country's entry in D:\\temp\\agentic-gis\\shapefiles\\country_profiles.json"
+  }
+ },
+ "viet-nam": {
+  "__version": 6,
+  "__from": [
+   "commune/Việt Nam (phường xã) - 34.cpg:5",
+   "commune/Việt Nam (phường xã) - 34.dbf:3268282",
+   "commune/Việt Nam (phường xã) - 34.prj:145",
+   "commune/Việt Nam (phường xã) - 34.shp:116673612",
+   "commune/Việt Nam (phường xã) - 34.shx:26668",
+   "province/Việt Nam (tỉnh thành) - 34.cpg:5",
+   "province/Việt Nam (tỉnh thành) - 34.dbf:19800",
+   "province/Việt Nam (tỉnh thành) - 34.prj:145",
+   "province/Việt Nam (tỉnh thành) - 34.shp:21008152",
+   "province/Việt Nam (tỉnh thành) - 34.shx:372"
+  ],
+  "tiers": [
+   {
+    "folder": "province",
+    "files": "Việt Nam (tỉnh thành) - 34.shp",
+    "unit_count": 34,
+    "role": "province",
+    "name_column": "ten_tinh",
+    "level": 1,
+    "is_country_outline": false,
+    "type_words": [],
+    "alias_column": null
+   },
+   {
+    "folder": "commune",
+    "files": "Việt Nam (phường xã) - 34.shp",
+    "unit_count": 3321,
+    "role": "commune",
+    "name_column": "ten_xa",
+    "level": 2,
+    "is_country_outline": false,
+    "type_words": [],
+    "alias_column": null
+   }
+  ],
+  "detected": {
+   "dataset": "viet-nam",
+   "confidence": "sure",
+   "evidence": "has the columns ten_tinh, sap_nhap"
+  },
+  "country_name": "Việt Nam",
+  "projection": {
+   "crs": "+proj=aea +lat_1=9.6747 +lat_2=20.6490 +lat_0=15.1619 +lon_0=106.4149 +datum=WGS84 +units=m +no_defs",
+   "source": "inferred from the coarse tier's geometry",
+   "evidence": "bounds [102.1439, 6.9311, 117.3933, 23.3926]"
+  },
+  "detached_land": {
+   "mass_count": 218,
+   "main_mass_area_share": 0.98376,
+   "main_mass_width_share": 0.4705
+  },
+  "inset": {
+   "meridian": 111.0,
+   "label": "Hoàng Sa · Trường Sa",
+   "source": "built in for Vietnam",
+   "evidence": "the easternmost mainland point in the shapefile is 110.64°E; the westernmost island fragment is 111.45°E"
+  },
+  "parent_link": {
+   "parent_column": "ten_tinh",
+   "confidence": "sure",
+   "evidence": "3321/3321 values of 'ten_tinh' are coarse-tier names"
+  }
+ }
+}

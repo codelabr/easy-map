@@ -43,7 +43,7 @@ def install(matplotlib_module) -> dict[str, str]:
     folder = font_dir()
     missing = missing_files()
     if missing:
-        raise RuntimeError(msg.text("loi.thiếu-font", folder=folder,
+        raise RuntimeError(msg.text("error.missing-font", folder=folder,
                                     missing=", ".join(missing)))
 
     from matplotlib import font_manager
@@ -56,7 +56,7 @@ def install(matplotlib_module) -> dict[str, str]:
         if family not in registered:
             from_bundle = sorted({f.name for f in font_manager.fontManager.ttflist
                                   if str(folder) in str(f.fname)})
-            raise RuntimeError(msg.text("loi.font-sai-họ", family=family,
+            raise RuntimeError(msg.text("error.wrong-font-family", family=family,
                                         folder=folder, found=from_bundle))
 
     rc = matplotlib_module.rcParams

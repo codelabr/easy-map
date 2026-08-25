@@ -303,7 +303,7 @@ until a different file or a corrected sheet arrives.
 ## Then: can that sheet become a map at all?
 
 `profile` answers `usable` before anything else. When it is `false`, the map
-options list is empty and a `sheet-khong-ve-duoc` warning says why — the sheet
+options list is empty and a `sheet-not-mappable` warning says why — the sheet
 is a pivot table, or has no place-name column, or is empty. Relay the reason and
 offer the other sheets in the workbook. Do not push on: there is nothing there
 to be clever about.
@@ -700,7 +700,7 @@ If the user wants both editions, run `render` twice with the same options and di
 
 **`video`** — MP4, each period held about two seconds and joined by a short cross-dissolve, with a timeline under the map. For playing in a talk.
 
-**`html`** — the series joins `ban_do_theo_thoi_gian.html`, the interactive page described under Output, with a slider, a play button and arrow keys added. For sending to someone who wants to explore it themselves.
+**`html`** — the series joins `map_over_time.html`, the interactive page described under Output, with a slider, a play button and arrow keys added. For sending to someone who wants to explore it themselves.
 
 The page carries **one frame per period**, not the video's hundreds, so it usually ends up *smaller* than the MP4.
 
@@ -784,7 +784,7 @@ meridian is a cartographic decision and not something the geometry contains —
 Vietnam's own 111°E cannot be derived from its shapefile, and three attempts to
 do so are written up in `emap/insets.py`. So the engine holds one built-in
 declaration, Vietnam's, and reads any other from the country profile
-`shapefiles/ho_so_quoc_gia.json`:
+`shapefiles/country_profiles.json`:
 
 ```json
 "canada": { "declared": { "inset_meridian": -100.0,
@@ -925,13 +925,13 @@ output/2026-08-05_14-30-00/
 ├── match_review_commune_<dataset>.csv          bảng ghép địa danh đã dùng
 ├── <ten-ban-do>_<layout>_vi.png                một file cho mỗi bản đồ
 ├── <ten-ban-do>_<layout>_vi_metadata.json
-├── ban_do_tuong_tac.html                       mọi bản đồ tĩnh, mọi ngôn ngữ
-├── ban_do_theo_thoi_gian.html                  mọi bản đồ theo thời gian
+├── interactive_map.html                       mọi bản đồ tĩnh, mọi ngôn ngữ
+├── map_over_time.html                  mọi bản đồ theo thời gian
 ├── .interactive/                               kho dựng trang, không phải đầu ra
 └── run_manifest.json                           mọi tham số, đủ để dựng lại
 ```
 
-Each map also gets `<ten-ban-do>_..._so-lieu.csv`: **the numbers the map was
+Each map also gets `<ten-ban-do>_..._data.csv`: **the numbers the map was
 drawn from**, after name matching, filtering and aggregation. Not the input
 sheet — this is what is actually behind the colours and the circles, with both
 the raw value and the formatted one, so a figure in a report can be checked

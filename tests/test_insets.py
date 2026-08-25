@@ -141,7 +141,7 @@ class TestDeclaringWhereTheSplitIs(unittest.TestCase):
     def test_vietnams_number_is_unchanged_and_says_where_it_came_from(self):
         found = insets.declared("Việt Nam")
         self.assertEqual(found["meridian"], 111.0)
-        self.assertIn("110,64", found["evidence"])
+        self.assertIn("110.64", found["evidence"])
 
     def test_the_name_may_arrive_as_the_folder_it_sits_in(self):
         """``tên_quốc_gia`` is what the file reports; the fallback is the folder

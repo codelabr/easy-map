@@ -116,7 +116,7 @@ class TestOverflow(unittest.TestCase):
         found = lay.overflow(self.fig)
         self.assertEqual(len(found), 1)
         self.assertEqual(found[0]["side"], "right")
-        self.assertEqual(found[0]["outside_of"], "trang")
+        self.assertEqual(found[0]["outside_of"], "page")
         self.assertGreater(found[0]["over_pt"], 10)
 
     def test_the_side_it_left_by_is_named(self):
@@ -138,7 +138,7 @@ class TestOverflow(unittest.TestCase):
         panel.text(0.0, 0.5, "Tiêu đề chú giải quá dài so với cột bên trái")
         found = lay.overflow(self.fig, panels=[panel])
         self.assertEqual(len(found), 1)
-        self.assertEqual(found[0]["outside_of"], "cột chú giải")
+        self.assertEqual(found[0]["outside_of"], "legend column")
         self.assertEqual(found[0]["side"], "right")
 
     def test_blank_and_hidden_text_is_not_reported(self):

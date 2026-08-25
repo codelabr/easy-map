@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 import context  # noqa: F401  (path bootstrap)
-from emap import tabular
+from emap import matching, tabular
 
 
 class TestMergedCells(unittest.TestCase):
@@ -290,7 +290,7 @@ class TestPlaceColumns(unittest.TestCase):
     def test_a_province_column_is_recognised_by_its_values(self):
         rows = [["Ha Noi", 12], ["Hai Phong", 9], ["Thai Nguyen", 4]]
         found = tabular.place_columns(["SNU1", "Value"], rows,
-                                      self.PROVINCES, self.COMMUNES)
+                                      self.PROVINCES, self.COMMUNES, matching.VIETNAM)
         self.assertEqual(found["province"], "SNU1")
         self.assertIsNone(found["commune"])
 
@@ -298,21 +298,21 @@ class TestPlaceColumns(unittest.TestCase):
         """'Hà Nội' is in both lists; that alone must not imply commune data."""
         rows = [["Ha Noi", 1], ["Hai Phong", 2]]
         found = tabular.place_columns(["Tỉnh", "Value"], rows,
-                                      self.PROVINCES, self.COMMUNES)
+                                      self.PROVINCES, self.COMMUNES, matching.VIETNAM)
         self.assertIsNone(found["commune"])
 
     def test_a_commune_column_is_found_beside_a_province_column(self):
         rows = [["Hai Phong", "Cam Giang"], ["Hai Phong", "An Duong"],
                 ["Hai Phong", "Vinh Bao"]]
         found = tabular.place_columns(["SNU1", "SNU2"], rows,
-                                      self.PROVINCES, self.COMMUNES)
+                                      self.PROVINCES, self.COMMUNES, matching.VIETNAM)
         self.assertEqual(found["province"], "SNU1")
         self.assertEqual(found["commune"], "SNU2")
 
     def test_a_column_of_something_else_is_not_a_place(self):
         rows = [["TX_CURR", 1], ["HTS_TST", 2], ["TX_NEW", 3]]
         found = tabular.place_columns(["Indicator", "Value"], rows,
-                                      self.PROVINCES, self.COMMUNES)
+                                      self.PROVINCES, self.COMMUNES, matching.VIETNAM)
         self.assertIsNone(found["province"])
         self.assertIsNone(found["commune"])
 
@@ -320,13 +320,13 @@ class TestPlaceColumns(unittest.TestCase):
         """Counting cells would let a single name outvote three wrong ones."""
         rows = [["Ha Noi", 1]] * 50 + [["Khong Phai", 2], ["Cung Khong", 3]]
         found = tabular.place_columns(["A", "Value"], rows,
-                                      self.PROVINCES, self.COMMUNES)
+                                      self.PROVINCES, self.COMMUNES, matching.VIETNAM)
         self.assertIsNone(found["province"])
 
     def test_blank_cells_are_not_counted_against_a_column(self):
         rows = [["Ha Noi", 1], [None, 2], ["", 3], ["Hai Phong", 4]]
         found = tabular.place_columns(["A", "Value"], rows,
-                                      self.PROVINCES, self.COMMUNES)
+                                      self.PROVINCES, self.COMMUNES, matching.VIETNAM)
         self.assertEqual(found["province"], "A")
 
 if __name__ == "__main__":
@@ -357,13 +357,13 @@ class TestTheCommuneBarIsOneNumber(unittest.TestCase):
         """Two thirds of districts share a commune name; that is not enough."""
         communes = {f"xa {i}" for i in range(10)} | {"binh chanh", "cu chi"}
         rows = [["Binh Chanh"], ["Cu Chi"], ["District 5"], ["District 10"]]
-        found = tabular.place_columns(["SNU2"], rows, set(), communes)
+        found = tabular.place_columns(["SNU2"], rows, set(), communes, matching.VIETNAM)
         self.assertIsNone(found["commune"])
 
     def test_a_real_commune_column_still_clears_it(self):
         communes = {"cam giang", "an duong", "vinh bao", "tan hoa"}
         rows = [["Cam Giang"], ["An Duong"], ["Vinh Bao"], ["Tan Hoa"]]
-        found = tabular.place_columns(["Xã/phường"], rows, set(), communes)
+        found = tabular.place_columns(["Xã/phường"], rows, set(), communes, matching.VIETNAM)
         self.assertEqual(found["commune"], "Xã/phường")
 
 

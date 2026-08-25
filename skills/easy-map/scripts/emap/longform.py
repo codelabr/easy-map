@@ -97,7 +97,7 @@ def looks_long(column_infos: Sequence[dict[str, Any]], row_count: int,
         "row_count": row_count,
         "geographic_units": distinct_places,
         "rows_per_unit": round(per_place, 1),
-        "why": msg.text("dai.la-bang-dai", singular=len(categories) == 1,
+        "why": msg.text("longform.is-a-long-table", singular=len(categories) == 1,
                            column=numeric[0]["column"],
                            per_place=f"{per_place:.0f}", categories=len(categories)),
     }
@@ -203,7 +203,7 @@ def double_counting_axes(place_keys: Sequence[Any],
         totals = sorted(v for v in values if is_total_like(v))
         if totals and len(values) > len(totals):
             out.append({**axis, "total_value": totals,
-                        "why": msg.text("dai.co-ca-tong-va-chi-tiet",
+                        "why": msg.text("longform.totals-and-detail-together",
                                            totals=", ".join(totals))})
     return out
 
@@ -216,7 +216,7 @@ def pin_warning(axes: Sequence[dict[str, Any]], place_count: int) -> str | None:
     for axis in axes[:4]:
         reason = axis.get("why")
         parts.append(f"'{axis['column']}'" + (f" ({reason})" if reason else ""))
-    return msg.text("dai.can-gham", singular=len(axes) == 1,
+    return msg.text("longform.needs-pinning", singular=len(axes) == 1,
                     count=len(axes), columns=", ".join(parts),
                     split=axes[0]["split_units"], places=place_count)
 
@@ -332,11 +332,11 @@ def recommend_pin(options: Sequence[dict[str, Any]]) -> dict[str, Any] | None:
     pick = totals[0] if totals else max(tied, key=lambda o: o["total"])
 
     if len(usable) == 1:
-        why = msg.text("dai.mot-gia-tri")
+        why = msg.text("longform.only-one-value")
     elif pick["is_total_row"]:
-        why = msg.text("dai.la-dong-tong", units=pick["unit_count"])
+        why = msg.text("longform.is-a-total-row", units=pick["unit_count"])
     else:
-        why = msg.text("dai.phu-nhieu-nhat", units=pick["unit_count"])
+        why = msg.text("longform.covers-the-most-units", units=pick["unit_count"])
     return {**pick, "why": why,
             "alternatives": [o["value"] for o in usable if o["value"] != pick["value"]][:6]}
 

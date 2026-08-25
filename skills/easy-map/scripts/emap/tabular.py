@@ -358,7 +358,8 @@ COMMUNE_SHARE = 0.85
 
 
 def place_columns(columns: Sequence[Any], rows: Sequence[Sequence[Any]],
-                  province_keys: set[str], commune_keys: set[str]) -> dict[str, Any]:
+                  province_keys: set[str], commune_keys: set[str],
+                  affixes) -> dict[str, Any]:
     """Best province column and best commune column in a sample of rows.
 
     Judged on distinct values rather than cells: one province repeated ten
@@ -369,7 +370,7 @@ def place_columns(columns: Sequence[Any], rows: Sequence[Sequence[Any]],
     best: dict[str, Any] = {"province": None, "commune": None,
                             "province_match": 0.0, "commune_match": 0.0}
     for index, name in enumerate(columns):
-        values = {matching.normalize(r[index]) for r in rows
+        values = {matching.normalize(r[index], affixes) for r in rows
                   if index < len(r) and not is_blank(r[index])}
         values.discard("")
         if not values:
@@ -398,18 +399,18 @@ def usability(columns: Sequence[Any], row_count: int,
     unnamed = [n for n in names if is_unnamed(n)]
 
     if row_count == 0 or not names:
-        return {"reason": msg.text("sheet-trong.lý_do"),
-                "fix": msg.text("sheet-trong.nên_làm")}
+        return {"reason": msg.text("sheet-no-data-rows.reason"),
+                "fix": msg.text("sheet-no-data-rows.fix")}
     if names and len(unnamed) / len(names) > 0.5:
         return {
-            "reason": msg.text("cot-khong-ten.lý_do", unnamed=len(unnamed),
+            "reason": msg.text("unnamed-columns.reason", unnamed=len(unnamed),
                               total=len(names), examples=", ".join(unnamed[:4])),
-            "fix": msg.text("cot-khong-ten.nên_làm"),
+            "fix": msg.text("unnamed-columns.fix"),
             "unnamed_columns": unnamed[:12],
         }
     if not place_column:
         return {
-            "reason": msg.text("khong-co-cot-dia-danh.lý_do"),
-            "fix": msg.text("khong-co-cot-dia-danh.nên_làm"),
+            "reason": msg.text("no-place-column.reason"),
+            "fix": msg.text("no-place-column.fix"),
         }
     return None

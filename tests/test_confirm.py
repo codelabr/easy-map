@@ -84,7 +84,7 @@ class TestWhatTheAgentIsHandedInstead(unittest.TestCase):
     def setUp(self):
         self.out = confirm.gate(
             plan(), [{"number": 1, "item": "Dữ liệu", "value": "a.xlsx"}],
-            [{"id": "coverage-thap", "severity": "warning"}], [],
+            [{"id": "low-coverage", "severity": "warning"}], [],
             "python easy_map.py render --excel a.xlsx")
 
     def test_it_says_plainly_that_nothing_was_drawn(self):

@@ -59,7 +59,7 @@ def load(require_geo: bool = True, require_plot: bool = False) -> Deps:
     try:
         import pandas as pd
     except ImportError as exc:  # pragma: no cover
-        raise SystemExit(msg.text("loi.thiếu-thư-viện", library="pandas")) from exc
+        raise SystemExit(msg.text("error.missing-library", library="pandas")) from exc
 
     deps = Deps(pd=pd)
     if not require_geo:
@@ -78,7 +78,7 @@ def load(require_geo: bool = True, require_plot: bool = False) -> Deps:
         try:
             import geopandas as gpd
         except ImportError as exc:
-            raise SystemExit(msg.text("loi.thiếu-thư-viện", library="geopandas")) from exc
+            raise SystemExit(msg.text("error.missing-library", library="geopandas")) from exc
         deps.gpd = gpd
     if require_plot:
         try:
@@ -86,7 +86,7 @@ def load(require_geo: bool = True, require_plot: bool = False) -> Deps:
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
         except ImportError as exc:
-            raise SystemExit(msg.text("loi.thiếu-thư-viện", library="matplotlib")) from exc
+            raise SystemExit(msg.text("error.missing-library", library="matplotlib")) from exc
         deps.matplotlib, deps.plt = matplotlib, plt
     return deps
 
@@ -118,7 +118,7 @@ _UNSAFE_NAME = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
 def safe_name(raw: str) -> str:
     cleaned = _UNSAFE_NAME.sub("_", str(raw)).strip().strip(".")
-    return cleaned or "du-lieu"
+    return cleaned or "data"
 
 
 def _digest(path: Path) -> str:
@@ -147,11 +147,11 @@ def adopt_file(project_root: Path, source: Path) -> dict[str, Any]:
     """
     source = Path(source)
     if not source.exists() or not source.is_file():
-        raise SystemExit(msg.text("loi.không-tìm-thấy-tệp", path=source))
+        raise SystemExit(msg.text("error.file-not-found", path=source))
     if source.suffix.lower() not in TABLE_SUFFIXES:
         raise SystemExit(msg.text(
-            "loi.định-dạng-không-đọc-được",
-            suffix=source.suffix or msg.text("loi.không-có-đuôi"),
+            "error.unreadable-format",
+            suffix=source.suffix or msg.text("error.no-extension"),
             accepted=", ".join(TABLE_SUFFIXES)))
 
     folder = Path(project_root) / "input"
@@ -162,7 +162,7 @@ def adopt_file(project_root: Path, source: Path) -> dict[str, Any]:
         if target.stat().st_size == source.stat().st_size and \
                 _digest(target) == _digest(source):
             return {"files": f"input/{target.name}", "status": "already_present",
-                    "note": msg.text("doc.tệp-trùng")}
+                    "note": msg.text("read.duplicate-file")}
         stem, suffix = target.stem, target.suffix
         index = 2
         while (folder / f"{stem}_{index:02d}{suffix}").exists():
@@ -248,14 +248,14 @@ def countries(root: Path) -> list[str]:
 def resolve_country(root: Path, requested: str | None = None) -> str:
     if requested:
         if not _has_boundary_country(root, requested):
-            raise SystemExit(msg.text("loi.không-có-quốc-gia", country=requested,
+            raise SystemExit(msg.text("error.no-such-country", country=requested,
                                       available=", ".join(countries(root)) or "-"))
         return requested
     found = countries(root)
     if not found:
-        raise SystemExit(msg.text("loi.thiếu-thư-mục-shapefile", folder=root))
+        raise SystemExit(msg.text("error.boundary-folder-missing", folder=root))
     if len(found) > 1:
-        raise SystemExit(msg.text("loi.nhiều-quốc-gia",
+        raise SystemExit(msg.text("error.several-countries",
                                   available=", ".join(found)))
     return found[0]
 
@@ -301,7 +301,7 @@ def tiers(root: Path, country: str) -> list[dict[str, Any]]:
     """
     folder = root / country
     if not folder.is_dir():
-        raise SystemExit(msg.text("loi.không-có-quốc-gia", country=country,
+        raise SystemExit(msg.text("error.no-such-country", country=country,
                                   available=", ".join(countries(root)) or "-"))
     found = []
     for tier in sorted(folder.iterdir()):
@@ -353,7 +353,7 @@ def find_boundaries(project_root: Path, admin_level: str,
     name = resolve_country(root, country)
     available = tiers(root, name)
     if not available:
-        raise SystemExit(msg.text("loi.thiếu-thư-mục-shapefile", folder=root / name))
+        raise SystemExit(msg.text("error.boundary-folder-missing", folder=root / name))
 
     for entry in available:
         if entry.get("is_country_outline"):
@@ -361,7 +361,7 @@ def find_boundaries(project_root: Path, admin_level: str,
         if admin_level in (entry["folder"], entry.get("role")):
             return entry["__path"]
     raise SystemExit(msg.text(
-        "loi.không-có-tầng", level=admin_level, country=name,
+        "error.no-such-tier", level=admin_level, country=name,
         available=", ".join(f"{t['folder']} ({t['unit_count']})" for t in available)))
 
 
@@ -384,7 +384,7 @@ def resolve_tier(project_root: Path, admin_level: str,
         if admin_level in (entry["folder"], entry.get("role")):
             return {**entry, "country": name}
     raise SystemExit(msg.text(
-        "loi.không-có-tầng", level=admin_level, country=name,
+        "error.no-such-tier", level=admin_level, country=name,
         available=", ".join(f"{t['folder']} ({t['unit_count']})"
                             for t in tiers(root, name))))
 
@@ -397,16 +397,16 @@ def _one_dataset(folder: Path) -> Path:
     refused by name rather than resolved by sorting.
     """
     if not folder.exists():
-        raise SystemExit(msg.text("loi.thiếu-thư-mục-shapefile", folder=folder))
+        raise SystemExit(msg.text("error.boundary-folder-missing", folder=folder))
 
     found = sorted((p for p in folder.iterdir()
                     if p.is_file() and p.suffix.lower() in BOUNDARY_SUFFIXES),
                    key=lambda p: (_FORMAT_ORDER[p.suffix.lower()], p.name))
     if not found:
-        raise SystemExit(msg.text("loi.không-có-ranh-giới", folder=folder,
+        raise SystemExit(msg.text("error.no-boundary-file", folder=folder,
                                   accepted=", ".join(BOUNDARY_SUFFIXES)))
     if len(found) > 1 and len({p.stem for p in found}) > 1:
-        raise SystemExit(msg.text("loi.nhiều-tệp-ranh-giới", folder=folder,
+        raise SystemExit(msg.text("error.several-boundary-files", folder=folder,
                                   files=", ".join(p.name for p in found)))
 
     chosen = found[0]
@@ -414,7 +414,7 @@ def _one_dataset(folder: Path) -> Path:
         missing = [s for s in _SHAPEFILE_SIDECARS
                    if not chosen.with_suffix(s).exists()]
         if missing:
-            raise SystemExit(msg.text("loi.thiếu-tệp-đi-kèm", path=chosen.name,
+            raise SystemExit(msg.text("error.missing-sidecar-file", path=chosen.name,
                                       missing=", ".join(missing)))
     return chosen
 
@@ -470,7 +470,7 @@ def read_text_table(deps: Deps, path: Path, notes: list[dict[str, Any]] | None =
     if notes is not None:
         notes.append({
             "action": "read_delimited_text",
-            "detail": msg.text("doc.bảng-dán", encoding=dialect["encoding"],
+            "detail": msg.text("read.pasted-table", encoding=dialect["encoding"],
                                  delimiter=repr(dialect["sep"])),
         })
     return df
@@ -507,7 +507,7 @@ def read_table(deps: Deps, excel: Path, sheet: str | None,
     if start and notes is not None:
         notes.append({
             "action": "skipped_leading_rows",
-            "detail": msg.text("doc.dòng-tiêu-đề", row=start + 1, skipped=start),
+            "detail": msg.text("read.header-row", row=start + 1, skipped=start),
         })
 
     for column in df.columns:
@@ -546,7 +546,7 @@ def _read_merged(deps: Deps, excel: Path, sheet: str | None, plain, notes):
         if notes is not None:
             notes.append({
                 "action": "skipped_merged_scan",
-                "detail": msg.text("doc.ô-gộp-tệp-lớn",
+                "detail": msg.text("read.merged-cells-large-file",
                                      limit=MERGE_SCAN_MAX_BYTES // 1_000_000),
             })
         return None
@@ -579,8 +579,8 @@ def _read_merged(deps: Deps, excel: Path, sheet: str | None, plain, notes):
             "merged_regions": len(ranges),
             "header_tiers": depth,
             "detail": msg.text(
-                "doc.ô-gộp", regions=len(ranges),
-                header=(msg.text("doc.ô-gộp-tiêu-đề", levels=depth,
+                "read.merged-cells", regions=len(ranges),
+                header=(msg.text("read.merged-header-cells", levels=depth,
                                  example=names[3] if len(names) > 3 else names[-1])
                         if depth > 1 else "") + ".",),
         })
@@ -720,12 +720,12 @@ def shape_fields(gdf, admin_level: str) -> dict[str, str | None]:
     """
     reading = detect.identify(gdf)
     if reading.get("is_country_outline"):
-        raise SystemExit(msg.text("loi.là-đường-viền-quốc-gia",
+        raise SystemExit(msg.text("error.is-a-country-outline",
                                   evidence=reading["evidence"]))
 
     name = reading.get("name_column")
     if name is None:
-        raise SystemExit(msg.text("loi.không-tìm-được-cột-tên", level=admin_level,
+        raise SystemExit(msg.text("error.no-name-column", level=admin_level,
                                   evidence=reading["evidence"]))
     # Two keys and no more. The reading that produced them, with its evidence,
     # belongs in the country profile where an agent can read it once; carried
@@ -853,15 +853,19 @@ def run_thematic_crs(deps: Deps, project_root: Path,
 #: Where the reading of each country is kept, beside the boundaries it
 #: describes rather than inside any one project, because the boundaries are one
 #: shared set and the reading belongs to them.
-PROFILE = "ho_so_quoc_gia.json"
+PROFILE = "country_profiles.json"
 
 #: Raised whenever this file learns a new field. The cache is keyed on the
 #: boundary files, which is right for "the data changed" and useless for "the
-#: engine changed": a profile written before ``khung_phụ`` existed is valid by
+#: engine changed": a profile written before ``inset`` existed is valid by
 #: that key and answers None to a question it was never asked, so Vietnam loses
 #: its inset on every machine that already had a profile and nothing says why.
-#: Bump this in the same commit as any new field.
-PROFILE_VERSION = 3
+#: Bump this in the same commit as **any** change to what the profile records —
+#: a new field, a renamed one, or a changed value. The second rule was learned
+#: the hard way: renaming the fields left every stored profile valid by its file
+#: key and answering in the old vocabulary, and translating the evidence left
+#: every stored profile answering in Vietnamese.
+PROFILE_VERSION = 6
 
 
 def _profile_key(root: Path, country: str) -> list[str]:
@@ -938,6 +942,8 @@ def read_country(deps: Deps, root: Path, country: str,
             "unit_count": entry["unit_count"], "role": entry.get("role"),
             "name_column": found.get("name_column"), "level": found.get("level"),
             "is_country_outline": bool(found.get("is_country_outline")),
+            "type_words": _type_words(gdf, found),
+            "alias_column": found.get("unaccented_column"),
         })
 
     named = [t for t in reading["tiers"] if not t["is_country_outline"]]
@@ -948,8 +954,8 @@ def read_country(deps: Deps, root: Path, country: str,
         reading["country_name"] = found.get("country")
         crs = thematic_crs(gdf)
         reading["projection"] = {
-            "crs": crs, "source": "suy diễn từ hình học của tầng thô",
-            "evidence": f"hộp bao {[round(float(v), 4) for v in gdf.total_bounds]}",
+            "crs": crs, "source": "inferred from the coarse tier's geometry",
+            "evidence": f"bounds {[round(float(v), 4) for v in gdf.total_bounds]}",
         }
         # Grouping the land takes seconds, so it is done here — once, cached —
         # rather than on every map that might want to mention it.
@@ -966,6 +972,60 @@ def read_country(deps: Deps, root: Path, country: str,
     saved[country] = reading
     _write_profile(store, saved)
     return reading
+
+
+def _type_words(gdf, found: dict[str, Any]) -> list[str]:
+    """What this tier calls its own units, off the boundary file's own columns.
+
+    GADM writes them out — ``TYPE_2`` is ``Districtul`` and ``ENGTYPE_2`` is
+    ``District`` — so a matcher can take "Alder District" to Alder without any
+    of it being guessed from the names. A file that names no type contributes
+    nothing, which is the honest answer for a file that does not say.
+    """
+    words: list[str] = []
+    for column in found.get("type_columns") or []:
+        for raw in gdf[column].dropna().unique():
+            word = str(raw).strip()
+            # GADM writes an absent cell as the two-letter string NA
+            if word and word != "NA" and word not in words:
+                words.append(word)
+    return sorted(words)
+
+
+def name_affixes(profile: dict[str, Any] | None, country: str | None = None):
+    """The administrative words to strip for this country, from its profile.
+
+    Read, never re-derived — the same rule the projection and the inset follow.
+    Falls back to Vietnam's hand-written list for Vietnam, whose shapefile
+    carries no type column at all, and to stripping nothing for a country that
+    declares none. Stripping nothing is not a failure: it is what every country
+    but Vietnam effectively got before, except that they got it after being
+    measured against Vietnamese grammar first.
+    """
+    from . import matching
+
+    words: list[str] = []
+    for tier in (profile or {}).get("tiers", []):
+        words += tier.get("type_words") or []
+    if words:
+        return matching.affixes_from_type_words(words)
+    name = (profile or {}).get("country_name") or country
+    if matching.is_vietnam(name):
+        return matching.VIETNAM
+    return matching.NOTHING
+
+
+def alias_column(profile: dict[str, Any] | None, role: str) -> str | None:
+    """The column holding a second spelling of each name at this tier.
+
+    GADM's ``VARNAME_1`` is the case this exists for. Read from the profile
+    rather than looked for again, so the index and the profile cannot disagree
+    about which column that is.
+    """
+    for tier in (profile or {}).get("tiers", []):
+        if tier.get("role") == role:
+            return tier.get("alias_column")
+    return None
 
 
 def _write_profile(store: Path, saved: dict[str, Any]) -> None:

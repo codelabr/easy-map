@@ -70,16 +70,16 @@ def gate(settings: dict[str, Any], numbered: list[dict[str, Any]],
     # A code cannot stand for a plan with a question still open in it, so while
     # ``must_ask`` has anything in it no code is issued at all. Saying that here
     # keeps an agent from spending a turn trying the one it was given.
-    guidance = messages.text("cổng.trình-bày")
+    guidance = messages.text("gate.how-to-present")
     if must_ask:
-        guidance += messages.text("cổng.chưa-hỏi")
+        guidance += messages.text("gate.not-yet-asked")
     else:
-        guidance += messages.text("cổng.khi-đồng-ý", code=code)
-    guidance += messages.text("cổng.đổi-thiết-lập")
+        guidance += messages.text("gate.once-agreed", code=code)
+    guidance += messages.text("gate.settings-changed")
     if not language_stated:
         # both languages, deliberately: this is the one note whose whole subject
         # is that the engine's idea of the conversation language is a guess
-        guidance += "".join(messages.text("cổng.chưa-nêu-ngôn-ngữ", lang)
+        guidance += "".join(messages.text("gate.language-not-stated", lang)
                             for lang in messages.LANGUAGES)
     return {
         "status": STATUS,

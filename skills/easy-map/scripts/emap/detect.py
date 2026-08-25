@@ -169,7 +169,7 @@ def identify(gdf) -> dict[str, Any]:
         return {
             "dataset": VIETNAM,
             "confidence": SURE,
-            "evidence": f"có cột {evidence}",
+            "evidence": f"has the columns {evidence}",
             "name_column": commune or province,
             "parent_column": province if commune else None,
             "country": "Việt Nam",
@@ -191,14 +191,14 @@ def identify(gdf) -> dict[str, Any]:
         if level == 0:
             return {
                 "dataset": GADM, "confidence": SURE,
-                "evidence": f"có GID_0 và {country_column or 'COUNTRY'}, "
-                              f"không có NAME_1 — đây là đường viền quốc gia",
+                "evidence": f"has GID_0 and {country_column or 'COUNTRY'} but no "
+                            f"NAME_1 — this is a country outline",
                 "name_column": country_column, "parent_column": None,
                 "country": country, "level": 0, "is_country_outline": True,
             }
         return {
             "dataset": GADM, "confidence": SURE,
-            "evidence": f"có GID_0 và NAME_{level}",
+            "evidence": f"has GID_0 and NAME_{level}",
             "name_column": _by_name(gdf, [f"NAME_{level}"]),
             "parent_column": _by_name(gdf, [f"NAME_{level - 1}"]) if level > 1 else None,
             "country": country, "level": level,
@@ -206,6 +206,11 @@ def identify(gdf) -> dict[str, Any]:
             # matcher builds for itself — worth handing over rather than
             # recomputing.
             "unaccented_column": _by_name(gdf, [f"VARNAME_{level}"]),
+            # The words this country calls its own administrative units, in its
+            # language and in English. Read rather than guessed: a matcher that
+            # has these can take "Alder District" to Alder.
+            "type_columns": [c for c in (_by_name(gdf, [f"TYPE_{level}"]),
+                                         _by_name(gdf, [f"ENGTYPE_{level}"])) if c],
         }
 
     # --- geoBoundaries ---------------------------------------------------
@@ -217,8 +222,9 @@ def identify(gdf) -> dict[str, Any]:
         digits = re.sub(r"\D", "", kind)
         return {
             "dataset": GEOBOUNDARIES, "confidence": SURE,
-            "evidence": f"có shapeName và shapeGroup" + (f", shapeType={kind}" if kind else ""),
+            "evidence": f"has shapeName and shapeGroup" + (f", shapeType={kind}" if kind else ""),
             "name_column": shape_name, "parent_column": None,
+            "type_columns": [],
             "country": (_text_values(gdf, shape_group, limit=1) or [None])[0],
             "level": int(digits) if digits else None,
         }
@@ -230,7 +236,7 @@ def identify(gdf) -> dict[str, Any]:
     if best[0] <= 0.0:
         return {
             "dataset": GENERIC, "confidence": ASK, "evidence":
-                f"không cột nào đọc như tên địa danh; các cột: {', '.join(columns)}",
+                f"no column reads like place names; the columns are: {', '.join(columns)}",
             "name_column": None, "parent_column": None, "country": None, "level": None,
         }
     runner_up = scored[1][0] if len(scored) > 1 else 0.0
@@ -241,9 +247,9 @@ def identify(gdf) -> dict[str, Any]:
         # columns is worth a question, because picking wrong here labels every
         # unit on the map with the wrong string and nothing downstream notices.
         "confidence": LIKELY if clear >= 0.25 else ASK,
-        "evidence": f"'{best[1]}' đọc như tên địa danh ({best[0]:.2f}); "
-                      f"cột kế tiếp {scored[1][1] if len(scored) > 1 else '-'} "
-                      f"({runner_up:.2f})",
+        "evidence": f"'{best[1]}' reads like place names ({best[0]:.2f}); "
+                    f"next best {scored[1][1] if len(scored) > 1 else '-'} "
+                    f"({runner_up:.2f})",
         "name_column": best[1], "parent_column": None, "country": None, "level": None,
     }
 
@@ -286,7 +292,7 @@ def link_tiers(coarse, coarse_reading: dict[str, Any],
         if coarse_reading.get("name_column") else set()
     if not known or fine is None:
         return {"parent_column": None, "confidence": ASK,
-                "evidence": "không đọc được cột tên của cấp thô"}
+                "evidence": "the coarse tier's name column could not be read"}
 
     best, best_share = None, 0.0
     for column in (str(c) for c in fine.columns if c != "geometry"):
@@ -301,15 +307,15 @@ def link_tiers(coarse, coarse_reading: dict[str, Any],
     if best_share < 0.5:
         return {
             "parent_column": claimed, "confidence": ASK,
-            "evidence": f"không cột nào của cấp mịn khớp tên cấp thô quá một nửa "
-                          f"(cao nhất {best or '-'} {best_share:.0%})",
+            "evidence": f"no column of the finer tier matches more than half the "
+                        f"coarse names (best {best or '-'} at {best_share:.0%})",
         }
     matched = sum(1 for v in _text_values(fine, best, 5000) if v in known)
     total = len(_text_values(fine, best, 5000))
     return {
         "parent_column": best,
         "confidence": SURE if best_share >= 0.999 else LIKELY,
-        "evidence": f"{matched}/{total} giá trị của '{best}' có trong tập tên "
-                      f"cấp thô" + ("" if claimed in (None, best)
-                                    else f"; lược đồ khai '{claimed}'"),
+        "evidence": f"{matched}/{total} values of '{best}' are coarse-tier "
+                    f"names" + ("" if claimed in (None, best)
+                                else f"; the schema declares '{claimed}'"),
     }

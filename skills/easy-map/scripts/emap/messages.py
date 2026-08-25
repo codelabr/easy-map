@@ -74,24 +74,24 @@ ONE = "one"
 #: on their own. Kept here so a clause does not end up in one language inside a
 #: sentence in the other.
 FRAGMENTS: dict[str, dict[str, str]] = {
-    "tử-số": {"vi": "tử số", "en": "numerator"},
-    "mẫu-số": {"vi": "mẫu số", "en": "denominator"},
+    "numerator": {"vi": "tử số", "en": "numerator"},
+    "denominator": {"vi": "mẫu số", "en": "denominator"},
 
-    "cot-dia-danh-xa": {
+    "commune-place-column": {
         "vi": "Cột địa danh cấp xã ",
         "en": "The commune name column ",
     },
-    "cot-ten": {
+    "the-named-column": {
         "vi": "Cột '{column}' ",
         "en": "Column '{column}' ",
     },
-    "nhap-nhang-da-bo": {
+    "ambiguous-dropped": {
         "vi": " Những dòng này đã bị để ra ngoài bản đồ, nên xã tương ứng hiện màu "
               "xám 'chưa có số liệu'.",
         "en": " These rows were left off the map, so the communes concerned appear "
               "grey, as 'no data'.",
     },
-    "nhap-nhang-da-giu": {
+    "ambiguous-kept": {
         "vi": " Những dòng này VẪN được vẽ theo phương án đầu tiên trong "
               "'candidates' — tức một phỏng đoán, và bản đồ sẽ không có dấu hiệu "
               "gì cho thấy điều đó.",
@@ -105,7 +105,7 @@ FRAGMENTS: dict[str, dict[str, str]] = {
 #: One entry per warning id. ``{placeholders}`` must match between the two
 #: languages; the test suite enforces that.
 ISSUES: dict[str, dict[str, dict[str, str]]] = {
-    "lanh-tho-roi-khong-khung-phu": {
+    "detached-land-no-inset": {
         "vi": {
             WHAT: "Phần đất chính chỉ chiếm {width} bề ngang khung bản đồ.",
             WHY: "Quốc gia này có đất nằm xa phần đất chính, và khung phải giãn ra để "
@@ -128,7 +128,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "the map is about.",
         },
     },
-    "coverage-thap": {
+    "low-coverage": {
         "vi": {
             WHAT: "Chỉ {with_data}/{in_frame} đơn vị trong khung bản đồ có số liệu ({share}).",
             WHY: "Bản đồ tô màu vùng khiến người xem tưởng cả khu vực đã được khảo sát. "
@@ -149,7 +149,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "that 'grey = not surveyed, not zero'.",
         },
     },
-    "cong-gop-ty-le": {
+    "summing-a-rate": {
         "vi": {
             WHAT: "Đang cộng dồn '{column}' cho các dòng trùng địa danh.",
             WHY: "Cộng hai tỷ lệ với nhau không tạo ra tỷ lệ có nghĩa: 60% + 70% không phải 130%. "
@@ -164,7 +164,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "original numerator and denominator.",
         },
     },
-    "trung-binh-khong-trong-so": {
+    "unweighted-mean": {
         "vi": {
             WHAT: "Đang lấy trung bình đơn giản của '{column}'.",
             WHY: "Một xã 2.000 dân và một xã 100.000 dân đang được tính ngang nhau, "
@@ -178,7 +178,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
             FIX: "If the table has a population or denominator column, use a weighted mean.",
         },
     },
-    "to-mau-so-dem": {
+    "colour-by-count": {
         "vi": {
             WHAT: "Đang tô màu vùng theo '{column}', vốn là số đếm thô.",
             WHY: "Vùng rộng gần như luôn có số đếm lớn hơn vùng hẹp, nên bản đồ sẽ phản ánh diện tích "
@@ -192,7 +192,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
             FIX: "Colour by a rate or a per-capita figure, and show the count through circle size.",
         },
     },
-    "phan-tram-vuot-100": {
+    "percent-over-100": {
         "vi": {
             WHAT: "'{column}' có giá trị tới {value}%.",
             WHY: "Tỷ lệ vượt 100% thường do mẫu số sai hoặc do cột này thực ra không phải phần trăm.",
@@ -206,7 +206,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "compiled the table.",
         },
     },
-    "phan-tram-am": {
+    "percent-negative": {
         "vi": {
             WHAT: "'{column}' có giá trị âm ({value}%).",
             WHY: "Tỷ lệ âm không có nghĩa, trừ khi đây là mức thay đổi.",
@@ -218,7 +218,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
             FIX: "If it is a change, switch to a change map with a diverging colour ramp.",
         },
     },
-    "phan-lop-dieu-chinh": {
+    "classes-adjusted": {
         "vi": {
             WHAT: "Đã điều chỉnh cách chia nhóm.",
             WHY: "{note}",
@@ -230,7 +230,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
             FIX: "No action needed; this note is here for transparency.",
         },
     },
-    "qua-nhieu-nhom": {
+    "too-many-classes": {
         "vi": {
             WHAT: "Chia {classes} nhóm cho chỉ {observations} đơn vị có số liệu.",
             WHY: "Mỗi nhóm chỉ còn một hai đơn vị, nên ranh giới màu phản ánh ngẫu nhiên hơn là quy luật.",
@@ -244,7 +244,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
             FIX: "Drop to {suggest} classes so the map reads clearly.",
         },
     },
-    "chenh-lech-qua-nho": {
+    "spread-too-small": {
         "vi": {
             WHAT: "Chênh lệch giữa đơn vị cao nhất và thấp nhất chỉ {span} trên nền giá trị khoảng {scale}.",
             WHY: "Thang màu trải hết trên một khoảng chênh rất nhỏ, nên bản đồ trông như "
@@ -262,7 +262,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "classes, or choose another indicator if this one has saturated.",
         },
     },
-    "co-the-khong-phai-cap-xa": {
+    "may-not-be-commune-level": {
         "vi": {
             WHAT: "{unmatched}/{total} tên trong bảng không phải tên xã hiện nay.",
             WHY: "{where}có thể là **cấp huyện** — tầng hành chính đã bỏ từ 2025 và không "
@@ -282,7 +282,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "districts, map at province level (--admin-level province) and say so to the user.",
         },
     },
-    "khong-ghep-duoc": {
+    "unmatched-rows": {
         "vi": {
             WHAT: "{count} địa danh trong bảng không tìm thấy trên bản đồ.",
             WHY: "Những dòng này sẽ biến mất khỏi bản đồ, khiến tổng số trên bản đồ nhỏ hơn tổng trong bảng.",
@@ -297,7 +297,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "drawing.",
         },
     },
-    "quy-doi-sap-nhap": {
+    "merger-converted": {
         "vi": {
             WHAT: "{count} tên tỉnh cũ đã được quy đổi về tỉnh hiện nay.",
             WHY: "Bảng dùng tên trước đợt sáp nhập 2025. Nếu không quy đổi, các tỉnh cũ sẽ "
@@ -314,7 +314,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "while rates were recomputed with weights rather than averaged.",
         },
     },
-    "ghep-nhap-nhang": {
+    "ambiguous-match": {
         "vi": {
             WHAT: "{count} địa danh khớp với nhiều xã khác nhau trong cùng tỉnh.",
             WHY: "Sau khi bỏ dấu, một số tên trở nên giống hệt nhau — ví dụ 'Cẩm Giang' và "
@@ -335,7 +335,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "fix-match command. To keep the guess, run render with --ambiguous keep.",
         },
     },
-    "ghep-can-duyet": {
+    "match-needs-review": {
         "vi": {
             WHAT: "{count} địa danh được ghép bằng cách đoán gần đúng.",
             WHY: "Tên gần giống nhau có thể bị ghép nhầm sang xã khác cùng tỉnh.",
@@ -348,7 +348,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
             FIX: "Review the rows marked 'fuzzy' in match_review.csv before drawing.",
         },
     },
-    "nhieu-ky-bao-cao": {
+    "several-periods": {
         "vi": {
             WHAT: "Bảng chứa {count} kỳ báo cáo khác nhau.",
             WHY: "Nếu vẽ chung, số liệu của nhiều kỳ sẽ bị cộng dồn vào một xã và con số sẽ bị thổi phồng.",
@@ -362,7 +362,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "a shared colour scale.",
         },
     },
-    "vong-tron-che-vung": {
+    "circles-hide-areas": {
         "vi": {
             WHAT: "Vòng tròn lớn hơn chính đơn vị hành chính nó đại diện.",
             WHY: "Vòng tròn sẽ che mất màu bên dưới và tràn sang xã bên cạnh, khiến người xem đọc nhầm vùng.",
@@ -376,7 +376,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "side by side.",
         },
     },
-    "can-thang-hai-chieu": {
+    "needs-diverging-scale": {
         "vi": {
             WHAT: "Số liệu có cả giá trị tăng và giảm.",
             WHY: "Thang màu một chiều sẽ không cho thấy đâu là ranh giới giữa tăng và giảm.",
@@ -388,7 +388,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
             FIX: "Use a diverging ramp anchored at 0.",
         },
     },
-    "sheet-khong-ve-duoc": {
+    "sheet-not-mappable": {
         # ``why`` and ``fix`` are the verdict from :mod:`tabular`, already in the
         # right language; this entry only supplies the sentence around them
         "vi": {
@@ -402,7 +402,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
             FIX: "{fix}",
         },
     },
-    "dem-trung-dang-dai": {
+    "long-table-double-count": {
         "vi": {
             WHAT: "Bảng dạng dài: một đơn vị nằm trên nhiều dòng.",
             WHY: "{why}",
@@ -414,7 +414,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
             FIX: "Pass --where 'COLUMN=VALUE' for each of the columns named above when rendering.",
         },
     },
-    "ky-khong-doc-duoc": {
+    "unreadable-periods": {
         "vi": {
             WHAT: "{count} giá trị kỳ không đọc được ngày tháng: {periods}.",
             WHY: "Những kỳ này bị xếp xuống cuối, nên thứ tự thời gian trong video có thể sai.",
@@ -427,7 +427,7 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
             FIX: "Write periods in the form 'Năm 2024', 'Quý I/2026' or 'Tháng 3/2026'.",
         },
     },
-    "thieu-nhieu": {
+    "mostly-missing": {
         "vi": {
             WHAT: "Cột '{column}' thiếu {share} số dòng.",
             WHY: "Bản đồ sẽ có nhiều vùng xám và dễ bị hiểu là chưa có vấn đề gì ở đó.",
@@ -448,19 +448,19 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
 #: placeholders, one place.
 TEXT: dict[str, dict[str, str]] = {
     # --- verdict on a sheet, from tabular.usability ------------------------
-    "sheet-trong.lý_do": {
+    "sheet-no-data-rows.reason": {
         "vi": "Sheet không có dòng dữ liệu nào.",
         "en": "The sheet has no data rows.",
     },
-    "sheet-trong.nên_làm": {
+    "sheet-no-data-rows.fix": {
         "vi": "Chọn sheet khác trong workbook.",
         "en": "Choose another sheet in the workbook.",
     },
-    "cot-khong-ten.lý_do": {
+    "unnamed-columns.reason": {
         "vi": "{unnamed}/{total} cột không có tên ({examples}…).",
         "en": "{unnamed} of {total} columns have no name ({examples}…).",
     },
-    "cot-khong-ten.nên_làm": {
+    "unnamed-columns.fix": {
         "vi": "Sheet này nhiều khả năng là bảng tổng hợp (pivot) hoặc có "
               "dòng tiêu đề/ghi chú ở đầu. Chọn sheet chứa bảng dữ liệu thô, "
               "hoặc xoá các dòng thừa phía trên bảng rồi lưu lại.",
@@ -468,11 +468,11 @@ TEXT: dict[str, dict[str, str]] = {
               "rows above the data. Choose the sheet holding the raw table, or "
               "delete the rows above the table and save again.",
     },
-    "khong-co-cot-dia-danh.lý_do": {
+    "no-place-column.reason": {
         "vi": "Không tìm thấy cột nào chứa tên tỉnh/thành phố hoặc xã/phường.",
         "en": "No column was found holding province or commune names.",
     },
-    "khong-co-cot-dia-danh.nên_làm": {
+    "no-place-column.fix": {
         "vi": "Bản đồ cần một cột địa danh để ghép với shapefile. Kiểm tra "
               "xem sheet có cột tên địa phương không, hoặc chỉ định bằng "
               "--province-column / --commune-column.",
@@ -480,39 +480,39 @@ TEXT: dict[str, dict[str, str]] = {
               "whether the sheet has one, or name it with --province-column / "
               "--commune-column.",
     },
-    "sheet-rong.lý_do": {
+    "sheet-empty.reason": {
         "vi": "Sheet trống.",
         "en": "The sheet is empty.",
     },
-    "sheet-rong.nên_làm": {
+    "sheet-empty.fix": {
         "vi": "Bỏ qua sheet này.",
         "en": "Skip this sheet.",
     },
 
     # --- notes on an automatic classification change -----------------------
-    "bins.giam-nhom": {
+    "bins.fewer-classes": {
         "vi": "Giảm từ {asked} xuống {classes} nhóm vì chỉ có {distinct} giá trị khác nhau.",
         "en": "Reduced from {asked} to {classes} classes: there are only {distinct} distinct values.",
     },
-    "bins.mot-chieu": {
+    "bins.sequential": {
         "vi": "Số liệu chỉ có một chiều tăng hoặc giảm nên dùng thang một chiều.",
         "en": "The data moves in one direction only, so a sequential ramp is used.",
     },
-    "bins.gop-nhom": {
+    "bins.classes-merged": {
         "vi": "Gộp còn {classes} nhóm để tránh khoảng quá hẹp, không phản ánh khác biệt thật.",
         "en": "Merged down to {classes} classes to avoid bands too narrow to stand for a real difference.",
     },
-    "bins.hai-chieu-neo-0": {
+    "bins.diverging-around-zero": {
         "vi": "Thang màu hai chiều được neo tại 0, nên màu trung tính đúng nghĩa là không đổi.",
         "en": "The diverging ramp is anchored at 0, so the neutral colour means exactly 'no change'.",
     },
-    "bins.thang-chung": {
+    "bins.shared-scale": {
         "vi": "Dùng chung thang phân lớp cho tất cả bản đồ trong loạt để so sánh được giữa các tỉnh.",
         "en": "One set of breaks is shared by every map in the series, so the provinces stay comparable.",
     },
 
     # --- how the variables were laid out over the two channels -------------
-    "kenh.tach-tam": {
+    "channel.split-plates": {
         # the channel names are spelled out here rather than interpolated from
         # FILL/SYMBOL: those two are machine keys in the JSON and must not move
         "vi": "Một tấm bản đồ chỉ có hai kênh: màu vùng và vòng tròn. {maps} tấm vì các "
@@ -522,50 +522,50 @@ TEXT: dict[str, dict[str, str]] = {
               "{maps} maps because the remaining variables compete for the same channel — "
               "they share a folder and a single HTML page, switched with the picker.",
     },
-    "kenh.mau-vung": {
+    "channel.fill": {
         "vi": "'{name}' tô màu vùng vì đã chuẩn hoá ({semantic}), nên so được giữa tỉnh "
               "to và tỉnh nhỏ.",
         "en": "'{name}' colours the areas because it is normalised ({semantic}), so large "
               "and small provinces stay comparable.",
     },
-    "kenh.vong-tron": {
+    "channel.circles": {
         "vi": "'{name}' vẽ vòng tròn vì là số đếm — tô màu vùng theo số đếm sẽ thành vẽ "
               "diện tích và dân số.",
         "en": "'{name}' is drawn as circles because it is a count — colouring areas by a "
               "count would map area and population instead.",
     },
-    "kenh.khong-co-mau": {
+    "channel.no-fill": {
         "vi": "Không có biến nào tô màu được, nên nền để trắng và chỉ vẽ vòng tròn.",
         "en": "No variable can carry the fill, so the base stays white and only the "
               "circles are drawn.",
     },
-    "kenh.khong-phai-dai-luong": {
+    "channel.not-a-quantity": {
         "vi": "'{name}' là {semantic}, không phải một đại lượng để vẽ. Cột thời gian dùng "
               "để lọc kỳ hoặc dựng bản đồ theo thời gian.",
         "en": "'{name}' is {semantic}, not a quantity to map. A time column is for "
               "selecting a period or building a map over time.",
     },
-    "kenh.la-toa-do": {
+    "channel.is-a-coordinate": {
         "vi": "'{name}' là toạ độ — dùng cho bản đồ điểm (--map-type point), không phải "
               "một kênh của bản đồ vùng.",
         "en": "'{name}' is a coordinate — that belongs to a point map (--map-type point), "
               "not to a channel of an area map.",
     },
-    "kenh.khong-ro-ngu-nghia": {
+    "channel.meaning-unclear": {
         "vi": "'{name}' không có ngữ nghĩa đo lường rõ ràng ({semantic}).",
         "en": "'{name}' has no clear measurement meaning ({semantic}).",
     },
-    "kenh.khong-ro": {
+    "channel.unclear": {
         "vi": "không rõ",
         "en": "unknown",
     },
-    "kenh.tranh-mau": {
+    "channel.fill-taken": {
         "vi": "{count} biến cùng đòi kênh màu vùng ({names}). Một tấm chỉ tô được một "
               "thang màu; các biến sau sẽ sang tấm riêng.",
         "en": "{count} variables want the fill channel ({names}). One map carries a single "
               "colour scale, so the later ones move to maps of their own.",
     },
-    "kenh.tranh-vong-tron": {
+    "channel.circles-taken": {
         "vi": "{count} biến cùng đòi kênh vòng tròn ({names}). Hai bộ vòng tròn chồng lên "
               "nhau thì không đọc được kích thước nào ra kích thước nào; các biến sau sẽ "
               "sang tấm riêng.",
@@ -573,19 +573,19 @@ TEXT: dict[str, dict[str, str]] = {
               "overlaid leave no way to tell one size from the other, so the later ones "
               "move to maps of their own.",
     },
-    "kenh.dong-mau": {
+    "channel.fill-line": {
         "vi": "màu = {name}",
         "en": "fill = {name}",
     },
-    "kenh.dong-vong-tron": {
+    "channel.circles-line": {
         "vi": "vòng tròn = {name}",
         "en": "circles = {name}",
     },
-    "kenh.dong-tien-to": {
+    "channel.line-prefix": {
         "vi": "Bản đồ {n}: ",
         "en": "Map {n}: ",
     },
-    "kenh.tron-phan-loai": {
+    "channel.category-mixed-with-continuous": {
         "vi": "Trộn biến phân loại với biến liên tục trên cùng kênh màu: hai loại thang "
               "màu khác hẳn nhau, nên chúng phải nằm ở hai tấm.",
         "en": "A categorical and a continuous variable are sharing the fill channel: the "
@@ -593,89 +593,89 @@ TEXT: dict[str, dict[str, str]] = {
     },
 
     # --- the ranked map options in a profile -------------------------------
-    "cap.xa": {"vi": "xã/phường", "en": "commune"},
-    "cap.tinh": {"vi": "tỉnh/thành phố", "en": "province"},
-    "phuong-an.choropleth-symbol.tên": {
+    "tier.commune": {"vi": "xã/phường", "en": "commune"},
+    "tier.province": {"vi": "tỉnh/thành phố", "en": "province"},
+    "option.choropleth-symbol.name": {
         "vi": "Bản đồ tô màu kèm vòng tròn",
         "en": "Choropleth with proportional circles",
     },
-    "phuong-an.choropleth-symbol.vì_sao": {
+    "option.choropleth-symbol.why": {
         "vi": "Màu cho biết mức độ ({fill}) — so sánh được giữa các {level} to nhỏ khác "
               "nhau; vòng tròn cho biết quy mô thực tế ({symbol}).",
         "en": "Colour carries the level ({fill}), which stays comparable across {level}s of "
               "different size; the circles carry the actual scale ({symbol}).",
     },
-    "phuong-an.choropleth.tên": {
+    "option.choropleth.name": {
         "vi": "Bản đồ tô màu theo mức độ",
         "en": "Choropleth by level",
     },
-    "phuong-an.choropleth.vì_sao": {
+    "option.choropleth.why": {
         "vi": "'{fill}' đã được chuẩn hoá theo dân số hoặc mẫu số, nên tô màu vùng là cách "
               "đọc công bằng giữa các {level}.",
         "en": "'{fill}' is normalised by population or by a denominator, so an area fill "
               "reads fairly across {level}s.",
     },
-    "phuong-an.graduated-symbol.tên": {
+    "option.graduated-symbol.name": {
         "vi": "Bản đồ vòng tròn theo số lượng",
         "en": "Proportional circle map",
     },
-    "phuong-an.graduated-symbol.vì_sao": {
+    "option.graduated-symbol.why": {
         "vi": "'{symbol}' là số đếm; tô màu vùng sẽ thiên vị nơi rộng và đông dân, còn vòng "
               "tròn thể hiện đúng số lượng.",
         "en": "'{symbol}' is a count; an area fill would favour large and populous places, "
               "while circles show the quantity as it is.",
     },
-    "phuong-an.change.tên": {
+    "option.change.name": {
         "vi": "Bản đồ mức thay đổi",
         "en": "Change map",
     },
-    "phuong-an.change.vì_sao": {
+    "option.change.why": {
         "vi": "'{fill}' có cả tăng và giảm, hợp với thang màu hai chiều để thấy ngay nơi đi "
               "lên và nơi đi xuống.",
         "en": "'{fill}' contains both rises and falls, which suits a diverging ramp that "
               "shows at a glance where it went up and where it went down.",
     },
-    "phuong-an.categorized.tên": {
+    "option.categorized.name": {
         "vi": "Bản đồ phân loại theo nhóm",
         "en": "Categorical map",
     },
-    "phuong-an.categorized.vì_sao": {
+    "option.categorized.why": {
         "vi": "'{fill}' chỉ có {levels} nhóm, hợp để tô mỗi nhóm một màu riêng.",
         "en": "'{fill}' has only {levels} categories, few enough to give each its own colour.",
     },
-    "phuong-an.point.tên": {
+    "option.point.name": {
         "vi": "Bản đồ điểm theo toạ độ",
         "en": "Point map from coordinates",
     },
-    "phuong-an.point.vì_sao": {
+    "option.point.why": {
         "vi": "Bảng có cột kinh độ và vĩ độ, nên có thể chấm đúng vị trí từng điểm thay vì "
               "tô cả vùng.",
         "en": "The table carries longitude and latitude, so each location can be plotted "
               "where it actually is instead of filling a whole area.",
     },
-    "phuong-an.boundary.tên": {
+    "option.boundary.name": {
         "vi": "Bản đồ ranh giới tham chiếu",
         "en": "Reference boundary map",
     },
-    "phuong-an.boundary.vì_sao": {
+    "option.boundary.why": {
         "vi": "Chưa tìm thấy cột số liệu hay cột phân loại rõ ràng để thể hiện.",
         "en": "No clear numeric or categorical column was found to map.",
     },
-    "nguon-y-nghia.tu-dien": {
+    "semantic-source.data-dictionary": {
         "vi": "từ điển dữ liệu trong workbook",
         "en": "the data dictionary in the workbook",
     },
-    "nguon-y-nghia.suy-luan": {
+    "semantic-source.inferred": {
         "vi": "suy luận từ tên cột và giá trị",
         "en": "inferred from the column name and its values",
     },
-    "cap-cot-theo-nam": {
+    "year-column-pairs": {
         "vi": "Hai cột cùng đo một chỉ số ở {first} và {last}.",
         "en": "Two columns measuring the same indicator in {first} and {last}.",
     },
 
     # --- long tables: why this is one, and which slice to pin --------------
-    "dai.la-bang-dai": {
+    "longform.is-a-long-table": {
         "vi": "Chỉ có một cột số ({column}) nhưng trung bình {per_place} dòng cho mỗi đơn "
               "vị địa lý, và {categories} cột phân loại đi kèm. Mỗi dòng là một quan sát, "
               "không phải một địa bàn.",
@@ -688,11 +688,11 @@ TEXT: dict[str, dict[str, str]] = {
                      "categorical columns. A row here is one observation, not one place.",
         },
     },
-    "dai.co-ca-tong-va-chi-tiet": {
+    "longform.totals-and-detail-together": {
         "vi": "cột này vừa có dòng tổng ({totals}) vừa có dòng chi tiết",
         "en": "this column holds both total rows ({totals}) and detail rows",
     },
-    "dai.can-gham": {
+    "longform.needs-pinning": {
         "vi": "{count} cột còn khiến một đơn vị xuất hiện trên nhiều dòng: {columns}. Cộng "
               "thẳng sẽ đếm trùng ở {split}/{places} đơn vị. Ghăm từng cột bằng --where, "
               "hoặc xác nhận rằng các dòng đó là những phần rời nhau của cùng một tổng nên "
@@ -708,104 +708,104 @@ TEXT: dict[str, dict[str, str]] = {
                      "that adding them is what you intend.",
         },
     },
-    "dai.mot-gia-tri": {
+    "longform.only-one-value": {
         "vi": "chỉ có một giá trị nên không phải chọn",
         "en": "there is only one value, so there is nothing to choose",
     },
-    "dai.la-dong-tong": {
+    "longform.is-a-total-row": {
         "vi": "là dòng tổng do chính nguồn số liệu cộng sẵn, phủ {units} đơn vị",
         "en": "it is the total row the source itself computed, covering {units} units",
     },
-    "dai.phu-nhieu-nhat": {
+    "longform.covers-the-most-units": {
         "vi": "phủ nhiều đơn vị nhất ({units})",
         "en": "it covers the most units ({units})",
     },
-    "dai.ky-moi-nhat": {
+    "longform.latest-period": {
         "vi": "kỳ mới nhất trong {count} kỳ; cộng nhiều kỳ sẽ đếm lặp cùng một người qua "
               "từng kỳ báo cáo",
         "en": "the most recent of {count} periods; summing periods counts the same person "
               "once per reporting period",
     },
-    "loi.khong-bien-nao-ve-duoc": {
+    "error.no-mappable-variable": {
         "vi": "Không biến nào trong --layer vẽ được: ",
         "en": "None of the --layer variables can be mapped: ",
     },
 
     # --- what a column was taken to mean, shown in every profile summary ---
-    "y-nghia.thời-gian": {"vi": "kỳ/thời điểm", "en": "period or date"},
-    "y-nghia.mã-định-danh": {"vi": "mã định danh", "en": "identifier"},
-    "y-nghia.phân-loại": {"vi": "nhóm/phân loại", "en": "category"},
-    "y-nghia.văn-bản": {"vi": "văn bản tự do", "en": "free text"},
-    "y-nghia.kinh-độ": {"vi": "kinh độ", "en": "longitude"},
-    "y-nghia.vĩ-độ": {"vi": "vĩ độ", "en": "latitude"},
-    "y-nghia.điểm-phần-trăm": {"vi": "điểm phần trăm", "en": "percentage point"},
-    "y-nghia.phần-trăm": {"vi": "phần trăm", "en": "per cent"},
-    "y-nghia.chỉ-số": {"vi": "chỉ số", "en": "index or score"},
-    "y-nghia.số-đếm": {"vi": "số đếm", "en": "count"},
-    "y-nghia.liên-tục": {"vi": "giá trị liên tục", "en": "continuous value"},
-    "y-nghia.tỷ-suất": {"vi": "tỷ suất", "en": "rate"},
-    "y-nghia.trên-dân": {"vi": "trên {per} dân", "en": "per {per} population"},
+    "semantic.time": {"vi": "kỳ/thời điểm", "en": "period or date"},
+    "semantic.identifier": {"vi": "mã định danh", "en": "identifier"},
+    "semantic.category": {"vi": "nhóm/phân loại", "en": "category"},
+    "semantic.text": {"vi": "văn bản tự do", "en": "free text"},
+    "semantic.longitude": {"vi": "kinh độ", "en": "longitude"},
+    "semantic.latitude": {"vi": "vĩ độ", "en": "latitude"},
+    "semantic.percentage-point": {"vi": "điểm phần trăm", "en": "percentage point"},
+    "semantic.percent": {"vi": "phần trăm", "en": "per cent"},
+    "semantic.score": {"vi": "chỉ số", "en": "index or score"},
+    "semantic.count": {"vi": "số đếm", "en": "count"},
+    "semantic.continuous": {"vi": "giá trị liên tục", "en": "continuous value"},
+    "semantic.rate": {"vi": "tỷ suất", "en": "rate"},
+    "semantic.per-capita": {"vi": "trên {per} dân", "en": "per {per} population"},
 
     # --- the two channels, as a reader sees them --------------------------
-    "kenh.ten.màu": {"vi": "màu vùng", "en": "area fill"},
-    "kenh.ten.vòng-tròn": {"vi": "vòng tròn", "en": "circles"},
+    "channel.name-of.fill": {"vi": "màu vùng", "en": "area fill"},
+    "channel.name-of.circles": {"vi": "vòng tròn", "en": "circles"},
 
     # --- scope of the finished map, shown in the plan ----------------------
-    "pham-vi.toàn-quốc": {"vi": "toàn quốc", "en": "national"},
-    "pham-vi.có-số-liệu": {
+    "scope.national": {"vi": "toàn quốc", "en": "national"},
+    "scope.with-data": {
         "vi": "các đơn vị có số liệu",
         "en": "the units that have data",
     },
 
     # --- how the sheet had to be read, relayed with the data summary -------
-    "doc.dòng-tiêu-đề": {
+    "read.header-row": {
         "vi": "Tiêu đề cột nằm ở dòng {row}, không phải dòng 1; {skipped} dòng phía trên "
               "đã được bỏ qua.",
         "en": "The header sits on row {row}, not row 1; the {skipped} rows above it were "
               "skipped.",
     },
-    "doc.bảng-dán": {
+    "read.pasted-table": {
         "vi": "Đọc bằng bảng mã {encoding}, dấu phân cách {delimiter}. Bảng dán không mang "
               "kiểu dữ liệu, nên mọi cột được đọc thành chữ rồi mới đổi sang số.",
         "en": "Read as {encoding} with {delimiter} as the delimiter. A pasted table carries "
               "no types, so every column is read as text and then converted to numbers.",
     },
-    "doc.ô-gộp": {
+    "read.merged-cells": {
         "vi": "Sheet có {regions} vùng ô gộp. Giá trị của ô gộp đã được điền cho mọi dòng nó "
               "bao phủ{header}.",
         "en": "The sheet has {regions} merged regions. Each merged value was filled down "
               "across every row it covers{header}.",
     },
-    "doc.ô-gộp-tiêu-đề": {
+    "read.merged-header-cells": {
         "vi": "; tiêu đề {levels} tầng đã được ghép thành một tên cột, ví dụ '{example}'",
         "en": "; the {levels}-level header was joined into single column names, for example "
               "'{example}'",
     },
-    "doc.ô-gộp-tệp-lớn": {
+    "read.merged-cells-large-file": {
         "vi": "Sheet có dấu hiệu ô gộp nhưng tệp lớn hơn {limit} MB nên không đọc lại; tên "
               "cột và cột địa danh có thể thiếu.",
         "en": "The sheet shows signs of merged cells, but the file is over {limit} MB so it "
               "was not re-read; column names and the place column may be incomplete.",
     },
-    "doc.nhiều-bảng": {
+    "read.several-tables": {
         "vi": "Sheet chứa {count} bảng tách rời nhau. Đọc thẳng sẽ gộp chúng làm một, và nửa "
               "dưới sẽ mang tên cột của nửa trên. Chọn một bảng, hoặc tách sheet trước.",
         "en": "The sheet holds {count} separate tables. Read straight through they merge into "
               "one, and the lower half inherits the upper half's column names. Pick one "
               "table, or split the sheet first.",
     },
-    "doc.chỉ-đọc-mẫu": {
+    "read.sampled-only": {
         "vi": "Chỉ đọc {rows} dòng đầu mỗi sheet để trả lời nhanh; chạy profile trên sheet đã "
               "chọn để có hồ sơ đầy đủ.",
         "en": "Only the first {rows} rows of each sheet were read, to answer quickly; run "
               "profile on the chosen sheet for the full picture.",
     },
-    "doc.tệp-trùng": {
+    "read.duplicate-file": {
         "vi": "Tệp trùng tên và trùng nội dung với tệp đã có trong input/, nên dùng lại tệp đó.",
         "en": "A file of the same name and the same contents is already in input/, so that "
               "one is reused.",
     },
-    "doc.dùng-chung-nhóm-video": {
+    "read.shared-classes-over-time": {
         "vi": "Dùng chung một cách chia nhóm cho toàn bộ video, nên cùng một màu luôn mang "
               "cùng một ý nghĩa qua các kỳ.",
         "en": "One set of class breaks is shared by the whole animation, so a given colour "
@@ -813,23 +813,23 @@ TEXT: dict[str, dict[str, str]] = {
     },
 
     # --- survey verdicts, read aloud when choosing a file ------------------
-    "khao-sat.có-sheet-vẽ-được": {
+    "survey.has-a-mappable-sheet": {
         "vi": "{total} workbook, {files} file có sheet vẽ được.",
         "en": "{total} workbooks, {files} of them with a sheet that can be mapped.",
     },
-    "khao-sat.không-đọc-được": {
+    "survey.unreadable": {
         "vi": "không đọc được workbook.",
         "en": "the workbook could not be read.",
     },
-    "khao-sat.không-sheet-nào": {
+    "survey.no-sheet-at-all": {
         "vi": "{sheets} sheet, không sheet nào vẽ được.",
         "en": "{sheets} sheets, none of which can be mapped.",
     },
-    "khao-sat.sheet-vẽ-được": {
+    "survey.mappable-sheet": {
         "vi": "{sheets} sheet, {usable} vẽ được: {names}",
         "en": "{sheets} sheets, {usable} of them mappable: {names}",
     },
-    "khao-sat.không-có-workbook": {
+    "survey.no-workbook": {
         "vi": "Thư mục input/ không có workbook nào.",
         "en": "There is no workbook in the input/ folder.",
     },
@@ -842,38 +842,38 @@ TEXT: dict[str, dict[str, str]] = {
     # one sentence on what choosing it does; :mod:`wording` builds both the row
     # and the menu of alternatives out of these, so the sentence the reader
     # weighs a choice by is the same one the picker shows.
-    "mục.dữ-liệu": {"vi": "Dữ liệu", "en": "Data"},
-    "mục.lát-dữ-liệu": {"vi": "Lát dữ liệu", "en": "Data slice"},
-    "mục.loại-bản-đồ": {"vi": "Loại bản đồ", "en": "Kind of map"},
-    "mục.tô-màu-theo": {"vi": "Tô màu theo", "en": "Coloured by"},
-    "mục.vòng-tròn-theo": {"vi": "Vòng tròn theo", "en": "Circle size by"},
+    "field.data": {"vi": "Dữ liệu", "en": "Data"},
+    "field.data-slice": {"vi": "Lát dữ liệu", "en": "Data slice"},
+    "field.map-kind": {"vi": "Loại bản đồ", "en": "Kind of map"},
+    "field.coloured-by": {"vi": "Tô màu theo", "en": "Coloured by"},
+    "field.circles-by": {"vi": "Vòng tròn theo", "en": "Circle size by"},
     # not "Coverage": half the tables this skill draws have a column called
     # coverage rate, and a row heading that collides with the data is a heading
     # that will be misread
-    "mục.phạm-vi": {"vi": "Phạm vi bản đồ", "en": "Area the map covers"},
-    "mục.bố-cục": {"vi": "Bố cục", "en": "Layout"},
-    "mục.ngôn-ngữ": {"vi": "Ngôn ngữ bản đồ", "en": "Map language"},
-    "mục.chia-nhóm": {"vi": "Chia nhóm màu", "en": "Colour classes"},
-    "mục.nhãn": {"vi": "Nhãn trên bản đồ", "en": "Labels on the map"},
-    "mục.gộp-dòng": {"vi": "Gộp dòng trùng", "en": "Repeated rows"},
-    "mục.đầu-ra": {"vi": "Đầu ra", "en": "Output"},
+    "field.scope": {"vi": "Phạm vi bản đồ", "en": "Area the map covers"},
+    "field.layout": {"vi": "Bố cục", "en": "Layout"},
+    "field.language": {"vi": "Ngôn ngữ bản đồ", "en": "Map language"},
+    "field.classes": {"vi": "Chia nhóm màu", "en": "Colour classes"},
+    "field.labels": {"vi": "Nhãn trên bản đồ", "en": "Labels on the map"},
+    "field.repeated-rows": {"vi": "Gộp dòng trùng", "en": "Repeated rows"},
+    "field.output": {"vi": "Đầu ra", "en": "Output"},
 
-    "bảng.tự-chọn": {"vi": "[skill tự chọn]", "en": "[chosen by the skill]"},
-    "bảng.đang-chọn": {"vi": "đang chọn", "en": "current"},
-    "bảng.số-dòng": {
+    "table.chosen-by-the-skill": {"vi": "[skill tự chọn]", "en": "[chosen by the skill]"},
+    "table.current": {"vi": "đang chọn", "en": "current"},
+    "table.row-count": {
         "vi": "{rows} dòng",
         "en": {ONE: "{rows} row", "many": "{rows} rows"},
     },
-    "bảng.số-tấm": {
+    "table.plate-count": {
         "vi": "{maps} tấm",
         "en": {ONE: "{maps} map", "many": "{maps} maps"},
     },
-    "bảng.số-nhóm": {
+    "table.class-count": {
         "vi": "{classes} nhóm",
         "en": {ONE: "{classes} class", "many": "{classes} classes"},
     },
-    "bảng.không-áp-dụng": {"vi": "không áp dụng", "en": "not applicable"},
-    "bảng.kèm-html": {
+    "table.not-applicable": {"vi": "không áp dụng", "en": "not applicable"},
+    "table.with-html": {
         "vi": " kèm trang HTML tương tác",
         "en": " plus an interactive HTML page",
     },
@@ -883,11 +883,11 @@ TEXT: dict[str, dict[str, str]] = {
     # the agent reads them and the person does not. Measured, that was 957
     # characters of Vietnamese prose — the longest block in the whole reply —
     # landing in front of an agent one step before it wrote to an English
-    # speaker. It answered in Vietnamese. The boundary drawn in chốt 27 holds
+    # speaker. It answered in Vietnamese. The boundary drawn in decision 27 holds
     # for argparse help and command-syntax errors, which are short and
     # mechanical; a paragraph read immediately before composing a message is a
     # different thing, and it follows the conversation.
-    "cổng.trình-bày": {
+    "gate.how-to-present": {
         "vi": "CHƯA VẼ GÌ CẢ. Trình bày bảng 'settings' cho người dùng dưới dạng "
               "danh sách đánh số, nêu rõ những mục có 'note' là skill tự chọn. "
               "Mọi câu hỏi — các mục trong 'must_ask', và bất kỳ dòng nào có "
@@ -913,7 +913,7 @@ TEXT: dict[str, dict[str, str]] = {
               "person. Where the host has no picker, present the same content as "
               "a Markdown table. Having asked, STOP AND WAIT FOR AN ANSWER.",
     },
-    "cổng.chưa-hỏi": {
+    "gate.not-yet-asked": {
         "vi": " KHÔNG có mã nào dùng được cho tới khi mọi mục trong 'must_ask' "
               "được hỏi và câu trả lời truyền vào bằng cờ tương ứng. Hỏi trước, "
               "rồi chạy lại lệnh kèm câu trả lời để nhận mã.",
@@ -921,12 +921,12 @@ TEXT: dict[str, dict[str, str]] = {
               "the answers passed back on the command line. Ask first, then run "
               "the command again with the answers to receive a code.",
     },
-    "cổng.khi-đồng-ý": {
+    "gate.once-agreed": {
         "vi": " Khi người dùng đồng ý, chạy lại đúng lệnh này kèm --confirmed {code}.",
         "en": " Once the person agrees, run this same command again with "
               "--confirmed {code}.",
     },
-    "cổng.đổi-thiết-lập": {
+    "gate.settings-changed": {
         "vi": " Nếu người dùng đổi bất kỳ mục nào, chạy lại lệnh với thiết lập mới "
               "để lấy mã mới và trình bày lại bảng — mã cũ sẽ không còn dùng được.",
         "en": " If the person changes anything, run the command again with the new "
@@ -937,7 +937,7 @@ TEXT: dict[str, dict[str, str]] = {
     # when nobody stated --messages, which is exactly the case where the
     # engine's idea of the conversation language cannot be trusted — so the
     # sentence that says so has to be readable either way.
-    "cổng.chưa-nêu-ngôn-ngữ": {
+    "gate.language-not-stated": {
         "vi": " Lệnh này không nêu --messages, nên mọi câu trên đang ở tiếng Việt "
               "theo mặc định. Nếu người dùng đang viết bằng tiếng Anh, chạy lại "
               "kèm --messages en.",
@@ -946,213 +946,213 @@ TEXT: dict[str, dict[str, str]] = {
               "again with --messages en.",
     },
 
-    "chọn.tệp.câu_hỏi": {
+    "choice.file.question": {
         "vi": "Vẽ bản đồ từ bảng số liệu nào?",
         "en": "Which table should the map be drawn from?",
     },
-    "chọn.tệp.mô_tả": {
+    "choice.file.description": {
         "vi": "Sheet '{sheet}', {rows}, số liệu ở cấp {level}.",
         "en": "Sheet '{sheet}', {rows}, data at {level} level.",
     },
-    "chọn.tệp.tải-lên.nhãn": {
+    "choice.file.upload.label": {
         "vi": "Không phải tệp nào ở trên — tôi sẽ gửi tệp khác",
         "en": "None of these — I will send another file",
     },
-    "chọn.tệp.tải-lên.mô_tả": {
+    "choice.file.upload.description": {
         "vi": "Đính kèm tệp Excel hoặc CSV của bạn vào cuộc trò chuyện, hoặc dán "
               "thẳng bảng số liệu vào.",
         "en": "Attach your own Excel or CSV file to the conversation, or paste "
               "the table in directly.",
     },
 
-    "chọn.map_type.câu_hỏi": {
+    "choice.map_type.question": {
         "vi": "Vẽ theo kiểu bản đồ nào?",
         "en": "Which kind of map?",
     },
-    "chọn.map_type.choropleth.nhãn": {
+    "choice.map_type.choropleth.label": {
         "vi": "Tô màu vùng theo mức độ",
         "en": "Areas shaded by level",
     },
-    "chọn.map_type.choropleth.mô_tả": {
+    "choice.map_type.choropleth.description": {
         "vi": "Mỗi tỉnh hoặc xã mang một sắc độ đậm nhạt theo con số của nó. Đọc "
               "được nơi cao nơi thấp, không đọc được quy mô.",
         "en": "Each province or commune takes a shade set by its own figure. It "
               "shows where the level is high or low, not how large the place is.",
     },
-    "chọn.map_type.choropleth-symbol.nhãn": {
+    "choice.map_type.choropleth-symbol.label": {
         "vi": "Tô màu vùng kèm vòng tròn",
         "en": "Shaded areas with circles",
     },
-    "chọn.map_type.choropleth-symbol.mô_tả": {
+    "choice.map_type.choropleth-symbol.description": {
         "vi": "Màu nền cho biết mức độ, vòng tròn phía trên cho biết số lượng — "
               "hai con số trên cùng một tấm.",
         "en": "The fill carries the level and the circles on top carry the "
               "quantity — two figures on one sheet.",
     },
-    "chọn.map_type.graduated-symbol.nhãn": {
+    "choice.map_type.graduated-symbol.label": {
         "vi": "Vòng tròn to nhỏ theo số lượng",
         "en": "Circles sized by quantity",
     },
-    "chọn.map_type.graduated-symbol.mô_tả": {
+    "choice.map_type.graduated-symbol.description": {
         "vi": "Nền để trắng, chỉ có vòng tròn. Hợp với số đếm, vì tô màu vùng "
               "theo số đếm sẽ thành vẽ diện tích và dân số.",
         "en": "The base stays white and only circles are drawn. This suits "
               "counts: shading areas by a count maps area and population instead.",
     },
-    "chọn.map_type.categorized.nhãn": {
+    "choice.map_type.categorized.label": {
         "vi": "Tô màu theo nhóm",
         "en": "Areas coloured by category",
     },
-    "chọn.map_type.categorized.mô_tả": {
+    "choice.map_type.categorized.description": {
         "vi": "Mỗi nhóm một màu riêng, không có thứ tự đậm nhạt. Dùng cho dữ "
               "liệu phân loại chứ không phải con số đo được.",
         "en": "Each category takes its own colour, with no light-to-dark order. "
               "For classifications rather than measured quantities.",
     },
-    "chọn.map_type.boundary.nhãn": {
+    "choice.map_type.boundary.label": {
         "vi": "Chỉ vẽ ranh giới",
         "en": "Boundaries only",
     },
-    "chọn.map_type.boundary.mô_tả": {
+    "choice.map_type.boundary.description": {
         "vi": "Bản đồ nền không mang số liệu, dùng để tham chiếu vị trí.",
         "en": "A base map carrying no data, for locating places.",
     },
-    "chọn.map_type.change.nhãn": {
+    "choice.map_type.change.label": {
         "vi": "Bản đồ mức thay đổi",
         "en": "Change map",
     },
-    "chọn.map_type.change.mô_tả": {
+    "choice.map_type.change.description": {
         "vi": "Thang màu hai chiều neo tại 0: một phía cho nơi tăng, một phía "
               "cho nơi giảm, màu trung tính đúng nghĩa là không đổi.",
         "en": "A diverging scale anchored at 0: one side for rises, the other "
               "for falls, the neutral colour meaning exactly no change.",
     },
-    "chọn.map_type.point.nhãn": {
+    "choice.map_type.point.label": {
         "vi": "Chấm điểm theo toạ độ",
         "en": "Points at their coordinates",
     },
-    "chọn.map_type.point.mô_tả": {
+    "choice.map_type.point.description": {
         "vi": "Mỗi dòng thành một chấm đặt đúng kinh độ và vĩ độ, thay vì tô cả "
               "đơn vị hành chính.",
         "en": "Each row becomes a dot at its own longitude and latitude, instead "
               "of filling a whole administrative unit.",
     },
 
-    "chọn.classification.câu_hỏi": {
+    "choice.classification.question": {
         "vi": "Chia nhóm màu theo cách nào?",
         "en": "How should the colour classes be cut?",
     },
-    "chọn.classification.quantile.nhãn": {
+    "choice.classification.quantile.label": {
         "vi": "Mỗi nhóm có số đơn vị bằng nhau",
         "en": "Equal number of units per class",
     },
-    "chọn.classification.quantile.mô_tả": {
+    "choice.classification.quantile.description": {
         "vi": "Số đơn vị trong mỗi nhóm màu là như nhau, nên bản đồ luôn dùng "
               "hết dải màu kể cả khi các con số sát nhau.",
         "en": "Every class holds the same number of units, so the map always "
               "uses its full range of shades even when the figures sit close "
               "together.",
     },
-    "chọn.classification.natural-breaks.nhãn": {
+    "choice.classification.natural-breaks.label": {
         "vi": "Cắt tại chỗ số liệu tự tách ra",
         "en": "Breaks where the data separates",
     },
-    "chọn.classification.natural-breaks.mô_tả": {
+    "choice.classification.natural-breaks.description": {
         "vi": "Ranh giới đặt vào những khoảng trống có sẵn trong dãy số liệu, "
               "nên nhóm bám đúng cấu trúc số liệu; đổi lại ranh giới là số lẻ.",
         "en": "The breaks fall in the gaps already present in the figures, so "
               "the classes follow the data's own structure — at the cost of "
               "untidy boundary values.",
     },
-    "chọn.classification.equal-interval.nhãn": {
+    "choice.classification.equal-interval.label": {
         "vi": "Mỗi nhóm có khoảng giá trị bằng nhau",
         "en": "Equal value range per class",
     },
-    "chọn.classification.equal-interval.mô_tả": {
+    "choice.classification.equal-interval.description": {
         "vi": "Ranh giới rơi vào số tròn dễ nêu trong báo cáo, nhưng nếu số "
               "liệu chụm lại thì sẽ có nhóm không có đơn vị nào.",
         "en": "The breaks fall on round numbers that are easy to quote in a "
               "report, but classes end up empty when the figures cluster.",
     },
 
-    "chọn.labels.câu_hỏi": {
+    "choice.labels.question": {
         "vi": "Ghi nhãn gì lên bản đồ?",
         "en": "What should be written on the map?",
     },
-    "chọn.labels.both.nhãn": {
+    "choice.labels.both.label": {
         "vi": "Ghi cả tên và con số",
         "en": "Both name and figure",
     },
-    "chọn.labels.both.mô_tả": {
+    "choice.labels.both.description": {
         "vi": "Đầy đủ nhất; bản đồ nhiều đơn vị nhỏ thì chỉ những đơn vị đủ chỗ "
               "mới được ghi.",
         "en": "The most complete; on a map of many small units only those with "
               "room get a label.",
     },
-    "chọn.labels.names.nhãn": {
+    "choice.labels.names.label": {
         "vi": "Chỉ ghi tên đơn vị",
         "en": "Place names only",
     },
-    "chọn.labels.names.mô_tả": {
+    "choice.labels.names.description": {
         "vi": "Người xem biết đang nói tới đâu mà bản đồ không rối, hợp khi con "
               "số đã nằm trong chú giải.",
         "en": "Tells the reader where they are without crowding the map, when "
               "the figures are already in the legend.",
     },
-    "chọn.labels.values.nhãn": {
+    "choice.labels.values.label": {
         "vi": "Chỉ ghi con số",
         "en": "Figures only",
     },
-    "chọn.labels.values.mô_tả": {
+    "choice.labels.values.description": {
         "vi": "Hợp khi người xem đã thuộc địa bàn và chỉ cần tra số.",
         "en": "For readers who already know the area and just need the numbers.",
     },
-    "chọn.labels.off.nhãn": {
+    "choice.labels.off.label": {
         "vi": "Không ghi chữ lên bản đồ",
         "en": "No labels on the map",
     },
-    "chọn.labels.off.mô_tả": {
+    "choice.labels.off.description": {
         "vi": "Bản đồ sạch nhất; tên và số tra qua chú giải và trang HTML tương tác.",
         "en": "The cleanest map; names and figures come from the legend and the "
               "interactive page.",
     },
 
-    "chọn.layout.câu_hỏi": {
+    "choice.layout.question": {
         "vi": "Dùng bố cục nào?",
         "en": "Which layout?",
     },
-    "chọn.layout.report.nhãn": {
+    "choice.layout.report.label": {
         "vi": "Bố cục báo cáo — chú giải ở cột bên trái",
         "en": "Report layout — legend in a left column",
     },
-    "chọn.layout.report.mô_tả": {
+    "choice.layout.report.description": {
         "vi": "Hợp với tài liệu in và báo cáo khổ A4; bản đồ chiếm phần lớn khung hình.",
         "en": "Suits printed documents and A4 reports; the map takes most of the frame.",
     },
-    "chọn.layout.banner.nhãn": {
+    "choice.layout.banner.label": {
         "vi": "Bố cục dải xanh — tiêu đề đặt trên dải màu",
         "en": "Title across a solid colour band",
     },
-    "chọn.layout.banner.mô_tả": {
+    "choice.layout.banner.description": {
         "vi": "Hợp với slide trình chiếu và bản in treo tường; tiêu đề nổi hơn, "
               "chỗ dành cho chú giải hẹp hơn.",
         "en": "Suits slides and wall prints; the title carries further and the "
               "legend has less room.",
     },
 
-    "chọn.language.câu_hỏi": {
+    "choice.language.question": {
         "vi": "Chữ trên bản đồ in bằng tiếng gì?",
         "en": "Which language should be printed on the map?",
     },
-    "chọn.language.vi.nhãn": {"vi": "Tiếng Việt", "en": "Vietnamese"},
-    "chọn.language.vi.mô_tả": {
+    "choice.language.vi.label": {"vi": "Tiếng Việt", "en": "Vietnamese"},
+    "choice.language.vi.description": {
         "vi": "Chú giải, tiêu đề, thanh tỷ lệ và ghi chú bằng tiếng Việt; hàng "
               "nghìn ngăn bằng dấu chấm (35.156), thập phân bằng dấu phẩy (99,7).",
         "en": "Legend, title, scale bar and notes in Vietnamese; thousands "
               "separated with a full stop (35.156) and decimals with a comma (99,7).",
     },
-    "chọn.language.en.nhãn": {"vi": "Tiếng Anh", "en": "English"},
-    "chọn.language.en.mô_tả": {
+    "choice.language.en.label": {"vi": "Tiếng Anh", "en": "English"},
+    "choice.language.en.description": {
         "vi": "Chú giải, tiêu đề, thanh tỷ lệ và ghi chú bằng tiếng Anh; hàng "
               "nghìn ngăn bằng dấu phẩy (35,156), thập phân bằng dấu chấm (99.7). "
               "Tên địa danh vẫn giữ nguyên tiếng Việt.",
@@ -1161,72 +1161,72 @@ TEXT: dict[str, dict[str, str]] = {
               "(99.7). Place names stay in Vietnamese.",
     },
 
-    "chọn.formats.câu_hỏi": {
+    "choice.formats.question": {
         "vi": "Xuất ảnh ở định dạng nào?",
         "en": "In which image format?",
     },
-    "chọn.formats.png.nhãn": {"vi": "Ảnh PNG", "en": "PNG image"},
-    "chọn.formats.png.mô_tả": {
+    "choice.formats.png.label": {"vi": "Ảnh PNG", "en": "PNG image"},
+    "choice.formats.png.description": {
         "vi": "Mở được ở mọi máy, dán thẳng vào Word hay PowerPoint.",
         "en": "Opens anywhere and pastes straight into Word or PowerPoint.",
     },
-    "chọn.formats.svg.nhãn": {"vi": "Ảnh vector SVG", "en": "SVG vector image"},
-    "chọn.formats.svg.mô_tả": {
+    "choice.formats.svg.label": {"vi": "Ảnh vector SVG", "en": "SVG vector image"},
+    "choice.formats.svg.description": {
         "vi": "Phóng to bao nhiêu cũng không vỡ nét, nhưng máy nào thiếu hai "
               "font đóng gói sẽ hiện sai chữ.",
         "en": "Stays sharp at any magnification, but any machine without the "
               "packaged fonts renders the lettering wrongly.",
     },
-    "chọn.formats.both.nhãn": {"vi": "Cả PNG lẫn SVG", "en": "Both PNG and SVG"},
-    "chọn.formats.both.mô_tả": {
+    "choice.formats.both.label": {"vi": "Cả PNG lẫn SVG", "en": "Both PNG and SVG"},
+    "choice.formats.both.description": {
         "vi": "Dùng PNG để gửi đi, giữ SVG để in khổ lớn.",
         "en": "PNG to send around, SVG kept for large-format printing.",
     },
 
-    "chọn.map_scope.câu_hỏi": {
+    "choice.map_scope.question": {
         "vi": "Vẽ thành mấy tấm, phạm vi nào?",
         "en": "How many maps, covering what?",
     },
-    "chọn.map_scope.auto.nhãn": {
+    "choice.map_scope.auto.label": {
         "vi": "Tự chọn theo phạm vi số liệu",
         "en": "Chosen from the reach of the data",
     },
-    "chọn.map_scope.auto.mô_tả": {
+    "choice.map_scope.auto.description": {
         "vi": "Số liệu phủ nhiều tỉnh thì vẽ toàn quốc, chỉ nằm trong một tỉnh "
               "thì vẽ riêng tỉnh đó.",
         "en": "Data spanning many provinces gets a national map; data inside one "
               "province gets that province alone.",
     },
-    "chọn.map_scope.national.nhãn": {"vi": "Một tấm toàn quốc", "en": "One national map"},
-    "chọn.map_scope.national.mô_tả": {
+    "choice.map_scope.national.label": {"vi": "Một tấm toàn quốc", "en": "One national map"},
+    "choice.map_scope.national.description": {
         # Named no islands: this sentence is shown for whichever country is
         # being drawn, and it used to offer Vietnam's to all of them.
         "vi": "Cả nước trên một tấm; lãnh thổ ngoài khơi đã khai nằm trong khung phụ.",
         "en": "The whole country on one sheet; declared offshore territory goes "
               "in an inset.",
     },
-    "chọn.map_scope.single-province.nhãn": {
+    "choice.map_scope.single-province.label": {
         "vi": "Một tấm cho một tỉnh",
         "en": "One map of a single province",
     },
-    "chọn.map_scope.single-province.mô_tả": {
+    "choice.map_scope.single-province.description": {
         "vi": "Chỉ vẽ tỉnh đang xét, kèm bản đồ định vị nhỏ cho biết tỉnh đó nằm đâu.",
         "en": "Just the province in question, with a small locator showing where "
               "it sits.",
     },
-    "chọn.map_scope.province-series.nhãn": {
+    "choice.map_scope.province-series.label": {
         "vi": "Mỗi tỉnh một tấm riêng",
         "en": "One map per province",
     },
-    "chọn.map_scope.province-series.mô_tả": {
+    "choice.map_scope.province-series.description": {
         "vi": "Một loạt bản đồ dùng chung thang màu, nên so sánh được giữa các tỉnh.",
         "en": "A series sharing one colour scale, so the provinces stay comparable.",
     },
-    "chọn.map_scope.matched-only.nhãn": {
+    "choice.map_scope.matched-only.label": {
         "vi": "Chỉ vẽ các đơn vị có số liệu",
         "en": "Only the units that have data",
     },
-    "chọn.map_scope.matched-only.mô_tả": {
+    "choice.map_scope.matched-only.description": {
         "vi": "Đơn vị không có số liệu biến mất hẳn, nên bức tranh trông như cả "
               "nước chỉ gồm ngần ấy đơn vị. Chỉ dùng khi người dùng yêu cầu rõ.",
         "en": "Units without data disappear altogether, so the picture reads as "
@@ -1234,65 +1234,65 @@ TEXT: dict[str, dict[str, str]] = {
               "has asked for it.",
     },
 
-    "chọn.aggregate.câu_hỏi": {
+    "choice.aggregate.question": {
         "vi": "Một đơn vị nằm trên nhiều dòng thì gộp lại bằng cách nào?",
         "en": "When a unit spans several rows, how should they be combined?",
     },
-    "chọn.aggregate.auto.nhãn": {
+    "choice.aggregate.auto.label": {
         "vi": "Tự chọn theo loại số liệu",
         "en": "Chosen from the kind of figure",
     },
-    "chọn.aggregate.auto.mô_tả": {
+    "choice.aggregate.auto.description": {
         "vi": "Số đếm thì cộng lại, tỷ lệ thì lấy trung bình có trọng số.",
         "en": "Counts are added; rates are averaged with weights.",
     },
-    "chọn.aggregate.sum.nhãn": {"vi": "Cộng dồn", "en": "Add together"},
-    "chọn.aggregate.sum.mô_tả": {
+    "choice.aggregate.sum.label": {"vi": "Cộng dồn", "en": "Add together"},
+    "choice.aggregate.sum.description": {
         "vi": "Đúng với số đếm; cộng hai tỷ lệ với nhau thì không ra tỷ lệ nào có nghĩa.",
         "en": "Right for counts; adding two rates does not produce a rate.",
     },
-    "chọn.aggregate.mean.nhãn": {"vi": "Trung bình đơn giản", "en": "Plain average"},
-    "chọn.aggregate.mean.mô_tả": {
+    "choice.aggregate.mean.label": {"vi": "Trung bình đơn giản", "en": "Plain average"},
+    "choice.aggregate.mean.description": {
         "vi": "Mọi dòng tính ngang nhau, nên một xã 2.000 dân nặng bằng một xã "
               "100.000 dân.",
         "en": "Every row counts the same, so a commune of 2,000 weighs as much "
               "as one of 100,000.",
     },
-    "chọn.aggregate.weighted-mean.nhãn": {
+    "choice.aggregate.weighted-mean.label": {
         "vi": "Trung bình có trọng số",
         "en": "Weighted average",
     },
-    "chọn.aggregate.weighted-mean.mô_tả": {
+    "choice.aggregate.weighted-mean.description": {
         "vi": "Lấy trung bình theo dân số hoặc mẫu số, nên đơn vị đông dân ảnh "
               "hưởng đúng phần của nó.",
         "en": "Averaged by population or by the denominator, so a populous unit "
               "carries its proper share.",
     },
-    "chọn.aggregate.median.nhãn": {"vi": "Lấy trung vị", "en": "Take the median"},
-    "chọn.aggregate.median.mô_tả": {
+    "choice.aggregate.median.label": {"vi": "Lấy trung vị", "en": "Take the median"},
+    "choice.aggregate.median.description": {
         "vi": "Giá trị nằm giữa; một dòng bất thường không kéo lệch được.",
         "en": "The middle value; one unusual row cannot drag it.",
     },
-    "chọn.aggregate.max.nhãn": {"vi": "Lấy giá trị lớn nhất", "en": "Take the largest"},
-    "chọn.aggregate.max.mô_tả": {
+    "choice.aggregate.max.label": {"vi": "Lấy giá trị lớn nhất", "en": "Take the largest"},
+    "choice.aggregate.max.description": {
         "vi": "Chỉ giữ dòng cao nhất của mỗi đơn vị, dùng cho ngưỡng cảnh báo.",
         "en": "Keeps only each unit's highest row, for thresholds and alerts.",
     },
-    "chọn.aggregate.min.nhãn": {"vi": "Lấy giá trị nhỏ nhất", "en": "Take the smallest"},
-    "chọn.aggregate.min.mô_tả": {
+    "choice.aggregate.min.label": {"vi": "Lấy giá trị nhỏ nhất", "en": "Take the smallest"},
+    "choice.aggregate.min.description": {
         "vi": "Chỉ giữ dòng thấp nhất của mỗi đơn vị.",
         "en": "Keeps only each unit's lowest row.",
     },
-    "chọn.aggregate.mode.nhãn": {
+    "choice.aggregate.mode.label": {
         "vi": "Lấy giá trị hay gặp nhất",
         "en": "Take the most frequent value",
     },
-    "chọn.aggregate.mode.mô_tả": {
+    "choice.aggregate.mode.description": {
         "vi": "Dùng cho cột phân loại, nơi cộng hay lấy trung bình đều vô nghĩa.",
         "en": "For classification columns, where adding or averaging means nothing.",
     },
-    "chọn.aggregate.first.nhãn": {"vi": "Lấy dòng đầu tiên", "en": "Take the first row"},
-    "chọn.aggregate.first.mô_tả": {
+    "choice.aggregate.first.label": {"vi": "Lấy dòng đầu tiên", "en": "Take the first row"},
+    "choice.aggregate.first.description": {
         "vi": "Chỉ đúng khi mọi dòng của một đơn vị vốn mang cùng một giá trị.",
         "en": "Only correct when every row of a unit already carries the same value.",
     },
@@ -1435,95 +1435,95 @@ TEXT: dict[str, dict[str, str]] = {
         "vi": "Sau khi ghép địa danh, không còn giá trị nào để vẽ.",
         "en": "Once the place names are matched, no value is left to draw.",
     },
-    "loi.thiếu-thư-viện": {
+    "error.missing-library": {
         "vi": "Thiếu thư viện {library}. Chạy lại với: uv run --with {library} ...",
         "en": "{library} is not installed. Run again with: uv run --with {library} ...",
     },
-    "loi.không-tìm-thấy-tệp": {
+    "error.file-not-found": {
         "vi": "Không tìm thấy tệp: {path}",
         "en": "File not found: {path}",
     },
-    "loi.định-dạng-không-đọc-được": {
+    "error.unreadable-format": {
         "vi": "Định dạng {suffix} không đọc được. Các định dạng nhận được: {accepted}. Nếu "
               "dữ liệu đang nằm trong PDF hoặc ảnh, cần xuất ra Excel/CSV trước.",
         "en": "Cannot read {suffix} files. Accepted formats: {accepted}. If the data is in a "
               "PDF or an image, export it to Excel or CSV first.",
     },
-    "loi.không-có-đuôi": {"vi": "(không có đuôi)", "en": "(no extension)"},
-    "loi.thiếu-thư-mục-shapefile": {
+    "error.no-extension": {"vi": "(không có đuôi)", "en": "(no extension)"},
+    "error.boundary-folder-missing": {
         "vi": "Không tìm thấy thư mục shapefile: {folder}",
         "en": "Shapefile folder not found: {folder}",
     },
-    "loi.không-có-ranh-giới": {
+    "error.no-boundary-file": {
         "vi": "Không có tệp ranh giới nào trong {folder}. Các định dạng nhận được: {accepted}",
         "en": "No boundary file in {folder}. Accepted formats: {accepted}",
     },
-    "loi.nhiều-tệp-ranh-giới": {
+    "error.several-boundary-files": {
         "vi": "Thư mục {folder} có nhiều tệp ranh giới nên không biết vẽ tệp nào: {files}. "
               "Mỗi thư mục cấp hành chính chỉ được chứa một bộ dữ liệu.",
         "en": "More than one boundary dataset in {folder}, so there is no way to tell which "
               "to draw: {files}. A tier folder holds exactly one dataset.",
     },
-    "liet-ke.chưa-có-geopandas": {
+    "list.geopandas-missing": {
         "vi": "chưa cài geopandas nên chưa đọc được hồ sơ quốc gia",
         "en": "geopandas is not installed, so the country profile was not read",
     },
-    "loi.map-text-sai-dạng": {
+    "error.map-text-bad-format": {
         "vi": "--map-text cần dạng KHOÁ=GIÁ TRỊ, nhận được: {item}",
         "en": "--map-text needs KEY=VALUE, and got: {item}",
     },
-    "loi.map-text-khoá-lạ": {
+    "error.map-text-unknown-key": {
         # ``name`` rather than ``key``: ``messages.text`` takes the message's
         # own key as its first argument, and a field of the same name collides
         # with it — silently at the call site and loudly at run time.
         "vi": "--map-text không có khoá '{name}'. Các khoá nhận được: {known}",
         "en": "--map-text has no key '{name}'. Accepted keys: {known}",
     },
-    "loi.là-đường-viền-quốc-gia": {
+    "error.is-a-country-outline": {
         "vi": "Tệp này là đường viền của cả quốc gia, không phải một cấp hành chính "
               "({evidence}). Hãy đặt tệp cấp tỉnh/bang vào thư mục cấp.",
         "en": "This file is the outline of the whole country, not an administrative "
               "tier ({evidence}). Put the province- or state-level file in the tier "
               "folder instead.",
     },
-    "loi.không-tìm-được-cột-tên": {
+    "error.no-name-column": {
         "vi": "Không tìm được cột tên địa danh cho cấp '{level}'. {evidence}",
         "en": "No place-name column found for the '{level}' tier. {evidence}",
     },
-    "loi.không-có-quốc-gia": {
+    "error.no-such-country": {
         "vi": "Không có dữ liệu ranh giới cho '{country}'. Đang có: {available}",
         "en": "No boundary data for '{country}'. Available: {available}",
     },
-    "loi.khai-báo-khung-phụ-sai": {
+    "error.bad-inset-declaration": {
         "vi": "'{field}' trong {file} phải là kinh độ từ -180 đến 180, hoặc null "
               "nếu quốc gia này không dùng khung phụ. Đang là {given}.",
         "en": "'{field}' in {file} has to be a longitude between -180 and 180, or "
               "null if this country uses no inset. It reads {given}.",
     },
-    "loi.nhiều-quốc-gia": {
+    "error.several-countries": {
         "vi": "Có ranh giới của nhiều quốc gia nên phải nói rõ vẽ nước nào: {available}",
         "en": "Boundaries for more than one country are present, so which to draw has "
               "to be said: {available}",
     },
-    "loi.không-có-tầng": {
+    "error.no-such-tier": {
         "vi": "Không có cấp '{level}' cho {country}. Các cấp đang có (kèm số đơn vị): "
               "{available}",
         "en": "No '{level}' tier for {country}. Tiers present, with unit counts: "
               "{available}",
     },
-    "loi.thiếu-tệp-đi-kèm": {
+    "error.missing-sidecar-file": {
         "vi": "Shapefile {path} thiếu tệp đi kèm: {missing}. Một shapefile không phải một "
               "tệp đơn lẻ; thiếu .shx là mất hình học, thiếu .dbf là mất bảng thuộc tính.",
         "en": "The shapefile {path} is missing companion files: {missing}. A shapefile is not "
               "a single file; without .shx there is no geometry, without .dbf no attributes.",
     },
-    "loi.thiếu-font": {
+    "error.missing-font": {
         "vi": "Thiếu font. Dựng lại theo hướng dẫn trong README của thư mục font, "
               "rồi đặt các tệp .ttf vào {folder}. Đang thiếu: {missing}",
         "en": "The packaged fonts are missing. Rebuild them as the README in the font "
               "folder describes and put the .ttf files in {folder}. Missing: {missing}",
     },
-    "loi.font-sai-họ": {
+    "error.wrong-font-family": {
         "vi": "Font '{family}' có file trong {folder} nhưng matplotlib đọc ra họ khác: "
               "{found}. Thường là do subset làm mất nameID 16 (Typographic Family). Dựng lại "
               "theo assets/fonts/README.md.",
@@ -1531,21 +1531,21 @@ TEXT: dict[str, dict[str, str]] = {
               "{found}. Usually the subsetter dropped nameID 16 (Typographic Family). Rebuild "
               "it following assets/fonts/README.md.",
     },
-    "loi.không-có-giá-trị-số": {
+    "error.no-numeric-value": {
         "vi": "Không có giá trị số nào để phân lớp.",
         "en": "There are no numeric values to classify.",
     },
 
     # --- animation notes ---------------------------------------------------
-    "video.thiếu-chỗ-thanh-thời-gian": {
+    "video.no-room-for-the-timeline": {
         "vi": "Bố cục chưa dành chỗ cho thanh thời gian.",
         "en": "The layout has left no room for the timeline.",
     },
-    "video.mp4-bằng-ffmpeg": {
+    "video.mp4-through-ffmpeg": {
         "vi": "Xuất MP4 bằng ffmpeg.",
         "en": "Exported as MP4 with ffmpeg.",
     },
-    "video.không-có-ffmpeg": {
+    "video.no-ffmpeg": {
         "vi": "Không tìm thấy ffmpeg nên đã xuất GIF; cài ffmpeg để có MP4 nhẹ và nét hơn.",
         "en": "ffmpeg was not found, so a GIF was written instead; install ffmpeg for a "
               "smaller, sharper MP4.",

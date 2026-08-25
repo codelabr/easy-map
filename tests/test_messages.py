@@ -179,8 +179,8 @@ class TestEveryKeyTheCodeAsksForExists(unittest.TestCase):
         """``profile`` builds its keys as f-strings, so check them by hand."""
         for kind in ("choropleth-symbol", "choropleth", "graduated-symbol",
                      "change", "categorized", "point", "boundary"):
-            for field in ("tên", "vì_sao"):
-                self.assertIn(f"phuong-an.{kind}.{field}", msg.TEXT)
+            for field in ("name", "why"):
+                self.assertIn(f"option.{kind}.{field}", msg.TEXT)
 
 
 class TestTheLanguageActuallyChangesTheOutput(unittest.TestCase):

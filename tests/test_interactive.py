@@ -58,7 +58,7 @@ class TestCapture(unittest.TestCase):
             out_dir=self.out, name=name)
 
     def payload(self):
-        page = self.out / "ban_do_theo_thoi_gian.html"
+        page = self.out / "map_over_time.html"
         text = page.read_text(encoding="utf-8")
         start = text.index("PAYLOAD") if "PAYLOAD" in text else 0
         return text, start
@@ -72,11 +72,11 @@ class TestCapture(unittest.TestCase):
 
     def test_the_page_is_written_where_the_request_lives(self):
         self.build()
-        self.assertTrue((self.out / "ban_do_theo_thoi_gian.html").exists())
+        self.assertTrue((self.out / "map_over_time.html").exists())
 
     def test_it_writes_the_series_page_not_the_still_one(self):
         self.build()
-        self.assertFalse((self.out / "ban_do_tuong_tac.html").exists())
+        self.assertFalse((self.out / "interactive_map.html").exists())
 
     def test_a_second_language_is_gathered_into_the_same_page(self):
         """The suffix is stripped so both editions share one family, and the

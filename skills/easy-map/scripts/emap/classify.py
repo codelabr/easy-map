@@ -158,7 +158,7 @@ def _diverging_edges(data: Sequence[float], classes: int) -> tuple[list[float], 
 
     edges = [negatives[0]] + side(negatives, half, True) + [0.0]
     edges += side(positives, half, True) + [positives[-1]]
-    return sorted(set(edges)), [msg.text("bins.hai-chieu-neo-0")]
+    return sorted(set(edges)), [msg.text("bins.diverging-around-zero")]
 
 
 def compute_bins(values: Sequence[float], method: str, classes: int,
@@ -167,7 +167,7 @@ def compute_bins(values: Sequence[float], method: str, classes: int,
     """Return break edges plus a note describing any automatic adjustment."""
     data = [float(v) for v in values if v is not None and not (isinstance(v, float) and math.isnan(v))]
     if not data:
-        raise ValueError(msg.text("loi.không-có-giá-trị-số"))
+        raise ValueError(msg.text("error.no-numeric-value"))
     info = info or {}
     integer = bool(info.get("integer")) or info.get("semantic") == sem.COUNT
     distinct = len(set(data))
@@ -176,7 +176,7 @@ def compute_bins(values: Sequence[float], method: str, classes: int,
     asked = classes
     classes = max(2, min(classes, distinct))
     if classes != asked:
-        notes.append(msg.text("bins.giam-nhom", asked=asked, classes=classes,
+        notes.append(msg.text("bins.fewer-classes", asked=asked, classes=classes,
                               distinct=distinct))
 
     edges: list[float] = []
@@ -184,7 +184,7 @@ def compute_bins(values: Sequence[float], method: str, classes: int,
         edges, extra = _diverging_edges(data, classes)
         notes.extend(extra)
         if not edges:
-            notes.append(msg.text("bins.mot-chieu"))
+            notes.append(msg.text("bins.sequential"))
     if not edges:
         edges = _raw_edges(data, method if method in METHODS else "quantile", classes)
         if integer:
@@ -194,7 +194,7 @@ def compute_bins(values: Sequence[float], method: str, classes: int,
         edges = _collapse(edges, data, integer)
 
     if len(edges) - 1 < classes:
-        notes.append(msg.text("bins.gop-nhom", classes=len(edges) - 1))
+        notes.append(msg.text("bins.classes-merged", classes=len(edges) - 1))
     return {"edges": edges, "classes": len(edges) - 1, "integer": integer,
             "method": method, "notes": notes}
 
@@ -208,7 +208,7 @@ def shared_bins(groups: dict[str, Sequence[float]], method: str, classes: int,
         pooled.extend(v for v in values if v is not None)
     result = compute_bins(pooled, method, classes, info, center_zero)
     result["shared_across"] = sorted(groups)
-    result["notes"].append(msg.text("bins.thang-chung"))
+    result["notes"].append(msg.text("bins.shared-scale"))
     return result
 
 

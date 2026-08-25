@@ -49,7 +49,7 @@ def check_coverage(with_data: int, in_frame: int,
         return []
     severity = CRITICAL if share < 0.15 else WARNING
     return [_issue(
-        "coverage-thap", severity, lang=lang, counts=with_data,
+        "low-coverage", severity, lang=lang, counts=with_data,
         fmt={"with_data": with_data, "in_frame": in_frame, "share": f"{share:.0%}"},
         extra={"share": round(share, 4)},
     )]
@@ -63,11 +63,11 @@ def check_aggregation(column_info: dict[str, Any], method: str,
     semantic = column_info.get("semantic")
     name = column_info.get("column")
     if method == "sum" and semantic in sem.NEVER_SUM:
-        return [_issue("cong-gop-ty-le", CRITICAL, lang=lang,
+        return [_issue("summing-a-rate", CRITICAL, lang=lang,
                        fmt={"column": name},
                        extra={"column": name, "semantic": semantic})]
     if semantic in sem.NEVER_SUM and method == "mean" and not column_info.get("weight_column"):
-        return [_issue("trung-binh-khong-trong-so", WARNING, lang=lang,
+        return [_issue("unweighted-mean", WARNING, lang=lang,
                        fmt={"column": name}, extra={"column": name})]
     return []
 
@@ -79,7 +79,7 @@ def check_colour_choice(column_info: dict[str, Any], map_type: str,
     if column_info.get("semantic") not in {sem.COUNT, sem.MONEY}:
         return []
     name = column_info.get("column")
-    return [_issue("to-mau-so-dem", WARNING, lang=lang,
+    return [_issue("colour-by-count", WARNING, lang=lang,
                    fmt={"column": name}, extra={"column": name})]
 
 
@@ -97,14 +97,14 @@ def check_percent_range(values: Sequence[float], column_info: dict[str, Any],
     out = []
     if hi > 100.5:
         out.append(_issue(
-            "phan-tram-vuot-100", WARNING, lang=lang,
+            "percent-over-100", WARNING, lang=lang,
             # the warning is a sentence in the conversation, so its digits follow
             # the conversation's convention, not the map's
             fmt={"column": name, "value": sem.localise_digits(f"{hi:.1f}", msg.normalise(lang))},
         ))
     if lo < 0:
         out.append(_issue(
-            "phan-tram-am", WARNING, lang=lang,
+            "percent-negative", WARNING, lang=lang,
             fmt={"column": name, "value": sem.localise_digits(f"{lo:.1f}", msg.normalise(lang))},
         ))
     return out
@@ -125,10 +125,10 @@ def check_classes(bins: dict[str, Any], observations: int,
                   lang: str | None = None) -> list[dict[str, Any]]:
     out = []
     for note in bins.get("notes", []):
-        out.append(_issue("phan-lop-dieu-chinh", INFO, lang=lang, fmt={"note": note}))
+        out.append(_issue("classes-adjusted", INFO, lang=lang, fmt={"note": note}))
     if observations and bins.get("classes", 0) > most_classes(observations):
         out.append(_issue(
-            "qua-nhieu-nhom", WARNING, lang=lang, counts=observations,
+            "too-many-classes", WARNING, lang=lang, counts=observations,
             fmt={"classes": bins.get("classes"), "observations": observations,
                  "suggest": most_classes(observations)},
         ))
@@ -159,7 +159,7 @@ def check_spread(bins: dict[str, Any], lang: str | None = None) -> list[dict[str
         return []
     code = msg.normalise(lang)
     return [_issue(
-        "chenh-lech-qua-nho", WARNING, lang=lang,
+        "spread-too-small", WARNING, lang=lang,
         fmt={"span": sem.localise_digits(f"{span:.3g}", code),
              "scale": sem.localise_digits(f"{scale:.3g}", code)},
         extra={"span": round(span, 4)},
@@ -182,9 +182,9 @@ def check_admin_level(summary: dict[str, int], admin_level: str,
     unmatched = summary.get("unmatched", 0) + summary.get("fuzzy", 0)
     if unmatched / total < 0.15:
         return []
-    where = (msg.fragment("cot-ten", lang, column=column) if column
-             else msg.fragment("cot-dia-danh-xa", lang))
-    return [_issue("co-the-khong-phai-cap-xa", CRITICAL, lang=lang, counts=unmatched,
+    where = (msg.fragment("the-named-column", lang, column=column) if column
+             else msg.fragment("commune-place-column", lang))
+    return [_issue("may-not-be-commune-level", CRITICAL, lang=lang, counts=unmatched,
                    fmt={"unmatched": unmatched, "total": total, "where": where})]
 
 
@@ -213,7 +213,7 @@ def check_detached_territory(land: dict[str, Any] | None, inset_drawn: bool,
     # out as "221 areas covering 0.7% of the land", which sounds like a rounding
     # error. What is actually wrong is that the lower 48 keep 43% of the page.
     return [_issue(
-        "lanh-tho-roi-khong-khung-phu",
+        "detached-land-no-inset",
         CRITICAL if width < 0.5 else WARNING, lang=lang,
         fmt={"width": f"{width:.0%}", "lost": f"{1 - width:.0%}",
              # the way out, named where the reader can act on it: the inset is
@@ -228,23 +228,23 @@ def check_matching(summary: dict[str, int],
                    lang: str | None = None) -> list[dict[str, Any]]:
     out = []
     if summary.get("unmatched"):
-        out.append(_issue("khong-ghep-duoc", CRITICAL, lang=lang,
+        out.append(_issue("unmatched-rows", CRITICAL, lang=lang,
                           counts=summary["unmatched"],
                           fmt={"count": summary["unmatched"]}))
     if summary.get("merged"):
-        out.append(_issue("quy-doi-sap-nhap", INFO, lang=lang,
+        out.append(_issue("merger-converted", INFO, lang=lang,
                           counts=summary["merged"],
                           fmt={"count": summary["merged"]}))
     if summary.get("ambiguous"):
         # what actually happened to those rows, not what could be done about them:
         # the warning used to describe a choice the engine had already made
         dropped = summary.get("ambiguous_dropped", True)
-        tail = msg.fragment("nhap-nhang-da-bo" if dropped else "nhap-nhang-da-giu", lang)
-        out.append(_issue("ghep-nhap-nhang", CRITICAL, lang=lang,
+        tail = msg.fragment("ambiguous-dropped" if dropped else "ambiguous-kept", lang)
+        out.append(_issue("ambiguous-match", CRITICAL, lang=lang,
                           counts=summary["ambiguous"],
                           fmt={"count": summary["ambiguous"], "tail": tail}))
     if summary.get("fuzzy"):
-        out.append(_issue("ghep-can-duyet", WARNING, lang=lang,
+        out.append(_issue("match-needs-review", WARNING, lang=lang,
                           counts=summary["fuzzy"],
                           fmt={"count": summary["fuzzy"]}))
     return out
@@ -255,7 +255,7 @@ def check_periods(period_values: Sequence[Any],
     distinct = {str(v) for v in period_values if v is not None}
     if len(distinct) <= 1:
         return []
-    return [_issue("nhieu-ky-bao-cao", CRITICAL, lang=lang,
+    return [_issue("several-periods", CRITICAL, lang=lang,
                    fmt={"count": len(distinct)},
                    extra={"periods": sorted(distinct)[:24]})]
 
@@ -266,7 +266,7 @@ def check_symbol_occlusion(max_radius_m: float, median_unit_width_m: float,
         return []
     if max_radius_m * 2 <= median_unit_width_m * 1.6:
         return []
-    return [_issue("vong-tron-che-vung", WARNING, lang=lang)]
+    return [_issue("circles-hide-areas", WARNING, lang=lang)]
 
 
 def check_diverging(values: Sequence[float], column_info: dict[str, Any],
@@ -276,7 +276,7 @@ def check_diverging(values: Sequence[float], column_info: dict[str, Any],
     nums = [v for v in values if v is not None]
     if not nums or min(nums) >= 0 or max(nums) <= 0:
         return []
-    return [_issue("can-thang-hai-chieu", INFO, lang=lang)]
+    return [_issue("needs-diverging-scale", INFO, lang=lang)]
 
 
 def summarize(issues: Sequence[dict[str, Any]]) -> dict[str, Any]:

@@ -85,29 +85,29 @@ def allocate(requests: Sequence[dict[str, Any]]) -> dict[str, Any]:
 
     out: dict[str, Any] = {"maps": maps, "unplaced": rejected}
     if len(maps) > 1:
-        out["why_split"] = msg.text("kenh.tach-tam", maps=len(maps))
+        out["why_split"] = msg.text("channel.split-plates", maps=len(maps))
     return out
 
 
 def _explain(fill: dict[str, Any] | None, symbol: dict[str, Any] | None) -> list[str]:
     out = []
     if fill:
-        out.append(msg.text("kenh.mau-vung", name=fill["name"], semantic=fill["semantic"]))
+        out.append(msg.text("channel.fill", name=fill["name"], semantic=fill["semantic"]))
     if symbol:
-        out.append(msg.text("kenh.vong-tron", name=symbol["name"]))
+        out.append(msg.text("channel.circles", name=symbol["name"]))
     if not fill and symbol:
-        out.append(msg.text("kenh.khong-co-mau"))
+        out.append(msg.text("channel.no-fill"))
     return out
 
 
 def _why_not(item: dict[str, Any]) -> str:
     semantic = item.get("semantic", "")
     if semantic in {sem.TIME, sem.IDENTIFIER, sem.TEXT}:
-        return msg.text("kenh.khong-phai-dai-luong", name=item["name"], semantic=semantic)
+        return msg.text("channel.not-a-quantity", name=item["name"], semantic=semantic)
     if semantic == sem.COORDINATE:
-        return msg.text("kenh.la-toa-do", name=item["name"])
-    return msg.text("kenh.khong-ro-ngu-nghia", name=item["name"],
-                    semantic=semantic or msg.text("kenh.khong-ro"))
+        return msg.text("channel.is-a-coordinate", name=item["name"])
+    return msg.text("channel.meaning-unclear", name=item["name"],
+                    semantic=semantic or msg.text("channel.unclear"))
 
 
 def conflicts(requests: Sequence[dict[str, Any]]) -> list[str]:
@@ -116,14 +116,14 @@ def conflicts(requests: Sequence[dict[str, Any]]) -> list[str]:
     fills = [r for r in requests if _channel(r.get("semantic", "")) == FILL]
     symbols = [r for r in requests if _channel(r.get("semantic", "")) == SYMBOL]
     if len(fills) > 1:
-        out.append(msg.text("kenh.tranh-mau", count=len(fills),
+        out.append(msg.text("channel.fill-taken", count=len(fills),
                             names=", ".join(f"'{r['name']}'" for r in fills)))
     if len(symbols) > 1:
-        out.append(msg.text("kenh.tranh-vong-tron", count=len(symbols),
+        out.append(msg.text("channel.circles-taken", count=len(symbols),
                             names=", ".join(f"'{r['name']}'" for r in symbols)))
     categories = [r for r in fills if r["semantic"] == sem.CATEGORY]
     if categories and len(fills) > len(categories):
-        out.append(msg.text("kenh.tron-phan-loai"))
+        out.append(msg.text("channel.category-mixed-with-continuous"))
     return out
 
 
@@ -133,10 +133,10 @@ def summary_lines(plan: dict[str, Any]) -> list[str]:
     for i, item in enumerate(plan["maps"], 1):
         parts = []
         if item["fill"]:
-            parts.append(msg.text("kenh.dong-mau", name=item["fill"]["name"]))
+            parts.append(msg.text("channel.fill-line", name=item["fill"]["name"]))
         if item["symbol"]:
-            parts.append(msg.text("kenh.dong-vong-tron", name=item["symbol"]["name"]))
-        prefix = (msg.text("kenh.dong-tien-to", n=i)
+            parts.append(msg.text("channel.circles-line", name=item["symbol"]["name"]))
+        prefix = (msg.text("channel.line-prefix", n=i)
                   if len(plan["maps"]) > 1 else "")
         out.append(f"{prefix}{item['kind']} — " + ", ".join(parts))
     return out

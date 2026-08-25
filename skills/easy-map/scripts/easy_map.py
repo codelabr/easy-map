@@ -80,20 +80,41 @@ def emit(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
 
 
-def _shape_features(gdf, name_field: str) -> list[dict[str, Any]]:
-    return [{"name": n, "shape_id": int(i)}
-            for n, i in zip(gdf[name_field], gdf["__shape_id"])]
+def _shape_features(gdf, name_field: str,
+                    alias_field: str | None = None) -> list[dict[str, Any]]:
+    """One entry per unit, with any second spelling the file gives for it.
+
+    GADM writes an unaccented variant in ``VARNAME_1`` — "Ba Ria - Vung Tau"
+    beside "Bà Rịa - Vũng Tàu". Indexing it too turns a table typed without
+    accents from a fuzzy guess into an exact hit. The map still shows ``name``:
+    an alias is a way in, never a caption.
+    """
+    aliases = (gdf[alias_field] if alias_field and alias_field in gdf.columns
+               else [None] * len(gdf))
+    out = []
+    for name, alias, shape_id in zip(gdf[name_field], aliases, gdf["__shape_id"]):
+        entry: dict[str, Any] = {"name": name, "shape_id": int(shape_id)}
+        # GADM writes an absent cell as the two-letter string NA
+        text = str(alias).strip() if alias is not None else ""
+        if text and text != "NA" and text != str(name).strip():
+            entry["aliases"] = [text]
+        out.append(entry)
+    return out
 
 
-def _province_index(gdf, name_field: str):
+def _province_index(gdf, name_field: str, affixes, alias_field: str | None = None):
     """Province lookup that also answers to the 63 pre-2025 province names."""
-    return matching.build_index(crosswalk.alias_features(gdf, name_field=name_field))
+    return matching.build_index(
+        crosswalk.alias_features(gdf, name_field=name_field,
+                                 alias_field=alias_field), affixes)
 
 
-def _commune_index_by_province(gdf, fields) -> dict[str, dict[str, list[dict[str, Any]]]]:
-    out: dict[str, dict[str, list[dict[str, Any]]]] = {}
+def _commune_index_by_province(gdf, fields, affixes,
+                               alias_field: str | None = None) -> dict[str, Any]:
+    out: dict[str, Any] = {}
     for province, group in gdf.groupby(fields["province"]):
-        out[str(province)] = matching.build_index(_shape_features(group, fields["commune"]))
+        out[str(province)] = matching.build_index(
+            _shape_features(group, fields["commune"], alias_field), affixes)
     return out
 
 
@@ -102,13 +123,14 @@ def _commune_index_by_province(gdf, fields) -> dict[str, dict[str, list[dict[str
 COMMUNE_NAME_COVERAGE = tabular.COMMUNE_SHARE
 
 
-def _name_coverage(df, column, keys, exclude=frozenset()) -> float:
+def _name_coverage(df, column, keys, affixes, exclude=frozenset()) -> float:
     """Share of the column's **distinct** names that exist at this level.
 
     Counting rows instead lets a handful of frequently-repeated names carry the
     vote, which is how 70.000 rows of one export decided it was commune data.
     """
-    names = {matching.normalize(v) for v in df[column].tolist() if v is not None}
+    names = {matching.normalize(v, affixes) for v in df[column].tolist()
+             if v is not None}
     names.discard("")
     if not names:
         return 0.0
@@ -143,19 +165,19 @@ def _map_text(pairs: list[str] | None) -> dict[str, str]:
         key, sep, value = str(item).partition("=")
         key = key.strip()
         if not sep or not key:
-            raise SystemExit(messages.text("loi.map-text-sai-dạng", item=item))
+            raise SystemExit(messages.text("error.map-text-bad-format", item=item))
         if key not in i18n.keys():
-            raise SystemExit(messages.text("loi.map-text-khoá-lạ", name=key,
+            raise SystemExit(messages.text("error.map-text-unknown-key", name=key,
                                            known=", ".join(i18n.keys())))
         out[key] = value
     return out
 
 
-def _detect_admin_level(df, provinces, communes) -> str:
-    p_keys = {matching.normalize(n) for n in provinces}
-    c_keys = {matching.normalize(n) for n in communes}
-    best = max((_name_coverage(df, c, c_keys, exclude=p_keys) for c in df.columns),
-               default=0.0)
+def _detect_admin_level(df, provinces, communes, affixes) -> str:
+    p_keys = {matching.normalize(n, affixes) for n in provinces}
+    c_keys = {matching.normalize(n, affixes) for n in communes}
+    best = max((_name_coverage(df, c, c_keys, affixes, exclude=p_keys)
+                for c in df.columns), default=0.0)
     return "commune" if best >= COMMUNE_NAME_COVERAGE else "province"
 
 
@@ -168,11 +190,12 @@ def command_start_run(args: argparse.Namespace) -> None:
     folder = dataio.create_run_dir(root, args.run_folder, fresh=True)
     emit({
         "run_folder": folder.name,
-        "run_folder": str(folder),
-        "guidance": ("Truyền --run-folder " + folder.name +
-                      " cho mọi lệnh profile/render của yêu cầu này. Quên truyền thì "
-                      "lệnh vẫn ghi vào đúng thư mục này, miễn là gọi trong "
-                      f"{dataio.OPEN_RUN_HOURS:g} giờ."),
+        "path": str(folder),
+        "guidance": ("Pass --run-folder " + folder.name +
+                     " on every profile and render command for this request. "
+                     "Forget it and the command still writes into this same "
+                     f"folder, so long as it runs within {dataio.OPEN_RUN_HOURS:g} "
+                     "hours."),
     })
 
 
@@ -185,7 +208,7 @@ def command_list(args: argparse.Namespace) -> None:
         try:
             sheets = dataio.read_sheets(deps, path)
         except Exception as exc:  # pragma: no cover - depends on the workbook
-            sheets = [f"<không đọc được: {exc}>"]
+            sheets = [f"<unreadable: {exc}>"]
         workbooks.append({"files": str(path.relative_to(root)), "sheet": sheets})
 
     boundary_root = dataio.shapefile_root(root)
@@ -198,7 +221,7 @@ def command_list(args: argparse.Namespace) -> None:
         # geopandas. ``list`` is the command someone runs when something is
         # wrong, so it answers what it can without it rather than refusing.
         if deps.gpd is None:
-            entry["profile"] = messages.text("liet-ke.chưa-có-geopandas")
+            entry["profile"] = messages.text("list.geopandas-missing")
         else:
             try:
                 reading = dataio.read_country(deps, boundary_root, name)
@@ -290,19 +313,22 @@ def _survey_payload(args: argparse.Namespace) -> dict[str, Any]:
         # is the same mistake as asking "which sheet?" — one level further out.
         books = dataio.find_excel_files(root)
         if not books:
-            raise SystemExit(messages.text("khao-sat.không-có-workbook"))
+            raise SystemExit(messages.text("survey.no-workbook"))
 
     country = getattr(args, "country", None)
     province_shapes = dataio.load_shapes(deps, root, dataio.COARSE, country=country)
     p_field = dataio.shape_fields(province_shapes, dataio.COARSE)["province"]
-    province_keys = {matching.normalize(v) for v in province_shapes[p_field]}
-    province_keys |= {matching.normalize(n) for n in
+    affixes = dataio.name_affixes(
+        dataio.read_country(deps, dataio.shapefile_root(root),
+                            dataio.resolve_country(dataio.shapefile_root(root), country)))
+    province_keys = {matching.normalize(v, affixes) for v in province_shapes[p_field]}
+    province_keys |= {matching.normalize(n, affixes) for n in
                       crosswalk.build(province_shapes, name_field=p_field)}
 
     commune_shapes, c_fields = _fine_tier(deps, root, country)
     commune_keys = set()
     if commune_shapes is not None:
-        commune_keys = {matching.normalize(v)
+        commune_keys = {matching.normalize(v, affixes)
                         for v in commune_shapes[c_fields["commune"]]}
 
     limit = tabular.SURVEY_ROWS + tabular.MAX_HEADER_SCAN
@@ -316,7 +342,7 @@ def _survey_payload(args: argparse.Namespace) -> dict[str, Any]:
                               "preferred": []})
                 continue
             sheets = [_survey_sheet(dataio.SINGLE_SHEET, total, sample,
-                                    province_keys, commune_keys)]
+                                    province_keys, commune_keys, affixes)]
             files.append(_survey_file(path, root, sheets))
             continue
         try:
@@ -334,7 +360,7 @@ def _survey_payload(args: argparse.Namespace) -> dict[str, Any]:
                     if len(sample) >= limit:
                         break
                 sheets.append(_survey_sheet(ws.title, int(ws.max_row or 0), sample,
-                                            province_keys, commune_keys))
+                                            province_keys, commune_keys, affixes))
         finally:
             book.close()
         files.append(_survey_file(path, root, sheets))
@@ -348,12 +374,12 @@ def _survey_payload(args: argparse.Namespace) -> dict[str, Any]:
         # on the first real run, and it is a poor way to choose between nine
         # files. One number is the whole answer.
         "quick_pick": _quick_pick(files),
-        "summary": (messages.text("khao-sat.có-sheet-vẽ-được", total=len(files),
+        "summary": (messages.text("survey.has-a-mappable-sheet", total=len(files),
                                   files=len(with_maps))
                     if len(files) > 1 else
                     (files[0].get("summary")
-                     or messages.text("khao-sat.không-đọc-được"))),
-        "note": messages.text("doc.chỉ-đọc-mẫu", rows=tabular.SURVEY_ROWS),
+                     or messages.text("survey.unreadable"))),
+        "note": messages.text("read.sampled-only", rows=tabular.SURVEY_ROWS),
     }
     if len(files) == 1:
         payload["sheet"] = files[0]["sheet"]      # unchanged shape for one file
@@ -379,18 +405,18 @@ def _quick_pick(files: list[dict[str, Any]]) -> dict[str, Any]:
                 "number": len(picks) + 1,
                 "label": f["files"],
                 "description": messages.text(
-                    "chọn.tệp.mô_tả", sheet=sheet["sheet"],
-                    rows=wording.count("bảng.số-dòng", "rows", rows),
-                    level=messages.text({"commune": "cap.xa", "province": "cap.tinh"}
-                                        .get(level, "bảng.không-áp-dụng"))),
+                    "choice.file.description", sheet=sheet["sheet"],
+                    rows=wording.count("table.row-count", "rows", rows),
+                    level=messages.text({"commune": "tier.commune", "province": "tier.province"}
+                                        .get(level, "table.not-applicable"))),
                 "files": f["files"], "sheet": sheet["sheet"],
                 "row_count": sheet.get("estimated_rows"), "level": level,
             })
     picks.append({"number": len(picks) + 1,
-                  "label": messages.text("chọn.tệp.tải-lên.nhãn"),
-                  "description": messages.text("chọn.tệp.tải-lên.mô_tả"),
+                  "label": messages.text("choice.file.upload.label"),
+                  "description": messages.text("choice.file.upload.description"),
                   "files": None, "sheet": None})
-    return {"question": messages.text("chọn.tệp.câu_hỏi"), "choices": picks}
+    return {"question": messages.text("choice.file.question"), "choices": picks}
 
 
 def _short(path: Path, root: Path) -> str:
@@ -442,10 +468,10 @@ def _survey_file(path: Path, root: Path, sheets: list[dict[str, Any]]) -> dict[s
     usable = [s["sheet"] for s in sheets if s["usable"]]
     return {
         "files": _short(path, root), "sheet": sheets, "preferred": usable,
-        "summary": (messages.text("khao-sat.sheet-vẽ-được", sheets=len(sheets),
+        "summary": (messages.text("survey.mappable-sheet", sheets=len(sheets),
                                   usable=len(usable), names=", ".join(usable))
                     if usable else
-                    messages.text("khao-sat.không-sheet-nào", sheets=len(sheets))),
+                    messages.text("survey.no-sheet-at-all", sheets=len(sheets))),
     }
 
 
@@ -462,7 +488,7 @@ def _several_tables(sample: list[list[Any]]) -> dict[str, Any]:
     return {
         "tables_in_sheet": len(blocks),
         "table_positions": [{"first_row": a + 1, "last_row": b + 1} for a, b in blocks],
-        "caution": messages.text("doc.nhiều-bảng", count=len(blocks)),
+        "caution": messages.text("read.several-tables", count=len(blocks)),
     }
 
 
@@ -502,14 +528,15 @@ def _tables_in_sheet(excel: Path, sheet: str | None) -> dict[str, Any]:
 
 
 def _survey_sheet(title: str, max_row: int, sample: list[list[Any]],
-                  province_keys: set[str], commune_keys: set[str]) -> dict[str, Any]:
+                  province_keys: set[str], commune_keys: set[str],
+                  affixes) -> dict[str, Any]:
     """One sheet's verdict. Takes the title and row count rather than a
     worksheet object, so a delimited text file — which has neither sheets nor
     an openpyxl reader — goes through exactly the same judgement."""
     if not any(any(not tabular.is_blank(c) for c in row) for row in sample):
         return {"sheet": title, "usable": False, "estimated_rows": 0,
-                "reason": messages.text("sheet-rong.lý_do"),
-                "fix": messages.text("sheet-rong.nên_làm")}
+                "reason": messages.text("sheet-empty.reason"),
+                "fix": messages.text("sheet-empty.fix")}
 
     start = tabular.header_row(sample)
     columns = [c for c in sample[start]] if start < len(sample) else []
@@ -517,7 +544,8 @@ def _survey_sheet(title: str, max_row: int, sample: list[list[Any]],
     names = [str(c).strip() if not tabular.is_blank(c) else f"Unnamed: {i}"
              for i, c in enumerate(columns)]
 
-    places = tabular.place_columns(names, body, province_keys, commune_keys)
+    places = tabular.place_columns(names, body, province_keys, commune_keys,
+                                   affixes)
     place_column = places["commune"] or places["province"]
     total = max(int(max_row or 0) - start - 1, len(body))
     blocked = tabular.usability(names, len(body), place_column)
@@ -562,13 +590,21 @@ def command_profile(args: argparse.Namespace) -> None:
     commune_names = ([str(v) for v in commune_shapes[c_fields["commune"]]]
                      if commune_shapes is not None else [])
 
+    # Read once, from the profile, and handed to every place that matches a
+    # name. Two lists that disagree miss every row, so there is one list.
+    country_profile = dataio.read_country(
+        deps, dataio.shapefile_root(root), country)
+    affixes = dataio.name_affixes(country_profile)
+    p_alias = dataio.alias_column(country_profile, dataio.COARSE)
+    c_alias = dataio.alias_column(country_profile, dataio.FINE)
+
     admin_level = args.admin_level
     if admin_level in (None, "auto"):
-        admin_level = _detect_admin_level(df, province_names, commune_names)
+        admin_level = _detect_admin_level(df, province_names, commune_names, affixes)
 
     report = profiling.build(deps, df, sheet=args.sheet, admin_level=admin_level,
                              province_names=province_names, commune_names=commune_names,
-                             dictionary=dictionary)
+                             dictionary=dictionary, affixes=affixes)
     report["available_sheets"] = sheets
     report["remembered_choices"] = prefs.recall_choices(root, excel, args.sheet)
     tables = _tables_in_sheet(excel, args.sheet)
@@ -596,7 +632,7 @@ def command_profile(args: argparse.Namespace) -> None:
         report["usable"] = False
         report["map_options"] = []
         report["quality_warnings"].insert(0, guardrails._issue(
-            "sheet-khong-ve-duoc", guardrails.CRITICAL,
+            "sheet-not-mappable", guardrails.CRITICAL,
             fmt={"why": blocked["reason"], "fix": blocked["fix"]},
             extra={k: v for k, v in blocked.items() if k not in ("reason", "fix")}))
         report["run_folder"] = dataio.create_run_dir(root, args.run_folder).name
@@ -620,12 +656,15 @@ def command_profile(args: argparse.Namespace) -> None:
 
     review: list[dict[str, Any]] = []
     if admin_level == "province" and province_column:
-        index = _province_index(province_shapes, p_fields["province"])
+        index = _province_index(province_shapes, p_fields["province"], affixes,
+                                p_alias)
         review = matching.review_province(
             [{"province": v} for v in df[province_column].tolist()], index)
     elif admin_level == "commune" and commune_column:
-        index = _province_index(province_shapes, p_fields["province"])
-        by_province = _commune_index_by_province(commune_shapes, c_fields)
+        index = _province_index(province_shapes, p_fields["province"], affixes,
+                                p_alias)
+        by_province = _commune_index_by_province(commune_shapes, c_fields, affixes,
+                                                 c_alias)
         rows = [{"province": (df[province_column].iloc[i] if province_column else None),
                  "commune": df[commune_column].iloc[i]} for i in range(len(df))]
         review = matching.review_commune(rows, index, by_province,
@@ -729,8 +768,9 @@ def _sample_rows(df, columns: list[dict[str, Any]], place_columns: list[str],
         "hidden_columns": len(hidden),
         "hidden_column_names": hidden,
         "remaining_rows": max(len(df) - len(rows), 0),
-        "display": ("Thêm một cột '…' ở cuối nếu còn cột ẩn, và một dòng '…' "
-                          "ở dưới nếu bảng còn dài, kèm con số cụ thể."),
+        "display": ("Add a '…' column at the end if columns are hidden, and a "
+                    "'…' row below if the table runs longer, each with the "
+                    "count beside it."),
     }
 
 
@@ -871,7 +911,7 @@ def _render_layers(args: argparse.Namespace) -> None:
     requests = _layer_requests(args, deps, frame)
     plan = layers.allocate(requests)
     if not plan["maps"]:
-        raise SystemExit(messages.text("loi.khong-bien-nao-ve-duoc")
+        raise SystemExit(messages.text("error.no-mappable-variable")
                          + " ".join(r["why"] for r in plan["unplaced"]))
 
     # one folder for the whole set, resolved once so every pass writes together
@@ -962,7 +1002,7 @@ def _drawn_table(run_dir: Path, base: str, frame, name_field: str,
         rows.append(entry)
     if not rows:
         return None
-    path = run_dir / f"{base}_so-lieu.csv"
+    path = run_dir / f"{base}_data.csv"
     dataio.write_csv(path, rows)
     return str(path)
 
@@ -1065,21 +1105,22 @@ def _build_long_columns(args, joined, by_name):
     if args.numerator or args.denominator:
         if not (args.numerator and args.denominator):
             raise SystemExit(messages.text("error.ratio-needs-both"))
-        top = rows_for(messages.fragment("tử-số"), args.numerator, args.fill_where) \
+        top = rows_for(messages.fragment("numerator"), args.numerator, args.fill_where) \
             .groupby("__shape_id")[args.value_column].sum()
-        bottom = rows_for(messages.fragment("mẫu-số"), args.denominator, args.fill_where) \
+        bottom = rows_for(messages.fragment("denominator"), args.denominator, args.fill_where) \
             .groupby("__shape_id")[args.value_column].sum()
         share = (top / bottom.replace(0, float("nan")) * 100.0).dropna()
         name = f"{args.numerator} ÷ {args.denominator} (%)"
         frame = frame[frame["__shape_id"].isin(share.index)]
         frame[name] = frame["__shape_id"].map(share)
-        by_name[name] = sem._pack(sem.PERCENT, name, "phần trăm", scale="percent")
+        by_name[name] = sem._pack(sem.PERCENT, name, "percent", scale="percent")
         note.update({"numerator": args.numerator, "denominator": args.denominator,
                      "fill_slice": list(args.fill_where or []),
                      "computable_units": int(len(share)),
                      "zero_denominator_units": len(set(bottom.index) - set(share.index)),
-                     "method": "Cộng tử số và mẫu số trong từng đơn vị rồi mới chia, "
-                                  "không lấy trung bình của các tỷ lệ."})
+                     "method": "The numerator and the denominator are summed within each "
+                               "unit and divided after, rather than averaging "
+                               "the ratios."})
     elif args.fill_indicator:
         rows = rows_for("fill", args.fill_indicator, args.fill_where)
         totals = rows.groupby("__shape_id")[args.value_column].sum()
@@ -1099,7 +1140,7 @@ def _build_long_columns(args, joined, by_name):
         totals = rows.groupby("__shape_id")[args.value_column].sum()
         symbol_name = str(args.symbol_indicator)
         frame[symbol_name] = frame["__shape_id"].map(totals)
-        by_name[symbol_name] = sem._pack(sem.COUNT, symbol_name, "số đếm", integer=True)
+        by_name[symbol_name] = sem._pack(sem.COUNT, symbol_name, "count", integer=True)
         args.symbol_column = symbol_name
         note["symbol"] = {"indicator": symbol_name,
                              "unit_count": int(frame[symbol_name].notna().sum()),
@@ -1148,7 +1189,7 @@ def _long_format_report(df, columns: list[dict[str, Any]],
     warning = longform.pin_warning(risky, int(df[place_column].nunique()))
     if warning:
         out["warnings"].append(guardrails._issue(
-            "dem-trung-dang-dai", guardrails.CRITICAL, fmt={"why": warning}))
+            "long-table-double-count", guardrails.CRITICAL, fmt={"why": warning}))
 
     if not axis:
         return out
@@ -1248,7 +1289,7 @@ def _latest_period(rows, column: str, place_column: str,
         "value": latest,
         "unit_count": int(hit[place_column].nunique()),
         "total": round(float(deps_sum(hit[value_column])), 1),
-        "why": messages.text("dai.ky-moi-nhat", count=len(ordered)),
+        "why": messages.text("longform.latest-period", count=len(ordered)),
         "alternatives": [str(p) for p in reversed(ordered[:-1])][:6],
     }
 
@@ -1359,7 +1400,7 @@ def _command_line() -> str:
 
 
 #: Settings the person is meant to decide, not the skill. When one of these was
-#: not supplied on the command line its question goes into ``phải_hỏi``, so the
+#: not supplied on the command line its question goes into ``must_ask``, so the
 #: agent asks about that rather than presenting a guess as a decision. The map's
 #: language is here because a real run inferred it from the chat and never asked
 #: — the reader may well want a Vietnamese map while writing in English.
@@ -1401,15 +1442,15 @@ def _plan(args, excel, joined, value_column, scope, prepared, method, bins):
     reader saw is exactly what unlocks the drawing.
     """
     maps = ", ".join(str(c["name"]) for c in prepared)
-    auto = messages.text("bảng.tự-chọn")
+    auto = messages.text("table.chosen-by-the-skill")
     chosen = getattr(args, "chosen_explicitly", set())
     among = _among(value_column, args, scope)
-    unknown = messages.text("bảng.không-áp-dụng")
+    unknown = messages.text("table.not-applicable")
 
     # a CSV has no sheet, and "sheet None" is worse jargon than any flag value
     sheet = f" › sheet {args.sheet}" if args.sheet else ""
-    counted = wording.count("bảng.số-tấm", "maps", len(prepared))
-    # "Một tấm toàn quốc — toàn quốc" says the same thing twice; the place names
+    counted = wording.count("table.plate-count", "maps", len(prepared))
+    # "One national map — national" says the same thing twice; the place names
     # only earn their space when they are not already the scope's own name
     reach = wording.label("map_scope", scope)
     if len(prepared) > 1:
@@ -1419,29 +1460,29 @@ def _plan(args, excel, joined, value_column, scope, prepared, method, bins):
 
     # (row name, what it says, which setting it stands for)
     rows: list[tuple[str, str, str | None]] = [
-        ("dữ-liệu", f"{Path(excel).name}{sheet} "
-                    f"({wording.count('bảng.số-dòng', 'rows', len(joined))})", None),
+        ("data", f"{Path(excel).name}{sheet} "
+                    f"({wording.count('table.row-count', 'rows', len(joined))})", None),
     ]
     if args.where:
-        rows.append(("lát-dữ-liệu", " · ".join(args.where), None))
+        rows.append(("data-slice", " · ".join(args.where), None))
     rows += [
-        ("loại-bản-đồ", wording.label("map_type", args.map_type), "map_type"),
-        ("tô-màu-theo", value_column or "—", None),
+        ("map-kind", wording.label("map_type", args.map_type), "map_type"),
+        ("coloured-by", value_column or "—", None),
     ]
     if args.symbol_column:
-        rows.append(("vòng-tròn-theo", args.symbol_column, None))
+        rows.append(("circles-by", args.symbol_column, None))
     rows += [
-        ("phạm-vi", reach, "map_scope"),
-        ("bố-cục", wording.label("layout", args.layout), "layout"),
-        ("ngôn-ngữ", wording.label("language", args.language), "language"),
-        ("chia-nhóm", (f"{wording.label('classification', args.classification)} — "
-                       f"{wording.count('bảng.số-nhóm', 'classes', bins['classes'])}"
+        ("scope", reach, "map_scope"),
+        ("layout", wording.label("layout", args.layout), "layout"),
+        ("language", wording.label("language", args.language), "language"),
+        ("classes", (f"{wording.label('classification', args.classification)} — "
+                       f"{wording.count('table.class-count', 'classes', bins['classes'])}"
                        if bins else unknown), "classification"),
-        ("nhãn", wording.label("labels", args.labels), "labels"),
-        ("gộp-dòng", (wording.label("aggregate", method)
+        ("labels", wording.label("labels", args.labels), "labels"),
+        ("repeated-rows", (wording.label("aggregate", method)
                       if method in wording.VALUES["aggregate"] else unknown), "aggregate"),
-        ("đầu-ra", (f"{args.formats.upper()} {args.dpi} dpi"
-                    + ("" if args.no_html else messages.text("bảng.kèm-html"))), "formats"),
+        ("output", (f"{args.formats.upper()} {args.dpi} dpi"
+                    + ("" if args.no_html else messages.text("table.with-html"))), "formats"),
     ]
 
     numbered = []
@@ -1510,7 +1551,7 @@ def _animation(deps, args, run_dir, joined, contexts, thematic, provinces_gdf,
     unreadable = period_utils.unreadable(joined[args.period_column])
     if unreadable:
         issues.append(guardrails._issue(
-            "ky-khong-doc-duoc", guardrails.WARNING, counts=len(unreadable),
+            "unreadable-periods", guardrails.WARNING, counts=len(unreadable),
             fmt={"count": len(unreadable),
                  "periods": ", ".join(str(u) for u in unreadable[:5])}))
 
@@ -1535,7 +1576,7 @@ def _animation(deps, args, run_dir, joined, contexts, thematic, provinces_gdf,
         raise SystemExit(messages.text("error.no-values-after-periods"))
     bins = classify.compute_bins(pooled, args.classification, args.classes, value_info,
                                  center_zero=(args.map_type == "change"))
-    bins["notes"].append(messages.text("doc.dùng-chung-nhóm-video"))
+    bins["notes"].append(messages.text("read.shared-classes-over-time"))
     issues += guardrails.check_classes(bins, len(pooled))
 
     symbol_scale: dict[str, float] = {}
@@ -1671,6 +1712,14 @@ def command_render(args: argparse.Namespace) -> None:
         if candidate.exists():
             review_path = candidate
 
+    # Read once from the profile, exactly as `profile` does: the index and
+    # every lookup into it have to strip the same words or nothing matches.
+    country_reading = dataio.read_country(
+        deps, dataio.shapefile_root(root), country)
+    affixes = dataio.name_affixes(country_reading)
+    p_alias = dataio.alias_column(country_reading, dataio.COARSE)
+    c_alias = dataio.alias_column(country_reading, dataio.FINE)
+
     review: list[dict[str, Any]] = []
     if coordinates_only:
         review = []
@@ -1682,12 +1731,13 @@ def command_render(args: argparse.Namespace) -> None:
         province_shapes = dataio.load_shapes(deps, root, dataio.COARSE,
                                              country=country)
         p_fields = dataio.shape_fields(province_shapes, dataio.COARSE)
-        index = _province_index(province_shapes, p_fields["province"])
+        index = _province_index(province_shapes, p_fields["province"], affixes,
+                                p_alias)
         if admin_level == "province":
             review = matching.review_province(
                 [{"province": v} for v in df[args.province_column].tolist()], index)
         else:
-            by_province = _commune_index_by_province(shapes, fields)
+            by_province = _commune_index_by_province(shapes, fields, affixes, c_alias)
             rows = [{"province": (df[args.province_column].iloc[i]
                                   if args.province_column else None),
                      "commune": df[args.commune_column].iloc[i]} for i in range(len(df))]
@@ -1736,9 +1786,11 @@ def command_render(args: argparse.Namespace) -> None:
     if args.map_type == "change":
         if not (args.baseline_column and args.comparison_column):
             raise SystemExit(messages.text("error.change-needs-two-columns"))
-        value_column = f"Thay đổi: {args.comparison_column} − {args.baseline_column}"
+        value_column = i18n.t(args.language, "change_title",
+                              comparison=args.comparison_column,
+                              baseline=args.baseline_column)
         joined[value_column] = joined[args.comparison_column] - joined[args.baseline_column]
-        by_name[value_column] = sem._pack(sem.POINT, value_column, "điểm phần trăm")
+        by_name[value_column] = sem._pack(sem.POINT, value_column, "percentage point")
     if args.map_type == "graduated-symbol" and not args.symbol_column:
         raise SystemExit(messages.text("error.graduated-needs-symbol-column"))
     # a proportional-symbol map needs only the symbol column; area fills need a value
@@ -1881,7 +1933,7 @@ def command_render(args: argparse.Namespace) -> None:
         frame = ctx["frame"]
         # Two different questions, and they used to share one answer. Coverage is
         # about the fill: grey area reads as "surveyed and found nothing". What
-        # the report calls đơn_vị_có_số_liệu is about the map as a whole, and
+        # the report calls units_with_data is about the map as a whole, and
         # counting only the fill made a proportional-symbol map drawing fourteen
         # circles report zero — while its own subtitle said 14/126.
         filled = int(frame["__value"].notna().sum()) if values is not None else 0

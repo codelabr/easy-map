@@ -49,8 +49,8 @@ _VIETNAM = {
     # without a caption gets an unlabelled box rather than Vietnam's caption.
     "label": "Hoàng Sa · Trường Sa",
     "source": "built in for Vietnam",
-    "evidence": "điểm đất liền đông nhất trong shapefile là 110,64°E; "
-                  "mảnh đảo tây nhất là 111,45°E",
+    "evidence": "the easternmost mainland point in the shapefile is "
+                "110.64°E; the westernmost island fragment is 111.45°E",
 }
 
 _DECLARED: dict[str, dict[str, Any]] = {
@@ -59,7 +59,7 @@ _DECLARED: dict[str, dict[str, Any]] = {
 }
 
 #: The key a person writes to declare a meridian for a country the table does
-#: not cover. It goes in the profile's ``khai_báo`` block — the one part of that
+#: not cover. It goes in the profile's ``declared`` block — the one part of that
 #: file the builder copies forward instead of computing.
 HAND_KEY = "inset_meridian"
 
@@ -292,19 +292,19 @@ def declaration(country: str | None, by_hand: dict[str, Any] | None = None,
         if lon is None:
             return {"meridian": None, "label": None,
                     "source": "declared_as_none",
-                    "evidence": f"hồ sơ ghi {HAND_KEY} = null"}
+                    "evidence": f"the profile reads {HAND_KEY} = null"}
         if isinstance(lon, bool) or not isinstance(lon, (int, float)) \
                 or not -180.0 <= float(lon) <= 180.0:
             from . import messages as msg
 
-            raise SystemExit(msg.text("loi.khai-báo-khung-phụ-sai",
+            raise SystemExit(msg.text("error.bad-inset-declaration",
                                       field=HAND_KEY, given=repr(lon),
-                                      file=where or "ho_so_quoc_gia.json"))
+                                      file=where or "country_profiles.json"))
         label = by_hand.get(HAND_LABEL_KEY)
         return {"meridian": float(lon),
                 "label": str(label) if label else None,
                 "source": "declared_by_user",
-                "evidence": f"hồ sơ ghi {HAND_KEY} = {float(lon)}"}
+                "evidence": f"the profile reads {HAND_KEY} = {float(lon)}"}
     known = declared(country)
     if known is not None:
         return dict(known)
@@ -312,12 +312,12 @@ def declaration(country: str | None, by_hand: dict[str, Any] | None = None,
         "meridian": None,
         "label": None,
         "source": "undeclared",
-        "evidence": f"không có dòng nào cho '{country}' trong bảng khai báo "
-                      f"sẵn, và hồ sơ chưa có {HAND_KEY}",
-        "how_to_declare": f"viết \"khai_báo\": {{\"{HAND_KEY}\": <kinh độ>, "
-                     f"\"{HAND_LABEL_KEY}\": \"<nhãn, không bắt buộc>\"}} vào "
-                     f"mục của quốc gia này trong "
-                     f"{where or 'ho_so_quoc_gia.json'}",
+        "evidence": f"no row for '{country}' in the built-in table, and the "
+                    f"profile has no {HAND_KEY}",
+        "how_to_declare": f"write \"declared\": {{\"{HAND_KEY}\": <longitude>, "
+                          f"\"{HAND_LABEL_KEY}\": \"<caption, optional>\"}} "
+                          f"into this country's entry in "
+                          f"{where or 'country_profiles.json'}",
     }
 
 

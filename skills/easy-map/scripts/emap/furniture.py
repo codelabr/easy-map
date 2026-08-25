@@ -26,7 +26,7 @@ def _pt_to_frac(ax, points: float) -> tuple[float, float]:
 
 
 def colour_legend(ax, x: float, y: float, colours: Sequence[str], labels: Sequence[str],
-                  title: str, *, no_data_label: str | None = "Chưa có số liệu",
+                  title: str, *, no_data_label: str | None = "No data",
                   no_data_colour: str = "#eceef0", fs_title: float = 9.5,
                   fs: float = 9.0, swatch_pt: float = 13.0) -> float:
     """Single column, low class at the top, high class at the bottom."""

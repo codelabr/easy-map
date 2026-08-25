@@ -41,18 +41,20 @@ def describe_columns(deps, df, dictionary: dict[str, str] | None = None) -> list
             info[sem.STAT_SUM] = sum(nums)
         if dictionary and column in dictionary:
             info["dictionary_description"] = dictionary[column]
-            info["semantic_source"] = msg.text("nguon-y-nghia.tu-dien")
+            info["semantic_source"] = msg.text("semantic-source.data-dictionary")
         else:
-            info["semantic_source"] = msg.text("nguon-y-nghia.suy-luan")
+            info["semantic_source"] = msg.text("semantic-source.inferred")
         out.append(info)
     return out
 
 
 def location_candidates(df, columns: Sequence[dict[str, Any]], province_names: Sequence[str],
-                        commune_names: Sequence[str]) -> dict[str, list[dict[str, Any]]]:
+                        commune_names: Sequence[str],
+                        affixes=None) -> dict[str, list[dict[str, Any]]]:
     """Score text columns by how many of their values exist in the shapefile."""
-    provinces = {matching.normalize(n) for n in province_names}
-    communes = {matching.normalize(n) for n in commune_names}
+    affixes = affixes if affixes is not None else matching.NOTHING
+    provinces = {matching.normalize(n, affixes) for n in province_names}
+    communes = {matching.normalize(n, affixes) for n in commune_names}
     result: dict[str, list[dict[str, Any]]] = {"province": [], "commune": []}
 
     for info in columns:
@@ -62,7 +64,7 @@ def location_candidates(df, columns: Sequence[dict[str, Any]], province_names: S
         values = [str(v) for v in df[info["column"]].tolist() if v is not None and not _isnan(v)]
         if not values:
             continue
-        keys = [matching.normalize(v) for v in values]
+        keys = [matching.normalize(v, affixes) for v in values]
         p_hit = sum(1 for k in keys if k in provinces) / len(keys)
         c_hit = sum(1 for k in keys if k in communes) / len(keys)
         if p_hit >= 0.35:
@@ -119,16 +121,16 @@ def map_options(columns: Sequence[dict[str, Any]], admin_level: str,
     categories = [c for c in columns if c["semantic"] == sem.CATEGORY
                   and 2 <= c.get("levels", 0) <= 8]
     points = _by_semantic(columns, sem.POINT)
-    level = msg.text("cap.xa" if admin_level == "commune" else "cap.tinh")
+    level = msg.text("tier.commune" if admin_level == "commune" else "tier.province")
     options: list[dict[str, Any]] = []
 
     def option(kind: str, score: int, columns: dict[str, Any] | None = None,
                **fmt: Any) -> dict[str, Any]:
         """One ranked option; its two sentences come from the message table."""
         return {"kind": kind,
-                "friendly_name": msg.text(f"phuong-an.{kind}.tên"),
+                "friendly_name": msg.text(f"option.{kind}.name"),
                 **(columns or {}),
-                "why": msg.text(f"phuong-an.{kind}.vì_sao", **fmt),
+                "why": msg.text(f"option.{kind}.why", **fmt),
                 "points": score}
 
     if rates and counts:
@@ -177,7 +179,7 @@ def find_pairs(columns: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
             continue
         entries.sort()
         pairs.append({"indicator": stem, "baseline": entries[0][1], "comparison": entries[-1][1],
-                      "why": msg.text("cap-cot-theo-nam", first=entries[0][0],
+                      "why": msg.text("year-column-pairs", first=entries[0][0],
                                          last=entries[-1][0])})
     return pairs
 
@@ -192,17 +194,19 @@ def quality_flags(deps, df, columns: Sequence[dict[str, Any]]) -> list[dict[str,
                 _series_values(df[info["column"]]), info))
         if info["missing"] >= 0.4 and info.get("mappable"):
             issues.append(guardrails._issue(
-                "thieu-nhieu", guardrails.WARNING,
+                "mostly-missing", guardrails.WARNING,
                 fmt={"column": info["column"], "share": f"{info['missing']:.0%}"}))
     return issues
 
 
 def build(deps, df, *, sheet: str | None, admin_level: str,
           province_names: Sequence[str], commune_names: Sequence[str],
-          dictionary: dict[str, str] | None = None) -> dict[str, Any]:
+          dictionary: dict[str, str] | None = None,
+          affixes=None) -> dict[str, Any]:
     columns = describe_columns(deps, df, dictionary)
     coords = coordinate_candidates(columns)
-    locations = location_candidates(df, columns, province_names, commune_names)
+    locations = location_candidates(df, columns, province_names, commune_names,
+                                    affixes)
     options = map_options(columns, admin_level, coords)
 
     # attach a weighting column to every rate, so aggregation stays honest

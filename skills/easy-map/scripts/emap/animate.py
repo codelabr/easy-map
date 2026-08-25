@@ -137,7 +137,7 @@ def build(deps, *, frame, periods: Sequence[Any], values_by_period: dict[Any, di
     repeats = render_mod.part_counts(data_rows)
 
     if plate.timeline_rect is None:
-        raise RuntimeError(msg.text("video.thiếu-chỗ-thanh-thời-gian"))
+        raise RuntimeError(msg.text("video.no-room-for-the-timeline"))
     timeline = Timeline(plate.fig, plate.timeline_rect, periods, fonts)
 
     symbol_artist = None
@@ -207,8 +207,8 @@ def build(deps, *, frame, periods: Sequence[Any], values_by_period: dict[Any, di
         "period_count": len(periods),
         "frame_count": len(plan),
         "duration_s": round(len(plan) / FPS, 1),
-        "note": msg.text("video.mp4-bằng-ffmpeg" if writer_name == "ffmpeg"
-                            else "video.không-có-ffmpeg"),
+        "note": msg.text("video.mp4-through-ffmpeg" if writer_name == "ffmpeg"
+                            else "video.no-ffmpeg"),
     }
 
 

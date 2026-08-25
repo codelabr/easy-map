@@ -251,7 +251,7 @@ def overflow(fig, *, slack: float = OVERFLOW_SLACK_PT, panels=()) -> list[dict[s
         side, over = max(sides.items(), key=lambda kv: kv[1])
         if over > slack:
             out.append({"text": str(artist.get_text())[:60], "side": side,
-                        "outside_of": "trang" if owner is None else "cột chú giải",
+                        "outside_of": "page" if owner is None else "legend column",
                         "over_pt": round(over * 72.0 / fig.dpi, 1)})
     return out
 

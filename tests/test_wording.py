@@ -76,13 +76,13 @@ class TestEveryValueTheCommandAcceptsHasWords(unittest.TestCase):
         for setting in wording.VALUES:
             for lang in msg.LANGUAGES:
                 with self.subTest(setting=setting, lang=lang):
-                    text = msg.text(f"chọn.{setting}.câu_hỏi", lang)
+                    text = msg.text(f"choice.{setting}.question", lang)
                     self.assertTrue(text.strip().endswith("?"), text)
 
     def test_every_row_of_the_plan_has_a_heading_in_both_languages(self):
-        for name in ("dữ-liệu", "lát-dữ-liệu", "loại-bản-đồ", "tô-màu-theo",
-                     "vòng-tròn-theo", "phạm-vi", "bố-cục", "ngôn-ngữ",
-                     "chia-nhóm", "nhãn", "gộp-dòng", "đầu-ra"):
+        for name in ("data", "data-slice", "map-kind", "coloured-by",
+                     "circles-by", "scope", "layout", "language",
+                     "classes", "labels", "repeated-rows", "output"):
             for lang in msg.LANGUAGES:
                 with self.subTest(name=name, lang=lang):
                     self.assertTrue(wording.field(name, lang).strip())
@@ -365,18 +365,18 @@ class TestTheFilePicker(unittest.TestCase):
 
 class TestCountedPhrases(unittest.TestCase):
     def test_english_says_one_row_not_one_rows(self):
-        self.assertEqual(wording.count("bảng.số-dòng", "rows", 1, "en"), "1 row")
-        self.assertEqual(wording.count("bảng.số-dòng", "rows", 8, "en"), "8 rows")
+        self.assertEqual(wording.count("table.row-count", "rows", 1, "en"), "1 row")
+        self.assertEqual(wording.count("table.row-count", "rows", 8, "en"), "8 rows")
 
     def test_vietnamese_does_not_inflect(self):
-        self.assertEqual(wording.count("bảng.số-tấm", "maps", 1, "vi"), "1 tấm")
-        self.assertEqual(wording.count("bảng.số-tấm", "maps", 9, "vi"), "9 tấm")
+        self.assertEqual(wording.count("table.plate-count", "maps", 1, "vi"), "1 tấm")
+        self.assertEqual(wording.count("table.plate-count", "maps", 9, "vi"), "9 tấm")
 
     def test_the_thousands_separator_follows_the_conversation(self):
         """A plan reading "70080 rows" beside a warning reading "70,080" is one
         document with two conventions in it."""
-        self.assertEqual(wording.count("bảng.số-dòng", "rows", 70080, "en"), "70,080 rows")
-        self.assertEqual(wording.count("bảng.số-dòng", "rows", 70080, "vi"), "70.080 dòng")
+        self.assertEqual(wording.count("table.row-count", "rows", 70080, "en"), "70,080 rows")
+        self.assertEqual(wording.count("table.row-count", "rows", 70080, "vi"), "70.080 dòng")
 
 
 if __name__ == "__main__":

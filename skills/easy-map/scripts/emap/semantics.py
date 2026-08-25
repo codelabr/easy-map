@@ -206,12 +206,12 @@ def infer(column: str, values: Sequence[Any], is_numeric: bool) -> dict[str, Any
 
     if not is_numeric:
         if _time_word(column):
-            return _pack(TIME, column, msg.text("y-nghia.thời-gian"))
+            return _pack(TIME, column, msg.text("semantic.time"))
         if _id_word(column):
-            return _pack(IDENTIFIER, column, msg.text("y-nghia.mã-định-danh"))
+            return _pack(IDENTIFIER, column, msg.text("semantic.identifier"))
         if 0 < unique <= max(12, len(values) * 0.15):
-            return _pack(CATEGORY, column, msg.text("y-nghia.phân-loại"), levels=unique)
-        return _pack(TEXT, column, msg.text("y-nghia.văn-bản"))
+            return _pack(CATEGORY, column, msg.text("semantic.category"), levels=unique)
+        return _pack(TEXT, column, msg.text("semantic.text"))
 
     # numeric from here
     # The world, not one country. These read ``100 <= abs(v) <= 115`` and
@@ -224,20 +224,20 @@ def infer(column: str, values: Sequence[Any], is_numeric: bool) -> dict[str, Any
     # numbers between -180 and 180 is not a longitude — so widening the range
     # loosens the second half of a two-part test, not the whole of it.
     if _has(name, _LON_WORDS) and nums and all(abs(v) <= 180 for v in nums):
-        return _pack(COORDINATE, column, msg.text("y-nghia.kinh-độ"), axis="lon")
+        return _pack(COORDINATE, column, msg.text("semantic.longitude"), axis="lon")
     if _has(name, _LAT_WORDS) and nums and all(abs(v) <= 90 for v in nums):
-        return _pack(COORDINATE, column, msg.text("y-nghia.vĩ-độ"), axis="lat")
+        return _pack(COORDINATE, column, msg.text("semantic.latitude"), axis="lat")
     if _has(name, _POINT_WORDS):
-        return _pack(POINT, column, msg.text("y-nghia.điểm-phần-trăm"), signed=True)
+        return _pack(POINT, column, msg.text("semantic.percentage-point"), signed=True)
     if _has(name, _RATE_WORDS) or re.search(r"/\s*\d[\d.,]*\s*dan", name):
         return _pack(RATE_PER, column, _rate_unit(column))
     if _has(name, _MONEY_WORDS) or _MONEY_UNIT_PATTERN.search(name):
         return _pack(MONEY, column, _money_unit(column))
     if _has(name, _PERCENT_WORDS) or "%" in column:
         scale = "unit" if nums and max(nums) <= 1.5 else "percent"
-        return _pack(PERCENT, column, msg.text("y-nghia.phần-trăm"), scale=scale)
+        return _pack(PERCENT, column, msg.text("semantic.percent"), scale=scale)
     if _has(name, _SCORE_WORDS):
-        return _pack(SCORE, column, msg.text("y-nghia.chỉ-số"))
+        return _pack(SCORE, column, msg.text("semantic.score"))
     # A numeric period column has to look like one. "Số ca mắc trong ngày" does
     # carry the word "ngày", but it is a count of cases qualified by a period,
     # not a period — and a heading that names a quantity outranks one that names
@@ -245,16 +245,16 @@ def infer(column: str, values: Sequence[Any], is_numeric: bool) -> dict[str, Any
     word = _time_word(column)
     if word and not _has(name, _COUNT_WORDS) and (
             word == "generic" or _period_values(word, nums)):
-        return _pack(TIME, column, msg.text("y-nghia.thời-gian"))
+        return _pack(TIME, column, msg.text("semantic.time"))
     if _has(name, _COUNT_WORDS) or (is_integer_like(values) and nums and min(nums) >= 0):
-        return _pack(COUNT, column, msg.text("y-nghia.số-đếm"), integer=True)
-    return _pack(UNKNOWN, column, msg.text("y-nghia.liên-tục"))
+        return _pack(COUNT, column, msg.text("semantic.count"), integer=True)
+    return _pack(UNKNOWN, column, msg.text("semantic.continuous"))
 
 
 def _rate_unit(column: str) -> str:
     m = re.search(r"/\s*([\d.,]+)", column)
-    return (msg.text("y-nghia.trên-dân", per=m.group(1)) if m
-            else msg.text("y-nghia.tỷ-suất"))
+    return (msg.text("semantic.per-capita", per=m.group(1)) if m
+            else msg.text("semantic.rate"))
 
 
 def _money_unit(column: str) -> str:
@@ -329,9 +329,9 @@ def _magnitude(info: dict[str, Any]) -> float:
 #: Keys that ``profile.describe_columns`` attaches to a numeric column. They are
 #: defined here and imported there so the producer and the consumers can never
 #: drift apart — a silent mismatch once disabled the check below entirely.
-STAT_MIN = "nhỏ_nhất"
-STAT_MEDIAN = "trung_vị"
-STAT_MAX = "lớn_nhất"
+STAT_MIN = "min"
+STAT_MEDIAN = "median"
+STAT_MAX = "max"
 STAT_SUM = "total"
 
 #: mean relative error allowed before a numerator/denominator pair is accepted.

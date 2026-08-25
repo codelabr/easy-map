@@ -169,9 +169,9 @@ class TestHandingOverSomethingToOpen(unittest.TestCase):
 
     def test_only_what_a_person_opens_is_listed(self):
         self.make("a.png", "a_metadata.json", "run_manifest.json",
-                  "a_so-lieu.csv", "trang.html", "phim.mp4")
+                  "a_data.csv", "trang.html", "phim.mp4")
         found = [f["name"] for f in dataio.openable(self.folder)]
-        self.assertEqual(found, ["a.png", "a_so-lieu.csv", "phim.mp4", "trang.html"])
+        self.assertEqual(found, ["a.png", "a_data.csv", "phim.mp4", "trang.html"])
 
     def test_every_entry_carries_a_name_a_path_and_a_link(self):
         self.make("a.png")
