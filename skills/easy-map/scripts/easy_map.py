@@ -1677,6 +1677,42 @@ def _map_label(args, value_column, ctx) -> str:
     return f"{args.title or value_column or ''} — {where}".strip(" —")
 
 
+#: Fallback when a map has neither a title nor a value column to be named
+#: after. ``render`` now refuses to issue a code without a title, so this is
+#: close to unreachable — but it is a *file name*, and a file name written in
+#: one language while the rest of the folder is written in another is the kind
+#: of thing nobody notices until they are sorting a hundred of them.
+UNTITLED = "map"
+
+
+def map_basename(args, value_column, ctx) -> tuple[str, str]:
+    """The stem of every file this map writes: ``(family, base)``.
+
+    Three kinds of word meet here and they follow three different rules.
+
+    * The **title** is the user's, in whatever language they wrote it.
+    * The **place** is ``ctx["name"]`` — a province name comes from the
+      boundary file and stays as it is, while ``national`` is the engine's own
+      word for "all of it".
+    * The **layout**, the **kind of file** (``_data``, ``_metadata``) and the
+      word ``national`` are the engine's own structural markers, and they are
+      English in every language, exactly like ``run_manifest.json`` beside
+      them. Translating them would give the two editions of one map two
+      different *structural* names, so a script looking for ``*_data.csv``
+      would find the English run and miss the Vietnamese one.
+
+    ``family`` groups the editions; ``base`` names one of them. The language
+    suffix is what keeps a Vietnamese and an English edition of the same map
+    side by side in one folder without either overwriting the other, and the
+    layout is in the name because without it a second render of the same map in
+    the other layout overwrites the first silently while ``run_manifest`` goes
+    on listing both.
+    """
+    family = (dataio.slugify(f"{args.title or value_column or UNTITLED} {ctx['name']}")
+              + f"_{args.layout}")
+    return family, f"{family}_{i18n.suffix(args.language)}"
+
+
 def _animation(deps, args, run_dir, joined, contexts, thematic, provinces_gdf,
                value_column, value_info, symbol_info, name_field, font_info,
                issues) -> dict[str, Any]:
@@ -1764,8 +1800,7 @@ def _animation(deps, args, run_dir, joined, contexts, thematic, provinces_gdf,
                            with_data, frame)
         spec["labels"] = "off"
         spec["diverging"] = args.map_type == "change"
-        base = (dataio.slugify(f"{args.title or value_column} {ctx['name']}")
-                + f"_{args.layout}_{i18n.suffix(args.language)}")
+        _, base = map_basename(args, value_column, ctx)
 
         common = dict(frame=frame, periods=frames, values_by_period=values_by_period,
                       symbols_by_period=symbols_by_period, spec=spec, fonts=font_info,
@@ -2148,14 +2183,7 @@ def command_render(args: argparse.Namespace) -> None:
             issues_ctx += guardrails.check_symbol_occlusion(
                 max(radii) if radii else 0.0, render.median_feature_width(frame))
 
-        # the language suffix makes a Vietnamese and an English edition of the
-        # same map sit side by side in one folder without clashing
-        # the layout belongs in the name: without it a second render of the same
-        # map in the other layout overwrites the first, silently, while
-        # run_manifest still lists both
-        family = (dataio.slugify(f"{args.title or value_column or 'ban do'} {ctx['name']}")
-                  + f"_{args.layout}")
-        base = f"{family}_{i18n.suffix(args.language)}"
+        family, base = map_basename(args, value_column, ctx)
         # the page needs the live axes, so capture before save() closes the figure
         if not args.no_html:
             webpage.stash(run_dir, base, webpage.capture_still(

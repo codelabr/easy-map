@@ -1616,3 +1616,68 @@ class TestAFontThatCannotDrawTheTextStopsTheRun(unittest.TestCase):
             with self.subTest(lang=lang):
                 self.assertIn("阳", text)
                 self.assertIn("3", text)
+
+
+class TestWhatALanguageChangesInAFileName(unittest.TestCase):
+    """Which words in a file name follow ``--language`` and which never do.
+
+    The handbook once said the scope label belongs to ``--language`` because it
+    goes into the file name. The English wave then made it English in every
+    language, which is the opposite — and neither state had a test, so the
+    folder listing was the only place either could be seen.
+
+    Settled the second way, deliberately: ``national`` sits beside ``_report``,
+    ``_data`` and ``run_manifest.json``, and a script looking for ``*_data.csv``
+    has to find both editions of a map.
+    """
+
+    def _args(self, **over):
+        import argparse
+
+        fields = {"title": "Dân số theo tỉnh, 2026", "layout": "report",
+                  "language": "vi"}
+        fields.update(over)
+        return argparse.Namespace(**fields)
+
+    def test_only_the_suffix_differs_between_the_two_editions(self):
+        import easy_map
+
+        ctx = {"name": "national"}
+        vi = easy_map.map_basename(self._args(language="vi"), "Dân số", ctx)
+        en = easy_map.map_basename(self._args(language="en"), "Dân số", ctx)
+        self.assertEqual(vi[0], en[0])                  # same family
+        self.assertEqual(vi[1], vi[0] + "_vi")
+        self.assertEqual(en[1], en[0] + "_en")
+
+    def test_the_engines_own_words_stay_english_in_a_vietnamese_map(self):
+        import easy_map
+
+        family, base = easy_map.map_basename(
+            self._args(), "Dân số", {"name": "national"})
+        self.assertEqual(base, "dan-so-theo-tinh-2026-national_report_vi")
+
+    def test_a_place_name_is_carried_over_as_the_boundary_file_wrote_it(self):
+        """The one word here that is *not* the engine's: it comes from data."""
+        import easy_map
+
+        _, base = easy_map.map_basename(
+            self._args(), "Dân số", {"name": "Hà Nội"})
+        self.assertTrue(base.startswith("dan-so-theo-tinh-2026-ha-noi_"), base)
+
+    def test_the_layout_is_in_the_name_so_one_render_cannot_bury_another(self):
+        import easy_map
+
+        report = easy_map.map_basename(self._args(layout="report"), "x",
+                                       {"name": "national"})[1]
+        banner = easy_map.map_basename(self._args(layout="banner"), "x",
+                                       {"name": "national"})[1]
+        self.assertNotEqual(report, banner)
+
+    def test_an_untitled_map_falls_back_to_an_english_word(self):
+        """The fallback used to be ``ban do``, which put Vietnamese into the
+        name of a map whose every other word was English."""
+        import easy_map
+
+        _, base = easy_map.map_basename(
+            self._args(title=None, language="en"), None, {"name": "national"})
+        self.assertEqual(base, "map-national_report_en")
