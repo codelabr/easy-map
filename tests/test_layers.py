@@ -287,6 +287,9 @@ class TestChannelsPinnedSeparately(unittest.TestCase):
         self.args = argparse.Namespace(
             indicator_column="Indicator Code", ratio_column=None, value_column="Value",
             numerator=None, denominator=None,
+            # argparse always sets these two; a double that omits them would
+            # pass while the real command line failed
+            animate=False, period_column=None,
             fill_indicator="TX_CURR", fill_where=["Status/Result=Total"],
             symbol_indicator="HTS_TST_POS", symbol_where=None, symbol_column=None)
 
@@ -304,3 +307,121 @@ class TestChannelsPinnedSeparately(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestALongTableKeepsItsPeriodsForAFilm(unittest.TestCase):
+    """``_build_long_columns`` reduced to one row per unit and summed every
+    period into it, so a column of four quarters reached the animation as one —
+    and the engine then reported that the *data* held a single period.
+
+    Nothing caught it because no test drove a long table and ``--animate``
+    together, and the sentence it failed with was plausible.
+    """
+
+    ROWS = [
+        # unit, quarter, indicator, value
+        (1, "Q1", "TX_CURR", 10), (1, "Q2", "TX_CURR", 20),
+        (1, "Q3", "TX_CURR", 30), (1, "Q4", "TX_CURR", 40),
+        (2, "Q1", "TX_CURR", 50), (2, "Q2", "TX_CURR", 60),
+        (2, "Q3", "TX_CURR", 70), (2, "Q4", "TX_CURR", 80),
+    ]
+
+    def setUp(self):
+        import argparse
+
+        try:
+            import pandas as pd
+        except ImportError:                       # pragma: no cover
+            self.skipTest("cần pandas")
+        self.pd = pd
+        self.cli = context.cli()
+        self.joined = pd.DataFrame(
+            [{"__shape_id": u, "Quarter": q, "Indicator Code": code, "Value": v}
+             for u, q, code, v in self.ROWS])
+        self.args = argparse.Namespace(
+            indicator_column="Indicator Code", ratio_column=None,
+            value_column="Value", numerator=None, denominator=None,
+            fill_indicator="TX_CURR", fill_where=None,
+            symbol_indicator=None, symbol_where=None, symbol_column=None,
+            animate=True, period_column="Quarter")
+
+    def build(self):
+        return self.cli._build_long_columns(self.args, self.joined, {})
+
+    def test_one_row_per_unit_per_period(self):
+        _, frame, _ = self.build()
+        self.assertEqual(len(frame), 8)
+        self.assertEqual(sorted(frame["Quarter"].unique()),
+                         ["Q1", "Q2", "Q3", "Q4"])
+
+    def test_each_period_keeps_its_own_value(self):
+        """The bug summed them: every quarter of unit 1 would read 100."""
+        name, frame, _ = self.build()
+        got = dict(zip(frame.loc[frame["__shape_id"] == 1, "Quarter"],
+                       frame.loc[frame["__shape_id"] == 1, name]))
+        self.assertEqual(got, {"Q1": 10, "Q2": 20, "Q3": 30, "Q4": 40})
+
+    def test_a_still_map_still_reduces_to_one_row_per_unit(self):
+        """The old behaviour is the right one when no film is being made."""
+        self.args.animate = False
+        name, frame, _ = self.build()
+        self.assertEqual(len(frame), 2)
+        self.assertEqual(sorted(frame[name]), [100, 260])
+
+    def test_the_note_says_the_frame_is_per_period(self):
+        _, _, note = self.build()
+        self.assertEqual(note.get("kept_per_period"), "Quarter")
+
+    def test_the_unit_count_counts_units_not_rows(self):
+        """Eight rows, two units. A count of rows would read the film's length
+        as a number of places."""
+        _, _, note = self.build()
+        self.assertEqual(note["fill"]["unit_count"], 2)
+
+
+class TestTheFilmSaysWhoTookItsPeriods(unittest.TestCase):
+    """The stop used to name the column and blame the workbook.
+
+    "Column 'Quarter' holds only 1 period" was printed against a file holding
+    four, because a ``--where`` had pinned it. A message that is true of the
+    data and false about the cause is worse than none: it sends the reader
+    hunting through their own spreadsheet.
+    """
+
+    def args(self, **over):
+        import argparse
+
+        base = dict(period_column="Quarter", where=None)
+        base.update(over)
+        return argparse.Namespace(**base)
+
+    def setUp(self):
+        self.cli = context.cli()
+
+    def test_a_pin_on_the_period_column_is_named(self):
+        pins = self.cli._period_pins(
+            self.args(where=["Result/Target=Result", "Quarter=Q1"]))
+        self.assertEqual(pins, ["Quarter=Q1"])
+
+    def test_filters_on_other_columns_are_not_blamed(self):
+        self.assertEqual(
+            self.cli._period_pins(self.args(where=["Result/Target=Result"])), [])
+
+    def test_no_filters_at_all(self):
+        self.assertEqual(self.cli._period_pins(self.args()), [])
+
+    def test_no_period_column_means_nothing_to_pin(self):
+        self.assertEqual(
+            self.cli._period_pins(self.args(period_column=None,
+                                            where=["Quarter=Q1"])), [])
+
+    def test_the_sentence_exists_in_both_languages_and_names_the_filter(self):
+        from emap import messages as msg
+
+        for lang in msg.LANGUAGES:
+            text = msg.text("error.animation-period-pinned", lang,
+                            column="Quarter", filters="--where Quarter=Q1", count=4)
+            with self.subTest(lang=lang):
+                self.assertIn("Quarter", text)
+                self.assertIn("--where Quarter=Q1", text)
+                self.assertIn("4", text)

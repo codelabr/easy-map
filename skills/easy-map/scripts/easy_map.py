@@ -1045,6 +1045,30 @@ def _dress_points(points: dict[str, Any], rows, args, by_name) -> None:
         points["size_by"] = size_col
 
 
+def _long_keys(args) -> list[str]:
+    """What one row of the reduced frame stands for.
+
+    A still map wants one row per unit. A map over time wants one row per unit
+    **per period**, or every frame of the film shows the same picture: the sum
+    of all of them. Reducing to the unit alone is what made a column of four
+    quarters arrive at the animation as one.
+    """
+    keys = ["__shape_id"]
+    if args.animate and args.period_column:
+        keys.append(args.period_column)
+    return keys
+
+
+def _spread(frame, totals, keys):
+    """Put a grouped total back on the frame, on the same keys it was grouped by."""
+    import pandas as pd
+
+    if len(keys) == 1:
+        return frame[keys[0]].map(totals)
+    return pd.Series(pd.MultiIndex.from_frame(frame[keys]).map(totals),
+                     index=frame.index)
+
+
 def _build_long_columns(args, joined, by_name):
     """Columns the sheet does not have: one per channel, each from its own rows.
 
@@ -1098,36 +1122,41 @@ def _build_long_columns(args, joined, by_name):
             part = pinned
         return part
 
-    frame = joined.drop_duplicates("__shape_id").copy()
+    keys = _long_keys(args)
+    frame = joined.drop_duplicates(keys).copy()
     note: dict[str, Any] = {"indicator_column": axis}
+    if len(keys) > 1:
+        note["kept_per_period"] = args.period_column
     name = None
 
     if args.numerator or args.denominator:
         if not (args.numerator and args.denominator):
             raise SystemExit(messages.text("error.ratio-needs-both"))
         top = rows_for(messages.fragment("numerator"), args.numerator, args.fill_where) \
-            .groupby("__shape_id")[args.value_column].sum()
+            .groupby(keys)[args.value_column].sum()
         bottom = rows_for(messages.fragment("denominator"), args.denominator, args.fill_where) \
-            .groupby("__shape_id")[args.value_column].sum()
+            .groupby(keys)[args.value_column].sum()
         share = (top / bottom.replace(0, float("nan")) * 100.0).dropna()
         name = f"{args.numerator} ÷ {args.denominator} (%)"
-        frame = frame[frame["__shape_id"].isin(share.index)]
-        frame[name] = frame["__shape_id"].map(share)
+        frame[name] = _spread(frame, share, keys)
+        frame = frame[frame[name].notna()]
         by_name[name] = sem._pack(sem.PERCENT, name, "percent", scale="percent")
         note.update({"numerator": args.numerator, "denominator": args.denominator,
                      "fill_slice": list(args.fill_where or []),
-                     "computable_units": int(len(share)),
+                     "computable_units": int(frame["__shape_id"].nunique()),
                      "zero_denominator_units": len(set(bottom.index) - set(share.index)),
                      "method": "The numerator and the denominator are summed within each "
                                "unit and divided after, rather than averaging "
                                "the ratios."})
     elif args.fill_indicator:
         rows = rows_for("fill", args.fill_indicator, args.fill_where)
-        totals = rows.groupby("__shape_id")[args.value_column].sum()
+        totals = rows.groupby(keys)[args.value_column].sum()
         name = str(args.fill_indicator)
-        frame[name] = frame["__shape_id"].map(totals)
+        frame[name] = _spread(frame, totals, keys)
         by_name[name] = indicator_semantic(rows[args.value_column].tolist(), name)
-        note["fill"] = {"indicator": name, "unit_count": int(frame[name].notna().sum()),
+        note["fill"] = {"indicator": name,
+                        "unit_count": int(frame.loc[frame[name].notna(),
+                                                    "__shape_id"].nunique()),
                             "total": float(totals.sum()),
                             "slice": list(args.fill_where or [])}
 
@@ -1137,13 +1166,14 @@ def _build_long_columns(args, joined, by_name):
     # believable size, with nothing on the map to say so.
     if args.symbol_indicator:
         rows = rows_for("symbol", args.symbol_indicator, args.symbol_where)
-        totals = rows.groupby("__shape_id")[args.value_column].sum()
+        totals = rows.groupby(keys)[args.value_column].sum()
         symbol_name = str(args.symbol_indicator)
-        frame[symbol_name] = frame["__shape_id"].map(totals)
+        frame[symbol_name] = _spread(frame, totals, keys)
         by_name[symbol_name] = sem._pack(sem.COUNT, symbol_name, "count", integer=True)
         args.symbol_column = symbol_name
         note["symbol"] = {"indicator": symbol_name,
-                             "unit_count": int(frame[symbol_name].notna().sum()),
+                          "unit_count": int(frame.loc[frame[symbol_name].notna(),
+                                                      "__shape_id"].nunique()),
                              "total": float(totals.sum()),
                              "slice": list(args.symbol_where or [])}
     return name, frame, note
@@ -1518,6 +1548,21 @@ def _current(args, setting: str, scope: str, method: str) -> str | None:
     return getattr(args, setting, None)
 
 
+def _period_pins(args) -> list[str]:
+    """The caller's own filters that pin the period column, if any.
+
+    A column with four quarters in the workbook can arrive at the animation
+    with one, because a ``--where`` pinned it. Saying only "this column holds
+    one period" then reads as a fault in the workbook, and sends the reader
+    looking through a spreadsheet for something that is not wrong with it.
+    """
+    if not args.period_column:
+        return []
+    return [f"{column}={value}"
+            for column, value in longform.parse_where(args.where or [])
+            if column == args.period_column]
+
+
 def _map_label(args, value_column, ctx) -> str:
     """What the interactive page's map picker shows.
 
@@ -1545,6 +1590,19 @@ def _animation(deps, args, run_dir, joined, contexts, thematic, provinces_gdf,
 
     frames = period_utils.ordered(joined[args.period_column])
     if len(frames) < 2:
+        # The column may hold plenty of periods and have been pinned to one by
+        # the caller's own filter. Naming the column alone reads as a fault in
+        # the workbook, and sends the reader looking for one that is not there.
+        pinned = _period_pins(args)
+        if pinned:
+            whole = period_utils.ordered(
+                dataio.read_table(deps, dataio.project_path(
+                    Path(args.project_root).resolve(), args.excel),
+                    args.sheet)[args.period_column])
+            raise SystemExit(messages.text(
+                "error.animation-period-pinned", column=args.period_column,
+                filters=" and ".join(f"--where {p}" for p in pinned),
+                count=len(whole)))
         raise SystemExit(messages.text("error.animation-needs-two-periods",
                                        singular=len(frames) == 1,
                                        column=args.period_column, count=len(frames)))
@@ -1622,7 +1680,9 @@ def _animation(deps, args, run_dir, joined, contexts, thematic, provinces_gdf,
 
     if len(made) == 1:
         return {**shared, **made[0]}
-    return {**shared, "khung": made, "frames": len(made)}
+    # one entry per map frame, plus how many there are. "khung" survived the
+    # rename because it carries no diacritic and the accent scan looked for one.
+    return {**shared, "maps": made, "map_count": len(made)}
 
 
 def _settle_language(args: argparse.Namespace) -> None:

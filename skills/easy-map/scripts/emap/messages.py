@@ -1393,6 +1393,12 @@ TEXT: dict[str, dict[str, str]] = {
         "vi": "Bản đồ video cần --period-column để biết đâu là trục thời gian.",
         "en": "A map over time needs --period-column to say which column is the time axis.",
     },
+    "error.animation-period-pinned": {
+        "vi": "Không dựng được bản đồ video: '{column}' chỉ còn một kỳ sau khi lọc "
+              "bằng {filters}. Bỏ bộ lọc ấy đi thì cột này còn {count} kỳ.",
+        "en": "No map over time: '{column}' is down to one period after the "
+              "{filters} filter. Without it the column still holds {count} periods.",
+    },
     "error.animation-needs-two-periods": {
         # English inflects around the count and Vietnamese does not, so the
         # singular is a variant here rather than a string built in the caller.
