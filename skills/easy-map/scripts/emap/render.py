@@ -36,9 +36,20 @@ def view_bounds(frame, lon: float | None
 
 
 def geometry_aspect(frame, lon: float | None) -> float:
+    """Width over height of the framed rectangle, or 1.0 when there is none.
+
+    ``if height`` was meant to be that fallback and was not: a frame holding no
+    usable geometry has bounds of NaN, NaN is truthy, and the division returned
+    NaN — which then sized a figure and went into the metadata, where a NaN is
+    not valid JSON. Defensive: no run has been seen to reach it, and the fix is
+    to make the guard that already exists do what it says.
+    """
     minx, miny, maxx, maxy = view_bounds(frame, lon)[0]
     height = maxy - miny
-    return (maxx - minx) / height if height else 1.0
+    if not math.isfinite(height) or height == 0:
+        return 1.0
+    width = maxx - minx
+    return width / height if math.isfinite(width) else 1.0
 
 
 def median_feature_width(frame) -> float:
