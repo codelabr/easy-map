@@ -274,3 +274,29 @@ class TestSymbolsAgreeWithTheirLegend(unittest.TestCase):
 
     def test_missing_and_zero_draw_nothing(self):
         self.assertEqual(self.radii([None, 0, -5], 100), [0.0, 0.0, 0.0])
+
+
+class TestALegendCanTellItsOwnClassesApart(unittest.TestCase):
+    """``_decimals`` stopped at two, whatever the numbers were.
+
+    A column of cases over population runs 0.005 to 0.020. Two decimals printed
+    four of the five classes as ``0.01%–0.01%`` and the subtitle as
+    "highest at 0%" — a legend that looks precise and says nothing.
+    """
+
+    def test_two_classes_never_print_the_same_label(self):
+        edges = [0.0021, 0.0052, 0.0081, 0.0104, 0.0114, 0.0193]
+        shown = classify.bin_labels(edges, {"semantic": "percent"})
+        self.assertEqual(len(set(shown)), len(shown), shown)
+
+    def test_a_wide_span_still_gets_round_numbers(self):
+        """The coarse rule is the floor, not the answer — and it stays the
+        answer whenever it is already enough."""
+        self.assertEqual(classify._decimals([0.0, 25.0, 50.0, 100.0]), 0)
+        self.assertEqual(classify._decimals([0.0, 2.5, 5.0, 9.0]), 1)
+        self.assertEqual(classify._decimals([0.0, 0.25, 0.5, 0.9]), 2)
+
+    def test_it_stops_rather_than_running_to_serial_numbers(self):
+        """Edges too close to separate get the ceiling, not fifteen digits."""
+        edges = [1.0, 1.0 + 1e-12, 1.0 + 2e-12]
+        self.assertEqual(classify._decimals(edges), classify.MAX_DECIMALS)

@@ -260,13 +260,37 @@ def _signed(value: float, decimals: int) -> str:
     return text
 
 
+#: Most decimals a class label may carry. Past this the number stops being a
+#: quantity a reader holds in mind and becomes a serial number.
+MAX_DECIMALS = 6
+
+
 def _decimals(edges: Sequence[float]) -> int:
+    """Enough decimals that no two class edges print the same.
+
+    The span alone is not enough to decide this. A column of cases over
+    population runs 0.005 to 0.020: the span says two decimals, and two
+    decimals print four of the five classes as ``0.01%–0.01%``. A legend that
+    cannot tell its own classes apart is worse than a coarser map, because it
+    still looks precise.
+
+    So the span picks a floor and the edges themselves settle it — widened
+    until every printed edge differs from its neighbour, or until the ceiling
+    says the difference is too fine to be worth showing.
+    """
     span = edges[-1] - edges[0]
     if span >= 20:
-        return 0
-    if span >= 2:
-        return 1
-    return 2
+        places = 0
+    elif span >= 2:
+        places = 1
+    else:
+        places = 2
+    while places < MAX_DECIMALS:
+        shown = [f"{e:.{places}f}" for e in edges]
+        if len(set(shown)) == len(shown):
+            break
+        places += 1
+    return places
 
 
 def symbol_scale(values: Sequence[float]) -> dict[str, float]:

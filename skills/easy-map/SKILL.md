@@ -578,8 +578,15 @@ and behind one picker on the interactive page. Say why they split:
 > bằng hộp chọn.
 
 Pass the variables with `--layer`, repeated. On a wide sheet each one is a
-column name. **On a long sheet each one is an indicator value**, and
-`--indicator-column` says which column those values live in:
+column name, **or two column names as `"A / B"`** — a rate the engine computes
+by summing each side within a unit and dividing after. The spaces around the
+slash are required there: column headings contain slashes of their own
+(`Tỷ suất ca mới/100.000 dân`, `Status/Result`), and a bare slash would cut one
+in half. Offer this rather than asking the user to add a rate column to their
+workbook.
+
+**On a long sheet each one is an indicator value**, and `--indicator-column`
+says which column those values live in:
 
 ```bash
 --indicator-column "Indicator Code" --value-column "Value" \

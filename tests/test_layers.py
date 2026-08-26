@@ -425,3 +425,64 @@ class TestTheFilmSaysWhoTookItsPeriods(unittest.TestCase):
                 self.assertIn("Quarter", text)
                 self.assertIn("--where Quarter=Q1", text)
                 self.assertIn("4", text)
+
+
+class TestAWideSheetCanAskForAQuotient(unittest.TestCase):
+    """``--layer "A / B"`` worked only with ``--indicator-column``.
+
+    A wide sheet with two count columns was refused outright, and the user had
+    to add a rate column to their own workbook. SKILL.md said "A / B is a ratio"
+    and did not mention the constraint.
+    """
+
+    def setUp(self):
+        self.cli = context.cli()
+
+    def test_a_spaced_slash_is_a_quotient(self):
+        self.assertEqual(self.cli.split_wide_ratio("Cases / Population"),
+                         ("Cases", "Population"))
+
+    def test_a_slash_inside_a_column_name_is_not(self):
+        """Real headings carry slashes — ``Tỷ suất ca mới/100.000 dân`` and
+        ``Status/Result`` are both real. Splitting on a bare slash would cut a
+        column in half and then report it missing."""
+        for name in ("Tỷ suất ca mới/100.000 dân", "Status/Result",
+                     "Xã/phường"):
+            with self.subTest(name=name):
+                self.assertEqual(self.cli.split_wide_ratio(name), (name, None))
+
+    def test_an_empty_side_is_not_a_quotient(self):
+        for name in ("A / ", " / B", " / "):
+            with self.subTest(name=name):
+                self.assertIsNone(self.cli.split_wide_ratio(name)[1])
+
+    def test_the_column_is_summed_then_divided(self):
+        """Per unit, not averaged from row-level ratios: a mean of ratios
+        weights a commune of two hundred like a city of two million."""
+        try:
+            import pandas as pd
+        except ImportError:                        # pragma: no cover
+            self.skipTest("cần pandas")
+        frame = pd.DataFrame({"Cases": [1.0, 3.0], "Population": [100.0, 100.0]})
+        by_name = {}
+        name = self.cli.build_wide_ratio(frame, by_name, "Cases / Population")
+        self.assertEqual(name, "Cases ÷ Population (%)")
+        self.assertEqual(list(frame[name]), [1.0, 3.0])
+        self.assertEqual(by_name[name]["semantic"], "percent")
+
+    def test_a_zero_denominator_is_no_data_rather_than_infinity(self):
+        try:
+            import pandas as pd
+        except ImportError:                        # pragma: no cover
+            self.skipTest("cần pandas")
+        frame = pd.DataFrame({"Cases": [1.0], "Population": [0.0]})
+        name = self.cli.build_wide_ratio(frame, {}, "Cases / Population")
+        self.assertTrue(frame[name].isna().all())
+
+    def test_a_plain_column_is_left_alone(self):
+        try:
+            import pandas as pd
+        except ImportError:                        # pragma: no cover
+            self.skipTest("cần pandas")
+        frame = pd.DataFrame({"Cases": [1.0]})
+        self.assertIsNone(self.cli.build_wide_ratio(frame, {}, "Cases"))

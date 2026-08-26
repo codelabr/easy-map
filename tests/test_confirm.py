@@ -209,3 +209,52 @@ class TestTheGuidanceFollowsTheConversation(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheGuidanceOnlyNamesKeysThatExist(unittest.TestCase):
+    """The rule from wave 6, enforced rather than remembered.
+
+    The gate tells the agent which fields to read. A name in that sentence that
+    is not a name in that reply sends the agent looking for a key it will never
+    find — and inventing is the next thing it does.
+    """
+
+    def setUp(self):
+        # msg.use sets a module-level language; leaving it set leaks into every
+        # test that runs after this one
+        self.previous = msg.use(None)
+
+    def tearDown(self):
+        msg.use(self.previous)
+
+    def keys_in(self, blob, found=None):
+        found = set() if found is None else found
+        if isinstance(blob, dict):
+            for k, v in blob.items():
+                found.add(k)
+                self.keys_in(v, found)
+        elif isinstance(blob, list):
+            for v in blob:
+                self.keys_in(v, found)
+        return found
+
+    def test_every_quoted_name_is_a_field_of_the_reply(self):
+        import re
+
+        from emap import wording
+
+        for lang in msg.LANGUAGES:
+            msg.use(lang)
+            # a table with a row that can still change, and one open question:
+            # the keys the guidance names only exist once those are there
+            row = {"number": 1, "item": wording.field("labels", lang),
+                   "value": "both", "note": "[chosen by the skill]",
+                   **wording.menu("labels", "both", lang)}
+            reply = confirm.gate(plan(), [row], [],
+                                 [wording.menu("layout", "report", lang)],
+                                 "python easy_map.py render")
+            fields = self.keys_in(reply)
+            quoted = set(re.findall(r"'([a-z_]{3,})'", reply["guidance"]))
+            missing = sorted(q for q in quoted if q not in fields)
+            with self.subTest(lang=lang):
+                self.assertEqual(missing, [], f"guidance names {missing}")

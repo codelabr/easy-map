@@ -820,11 +820,54 @@ def _units_shown(frame, has_fill: bool, has_symbol: bool) -> int:
 #: separates numerator from denominator in ``--layer "TX_PVLS Num / TX_PVLS Den"``
 RATIO_SEPARATOR = "/"
 
+#: On a wide sheet the separator has to carry spaces. Indicator codes hold no
+#: slash, so a long sheet can split on a bare one; column headings hold plenty —
+#: ``Tỷ suất ca mới/100.000 dân`` and ``Status/Result`` are both real — and
+#: splitting those would cut a column in half and then report it missing.
+WIDE_RATIO_SEPARATOR = " / "
+
 #: separates an indicator from its own pins, as in
 #: ``--layer "HTS_TST_POS|Status/Result=Positive"``. A bar rather than a slash,
 #: because column names in real exports contain slashes ("Status/Result") and
 #: indicator codes do not contain bars.
 PIN_SEPARATOR = "|"
+
+
+def split_wide_ratio(text: Any) -> tuple[str, str | None]:
+    """``"A / B"`` -> ``("A", "B")``; anything else -> ``(text, None)``.
+
+    Spaces around the slash are required, and that is the whole reason this is
+    a function rather than a ``split``: a wide sheet's headings contain slashes
+    of their own.
+    """
+    raw = str(text or "")
+    if WIDE_RATIO_SEPARATOR not in raw:
+        return raw, None
+    left, _, right = raw.partition(WIDE_RATIO_SEPARATOR)
+    left, right = left.strip(), right.strip()
+    return (left, right) if left and right else (raw, None)
+
+
+def build_wide_ratio(joined, by_name, spec: Any) -> str | None:
+    """Add ``A ÷ B (%)`` to the frame, or return None if ``spec`` is not one.
+
+    Per unit the two columns are summed and divided after, never averaged from
+    row-level ratios — the same rule the long sheet follows, and the same reason:
+    a mean of ratios weights a commune of two hundred like a city of two million.
+    """
+    num, den = split_wide_ratio(spec)
+    if den is None:
+        return None
+    if num not in joined.columns or den not in joined.columns:
+        raise SystemExit(messages.text(
+            "error.layer-unknown-column",
+            column=repr(num if num not in joined.columns else den),
+            available=", ".join(map(str, joined.columns))))
+    name = f"{num} ÷ {den} (%)"
+    bottom = joined[den].where(joined[den] != 0)
+    joined[name] = joined[num] / bottom * 100.0
+    by_name[name] = sem._pack(sem.PERCENT, name, "percent", scale="percent")
+    return name
 
 
 def _layer_requests(args, deps, frame) -> list[dict[str, Any]]:
@@ -840,6 +883,18 @@ def _layer_requests(args, deps, frame) -> list[dict[str, Any]]:
         known = {c["column"]: c for c in profiling.describe_columns(deps, frame, None)}
         out = []
         for name in args.layer:
+            num, den = split_wide_ratio(name)
+            if den is not None:
+                for side in (num, den):
+                    if side not in known:
+                        raise SystemExit(messages.text(
+                            "error.layer-unknown-column", column=repr(side),
+                            available=", ".join(map(str, frame.columns))))
+                # a quotient is normalised by construction, so it belongs on the
+                # fill channel whatever the two columns it came from were
+                out.append({"name": f"{num} ÷ {den} (%)", "semantic": sem.PERCENT,
+                            "column": name})
+                continue
             if name not in known:
                 raise SystemExit(messages.text(
                     "error.layer-unknown-column", column=repr(name),
@@ -1843,6 +1898,16 @@ def command_render(args: argparse.Namespace) -> None:
     ratio_note = None
     if args.numerator or args.denominator or args.fill_indicator or args.symbol_indicator:
         value_column, joined, ratio_note = _build_long_columns(args, joined, by_name)
+    else:
+        # A wide sheet can ask for a quotient too. The long sheet has had this
+        # since the beginning; the wide one refused it and the user had to add a
+        # rate column to their workbook by hand.
+        made = build_wide_ratio(joined, by_name, value_column)
+        if made:
+            value_column = made
+        made = build_wide_ratio(joined, by_name, args.symbol_column)
+        if made:
+            args.symbol_column = made
     if args.map_type == "change":
         if not (args.baseline_column and args.comparison_column):
             raise SystemExit(messages.text("error.change-needs-two-columns"))
@@ -2107,8 +2172,9 @@ def _build_spec(args, ctx, value_column, value_info, symbol_info, bins,
         insight_col, insight_info = "__symbol", symbol_info
     else:
         insight_col, insight_info = None, {}
-    insight = args.insight or _auto_insight(frame, insight_col, insight_info, name_field,
-                                            lang, points_count)
+    insight = args.insight or _auto_insight(frame, insight_col, insight_info,
+                                            name_field, lang, points_count,
+                                            decimals=classify.label_decimals(bins))
     source = args.source_note or i18n.t(lang, "source", file=Path(args.excel).name)
     fills_areas = args.map_type in {"choropleth", "choropleth-symbol", "change", "categorized"}
     method_note = args.footnote or _auto_method(args, bins, method, fills_areas, lang)
@@ -2142,8 +2208,16 @@ def _build_spec(args, ctx, value_column, value_info, symbol_info, bins,
 
 
 def _auto_insight(frame, column, info, name_field, lang: str | None = None,
-                  points_count: int | None = None) -> str:
-    """One descriptive sentence, taken only from what the map actually shows."""
+                  points_count: int | None = None,
+                  decimals: int | None = None) -> str:
+    """One descriptive sentence, taken only from what the map actually shows.
+
+    ``decimals`` comes from the class breaks, so the number in this sentence and
+    the number on the unit below it are the same number written the same way. A
+    map whose subtitle read "highest at 0%" over a label reading "0.019%" is two
+    statements about one figure, and the reader has no way to tell which to
+    believe.
+    """
     total = len(frame)
     if points_count is not None:
         return i18n.t(lang, "insight_points", points=points_count, total=total)
@@ -2164,7 +2238,8 @@ def _auto_insight(frame, column, info, name_field, lang: str | None = None,
         return i18n.t(lang, "insight_plain", with_data=with_data, total=total)
     return i18n.t(lang, "insight_values", with_data=with_data, total=total,
                   name=top[name_field],
-                  value=sem.format_value(top[column], info, lang=lang))
+                  value=sem.format_value(top[column], info, decimals=decimals,
+                                         lang=lang))
 
 
 def _auto_method(args, bins, method, fills_areas: bool, lang: str | None = None) -> str:
