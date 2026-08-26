@@ -1559,3 +1559,60 @@ class TestWhatIsStillPinnedToVietnam(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAFontThatCannotDrawTheTextStopsTheRun(unittest.TestCase):
+    """The rule said the run stops rather than substituting a typeface. It
+    covered a missing file and a wrong family name, and not the case that
+    actually reached a person: the fonts loaded, the run finished with exit
+    code 0 and no warning, and every Chinese character on the plate — title,
+    subtitle, legend headings, source note — came out as an empty box.
+    """
+
+    def test_the_two_built_in_languages_are_drawable(self):
+        from emap import fonts, i18n
+
+        for lang in i18n.LANGUAGES:
+            with self.subTest(lang=lang):
+                self.assertEqual(
+                    fonts.undrawable(i18n.STRINGS[lang].values()), [])
+
+    def test_latin_script_beyond_the_two_is_drawable(self):
+        """The reason --map-text survives: these all letter correctly today."""
+        from emap import fonts
+
+        self.assertEqual(fonts.undrawable([
+            "Français à ç é ê î ô û", "Español ñ á í ó ú ¿", "Straße ä ö ü",
+            "Wielkopolskie ł ą ę ś ż", "Județul Bucureşti ă ș ț",
+            "İstanbul ğ ş ı", "Provinsi Jawa Barat"]), [])
+
+    def test_a_script_the_fonts_do_not_hold_is_named_character_by_character(self):
+        """Naming the count alone would leave the reader guessing which words
+        were at fault."""
+        from emap import fonts
+
+        self.assertEqual(fonts.undrawable(["阳性率"]), ["阳", "性", "率"])
+        self.assertEqual(fonts.undrawable(["Москва"])[:2], ["М", "о"])
+        self.assertTrue(fonts.undrawable(["ບໍ່ມີຂໍ້ມູນ"]))
+
+    def test_a_character_is_named_once_however_often_it_appears(self):
+        from emap import fonts
+
+        self.assertEqual(fonts.undrawable(["率率率", "率"]), ["率"])
+
+    def test_spaces_and_control_codes_are_not_counted_as_missing(self):
+        from emap import fonts
+
+        blank = "a" + chr(9) + "b" + chr(10) + "c" + chr(160) + "d"
+        self.assertEqual(fonts.undrawable([blank]), [])
+
+    def test_the_stop_says_which_scripts_are_covered(self):
+        """A reader who has just been refused needs to know what would work."""
+        from emap import messages as msg
+
+        for lang in msg.LANGUAGES:
+            text = msg.text("error.font-cannot-draw", lang, count=3,
+                            characters="阳 性 率")
+            with self.subTest(lang=lang):
+                self.assertIn("阳", text)
+                self.assertIn("3", text)

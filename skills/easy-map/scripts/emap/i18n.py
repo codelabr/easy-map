@@ -3,12 +3,20 @@
 Only machine-generated text is translated: the kicker, the auto insight, legend
 furniture, the source and method footer, and the north arrow letter.
 
-**Two languages are built in; any language can be printed.** Vietnamese and
-English are here because they are the two the warnings are written in and the
-two this project was built for. Every string below can be replaced one at a
-time by the caller, so a map for a Lao ministry is a matter of passing the
-sentences rather than of adding a column to this table — which nobody could
-check, and which would go stale the first time a phrase was reworded.
+**Two languages are built in; any Latin-script language can be printed.**
+Vietnamese and English are here because they are the two the warnings are
+written in and the two this project was built for. Every string below can be
+replaced one at a time by the caller, so a map for a French-speaking ministry
+is a matter of passing the sentences rather than of adding a column to this
+table — which nobody could check, and which would go stale the first time a
+phrase was reworded.
+
+The limit is the typeface, not this table. The packaged fonts cover Latin
+script — Latin Extended-A entire, and 247 of the 256 Vietnamese code points —
+and hold no Greek, Cyrillic, Thai or Han at all. A caller who passes Chinese
+gets a stop from :func:`fonts.undrawable`, not a plate of empty boxes; that
+was measured on a real request, and the plate came out with its title, its
+subtitle, its legend headings and its source note all in boxes.
 
 Three things are deliberately **not** translated:
 

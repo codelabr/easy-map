@@ -1515,7 +1515,28 @@ def _among(value_column, args, scope) -> dict[str, tuple[str, ...]]:
     return among
 
 
-def _plan(args, excel, joined, value_column, scope, prepared, method, bins):
+def _title_ingredients(args, joined, value_column, scope, prepared,
+                       country_name) -> dict[str, Any]:
+    """What the engine knows that a title ought to mention.
+
+    Not a title — the engine has no standing to name somebody else's figures.
+    These are the facts a good one is built from, and the plate that prompted
+    this was missing every one of them: it drew two columns and named one, over
+    a country and a year it never said.
+    """
+    drawn = [c for c in (value_column, args.symbol_column) if c]
+    if scope == "national":
+        place = country_name or ""
+    else:
+        place = ", ".join(str(c["name"]) for c in prepared)
+    periods = []
+    if args.period_column and args.period_column in joined.columns:
+        periods = [str(p) for p in period_utils.ordered(joined[args.period_column])]
+    return {"columns": drawn, "place": place, "periods": periods}
+
+
+def _plan(args, excel, joined, value_column, scope, prepared, method, bins,
+          country_name=None):
     """The numbered table the person agrees to, and the settings it stands for.
 
     Every value is written in the language of the conversation and in ordinary
@@ -1556,6 +1577,24 @@ def _plan(args, excel, joined, value_column, scope, prepared, method, bins):
     ]
     if args.symbol_column:
         rows.append(("circles-by", args.symbol_column, None))
+
+    # The wording on the plate, shown as its own rows so the person can weigh
+    # it. A value that fell back to a column name says so: "Tỷ lệ dương tính
+    # (%)" is a heading in a spreadsheet, not a title on a map.
+    from_column = messages.text("table.from-the-column")
+    title = args.title or value_column or args.symbol_column or ""
+    rows.append(("title", f"{title}{'' if args.title else from_column}", "title"))
+    legend = args.legend_title or value_column or ""
+    if legend:
+        rows.append(("legend",
+                     f"{legend}{'' if args.legend_title else from_column}",
+                     "legend_title"))
+    symbol_legend = args.symbol_legend_title or args.symbol_column or ""
+    if symbol_legend:
+        rows.append(("symbol-legend",
+                     f"{symbol_legend}{'' if args.symbol_legend_title else from_column}",
+                     "symbol_legend_title"))
+
     rows += [
         ("scope", reach, "map_scope"),
         ("layout", wording.label("layout", args.layout), "layout"),
@@ -1586,6 +1625,15 @@ def _plan(args, excel, joined, value_column, scope, prepared, method, bins):
     settings = {wording.field(name): str(value) for name, value, _ in rows}
     must_ask = [wording.ask(setting, getattr(args, setting, None))
                 for setting in THEIRS_TO_CHOOSE if setting not in chosen]
+    # SKILL.md has asked for a title since its first version, and a real Codex
+    # run drew three maps without asking anything at all. Saying so once more
+    # would be the same instruction that already failed; withholding the code
+    # is the thing that works.
+    if "title" not in chosen:
+        must_ask.append(wording.ask_in_words(
+            "title",
+            _title_ingredients(args, joined, value_column, scope, prepared,
+                               country_name)))
     return settings, numbered, must_ask
 
 
@@ -2019,8 +2067,27 @@ def command_render(args: argparse.Namespace) -> None:
     # plan goes to the person first, and only the code derived from it unlocks
     # the drawing. Placed before the run folder is opened, so a plan that is
     # never agreed leaves nothing behind.
+    # Before any code is issued: a plate whose words cannot be drawn is worse
+    # than one that is refused, because it looks finished. The rule has always
+    # been that the run stops rather than substituting a typeface — it just did
+    # not cover the font that loads and has no glyph for the text.
+    lettered = [args.title, args.legend_title, args.symbol_legend_title,
+                args.subtitle, args.insight, args.source_note, args.footnote,
+                value_column, args.symbol_column]
+    lettered += list(i18n.overrides().values())
+    for context in prepared:
+        frame = context["frame"]
+        if name_field in frame.columns:
+            lettered += [str(v) for v in frame[name_field]]
+    absent = fonts.undrawable(lettered)
+    if absent:
+        raise SystemExit(messages.text("error.font-cannot-draw",
+                                       count=len(absent),
+                                       characters=" ".join(absent[:12])))
+
     settings, numbered, must_ask = _plan(args, excel, joined, value_column,
-                                         scope, prepared, method, bins)
+                                         scope, prepared, method, bins,
+                                         country_reading.get('country_name'))
     # No code unlocks a plan that still has a question open in it. The hash
     # covers the settings, and a defaulted language reads the same in the table
     # as a chosen one — so without this an agent could take the code from its own
@@ -2352,8 +2419,10 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--aggregate", default="auto", choices=list(aggregate.METHODS))
     r.add_argument("--map-text", action="append", metavar="KEY=VALUE",
                    help="replace one string the engine letters on the map, e.g. "
-                        "--map-text no_data='ບໍ່ມີຂໍ້ມູນ'. Repeatable. "
-                        "Use it to print a map in a language other than vi/en")
+                        "--map-text no_data='Aucune donnée'. Repeatable. Use it "
+                        "to print a map in a Latin-script language other than "
+                        "vi/en; the packaged fonts hold no Chinese, Cyrillic, "
+                        "Thai or Lao, and the run stops rather than draw boxes")
     r.add_argument("--map-scope", default="auto",
                    choices=["auto", "national", "single-province", "province-series",
                             "matched-only"])

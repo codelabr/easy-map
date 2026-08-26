@@ -117,6 +117,23 @@ def ask(setting: str, current: str | None, lang: str | None = None, *,
             "choices": options(setting, current, lang, among=among)}
 
 
+def ask_in_words(setting: str, ingredients: dict[str, Any],
+                 lang: str | None = None) -> dict[str, Any]:
+    """A question with no menu, because its answer is a sentence.
+
+    Every other question here offers two or three values to pick between. A
+    title cannot be picked from a list — the engine must not invent one, since
+    naming somebody else's figures is the one thing it has no standing to do.
+    So it asks, and hands over what it does know: the columns being drawn, the
+    place, and the periods. ``choices`` is absent rather than empty, so a caller
+    that hands questions to a picker can tell the two kinds apart.
+    """
+    return {"item": setting,
+            "question": messages.text(f"choice.{setting}.question", lang),
+            "answered_in_words": True,
+            "ingredients": ingredients}
+
+
 def menu(setting: str, current: str | None, lang: str | None = None, *,
          among: Sequence[str] | None = None) -> dict[str, Any] | None:
     """``ask`` when there is a real choice to make, ``None`` when there is not.

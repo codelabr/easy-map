@@ -11,7 +11,7 @@ description: >-
   warns about choices that would mislead, then writes PNG images and a
   self-contained interactive HTML page into a timestamped folder under output/.
   Converses in Vietnamese or English; the map itself can be lettered in any
-  language.
+  Latin-script language.
   ——
   Biến bảng số liệu thành bản đồ hành chính theo một phong cách trình bày thống
   nhất, dành cho người không biết gì về GIS. Dùng được cho bất kỳ quốc gia nào

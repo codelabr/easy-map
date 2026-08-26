@@ -250,8 +250,14 @@ class TestTheGuidanceOnlyNamesKeysThatExist(unittest.TestCase):
             row = {"number": 1, "item": wording.field("labels", lang),
                    "value": "both", "note": "[chosen by the skill]",
                    **wording.menu("labels", "both", lang)}
+            # both kinds of question: one picked from a menu, one written in
+            # words. The guidance describes both, so both have to be present or
+            # this test flags the half it cannot see.
+            in_words = wording.ask_in_words(
+                "title", {"columns": ["A", "B"], "place": "Việt Nam",
+                          "periods": ["2026"]}, lang)
             reply = confirm.gate(plan(), [row], [],
-                                 [wording.menu("layout", "report", lang)],
+                                 [wording.menu("layout", "report", lang), in_words],
                                  "python easy_map.py render")
             fields = self.keys_in(reply)
             quoted = set(re.findall(r"'([a-z_]{3,})'", reply["guidance"]))

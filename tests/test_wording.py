@@ -81,7 +81,8 @@ class TestEveryValueTheCommandAcceptsHasWords(unittest.TestCase):
 
     def test_every_row_of_the_plan_has_a_heading_in_both_languages(self):
         for name in ("data", "data-slice", "map-kind", "coloured-by",
-                     "circles-by", "scope", "layout", "language",
+                     "circles-by", "title", "legend", "symbol-legend",
+                     "scope", "layout", "language",
                      "classes", "labels", "repeated-rows", "output"):
             for lang in msg.LANGUAGES:
                 with self.subTest(name=name, lang=lang):
@@ -218,7 +219,11 @@ class TestThePlanTable(unittest.TestCase):
         base = dict(sheet="Sheet1", where=None, map_type="choropleth",
                     symbol_column=None, layout="report", language="vi",
                     classification="quantile", labels="both", formats="png",
-                    dpi=220, no_html=False, chosen_explicitly=set())
+                    dpi=220, no_html=False, chosen_explicitly=set(),
+                    # the wording on the plate is part of the plan now, and
+                    # argparse always sets these four
+                    title=None, legend_title=None, symbol_legend_title=None,
+                    period_column=None)
         base.update(over)
         return argparse.Namespace(**base)
 
@@ -270,14 +275,29 @@ class TestThePlanTable(unittest.TestCase):
 
     def test_the_unasked_settings_come_back_as_finished_questions(self):
         _, _, must_ask = self.plan()
-        self.assertEqual([q["item"] for q in must_ask], ["language", "layout"])
+        self.assertEqual([q["item"] for q in must_ask],
+                         ["language", "layout", "title"])
         for question in must_ask:
             self.assertTrue(question["question"].endswith("?"))
+            if question.get("answered_in_words"):
+                continue
             self.assertGreaterEqual(len(question["choices"]), 2)
             self.assertTrue(question["choices"][0]["recommended"])
 
+    def test_the_title_is_asked_for_in_words_with_the_facts_to_build_it(self):
+        """It cannot be a menu. The engine has no standing to name somebody
+        else's figures, so it asks — and hands over what it does know."""
+        _, _, must_ask = self.plan(map_type="choropleth-symbol",
+                                   symbol_column="Số ca")
+        question = next(q for q in must_ask if q["item"] == "title")
+        self.assertTrue(question["answered_in_words"])
+        self.assertNotIn("choices", question)
+        self.assertEqual(question["ingredients"]["columns"],
+                         ["Tỷ lệ", "Số ca"])
+
     def test_a_setting_given_on_the_command_line_is_not_asked_about(self):
-        _, _, must_ask = self.plan(chosen_explicitly={"language", "layout"})
+        _, _, must_ask = self.plan(
+            chosen_explicitly={"language", "layout", "title"}, title="A title")
         self.assertEqual(must_ask, [])
 
     def test_the_map_type_menu_appears_only_when_both_channels_are_filled(self):
@@ -451,20 +471,44 @@ class TestTheGateRefusesAPlanWithAQuestionStillOpen(unittest.TestCase):
         payload = self.render()
         self.assertEqual(payload["status"], "awaiting_confirmation")
         self.assertIsNone(payload["confirm_code"])
-        self.assertEqual([q["item"] for q in payload["must_ask"]], ["language", "layout"])
+        self.assertEqual([q["item"] for q in payload["must_ask"]],
+                         ["language", "layout", "title"])
 
     def test_the_two_runs_would_otherwise_have_shared_a_code(self):
-        """The heart of it. Answering the questions changes nothing a reader can
-        see in the table, so the hash is identical — which is exactly why the
-        hash alone could not be the thing that forces the question."""
-        answered = self.render("--language", "vi", "--layout", "report")
+        """The heart of it, and why the hash alone cannot force a question.
+
+        Answering ``--language`` changes nothing a reader can see: the table
+        already read "Tiếng Việt", because that is what the default resolved to.
+        Two runs, one asked and one not, therefore hash the same. Only
+        ``must_ask`` tells them apart.
+
+        The title is the other kind. Answering it *does* change a row, so the
+        rows are compared with that one set aside — the claim here is about the
+        settings whose answer is invisible, which is the whole difficulty.
+        """
+        answered = self.render("--language", "vi", "--layout", "report",
+                               "--title", "Một tiêu đề")
         self.assertEqual(answered["must_ask"], [])
         self.assertIsNotNone(answered["confirm_code"])
-        self.assertEqual([r["value"] for r in answered["settings"]],
-                         [r["value"] for r in self.render()["settings"]])
+
+        def apart(payload):
+            return [r["value"] for r in payload["settings"]
+                    if "iêu đề" not in r["item"]]
+
+        self.assertEqual(apart(answered), apart(self.render()))
+
+    def test_answering_the_title_does_change_the_table(self):
+        """Unlike the language, and deliberately: the person is agreeing to a
+        specific set of words on the plate, so the code has to stand for them."""
+        titled = self.render("--language", "vi", "--layout", "report",
+                             "--title", "Một tiêu đề")
+        row = next(r for r in titled["settings"] if "iêu đề bản đồ" in r["item"])
+        self.assertEqual(row["value"], "Một tiêu đề")
+        self.assertNotIn("note", row)
 
     def test_the_code_from_the_answered_run_does_not_unlock_the_unanswered_one(self):
-        code = self.render("--language", "vi", "--layout", "report")["confirm_code"]
+        code = self.render("--language", "vi", "--layout", "report",
+                           "--title", "Một tiêu đề")["confirm_code"]
         payload = self.render("--confirmed", code)
         self.assertEqual(payload["status"], "awaiting_confirmation")
         self.assertFalse((self.REPO / "output" / self.FOLDER).exists())

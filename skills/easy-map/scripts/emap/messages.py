@@ -854,6 +854,10 @@ TEXT: dict[str, dict[str, str]] = {
     "field.layout": {"vi": "Bố cục", "en": "Layout"},
     "field.language": {"vi": "Ngôn ngữ bản đồ", "en": "Map language"},
     "field.classes": {"vi": "Chia nhóm màu", "en": "Colour classes"},
+    "field.title": {"vi": "Tiêu đề bản đồ", "en": "Map title"},
+    "field.legend": {"vi": "Tiêu đề chú giải màu", "en": "Colour legend heading"},
+    "field.symbol-legend": {"vi": "Tiêu đề chú giải vòng tròn",
+                            "en": "Circle legend heading"},
     "field.labels": {"vi": "Nhãn trên bản đồ", "en": "Labels on the map"},
     "field.repeated-rows": {"vi": "Gộp dòng trùng", "en": "Repeated rows"},
     "field.output": {"vi": "Đầu ra", "en": "Output"},
@@ -871,6 +875,10 @@ TEXT: dict[str, dict[str, str]] = {
     "table.class-count": {
         "vi": "{classes} nhóm",
         "en": {ONE: "{classes} class", "many": "{classes} classes"},
+    },
+    "table.from-the-column": {
+        "vi": " — đang lấy nguyên tên cột, chưa phải tiêu đề",
+        "en": " — the column name as it stands, not a title",
     },
     "table.not-applicable": {"vi": "không áp dụng", "en": "not applicable"},
     "table.with-html": {
@@ -899,6 +907,11 @@ TEXT: dict[str, dict[str, str]] = {
               "nghĩ thêm phương án, không hỏi bằng đoạn văn tự do, không đọc tên "
               "cờ hay giá trị cờ ra cho người dùng. Nếu môi trường không có giao "
               "diện lựa chọn thì trình bày cùng nội dung đó bằng bảng Markdown. "
+              "Mục nào có 'answered_in_words' là câu trả lời bằng chữ chứ không "
+              "phải chọn từ danh sách: KHÔNG đưa vào giao diện lựa chọn, mà tự "
+              "soạn một đề xuất từ 'ingredients' — nêu đủ mọi cột trong "
+              "'columns', kèm 'place' và 'periods' nếu có — viết bằng ngôn ngữ "
+              "của BẢN ĐỒ, rồi hỏi người dùng có đồng ý hay muốn sửa. "
               "Hỏi xong thì DỪNG LẠI CHỜ TRẢ LỜI.",
         "en": "NOTHING HAS BEEN DRAWN. Show the person the 'settings' table as a "
               "numbered list, marking the rows whose 'note' says the skill "
@@ -911,7 +924,12 @@ TEXT: dict[str, dict[str, str]] = {
               "'(Recommended)'. Do not invent further options, do not ask in free "
               "prose, and do not read a flag name or a flag value out to the "
               "person. Where the host has no picker, present the same content as "
-              "a Markdown table. Having asked, STOP AND WAIT FOR AN ANSWER.",
+              "a Markdown table. An entry carrying 'answered_in_words' is "
+              "answered in prose, not chosen from a list: do NOT send it to the "
+              "picker. Draft one yourself from 'ingredients' — name every column "
+              "in 'columns', add 'place' and 'periods' where there are any — "
+              "written in the language of the MAP, then ask the person to accept "
+              "or change it. Having asked, STOP AND WAIT FOR AN ANSWER.",
     },
     "gate.not-yet-asked": {
         "vi": " KHÔNG có mã nào dùng được cho tới khi mọi mục trong 'must_ask' "
@@ -965,6 +983,12 @@ TEXT: dict[str, dict[str, str]] = {
               "the table in directly.",
     },
 
+    "choice.title.question": {
+        "vi": "Bản đồ này nên đặt tên là gì — viết bằng ngôn ngữ của bản đồ, "
+              "nêu đủ mọi cột đang vẽ, kèm địa bàn và kỳ số liệu?",
+        "en": "What should this map be called — written in the map's language, "
+              "naming every column being drawn, and saying where and for when?",
+    },
     "choice.map_type.question": {
         "vi": "Vẽ theo kiểu bản đồ nào?",
         "en": "Which kind of map?",
@@ -1522,6 +1546,17 @@ TEXT: dict[str, dict[str, str]] = {
               "tệp đơn lẻ; thiếu .shx là mất hình học, thiếu .dbf là mất bảng thuộc tính.",
         "en": "The shapefile {path} is missing companion files: {missing}. A shapefile is not "
               "a single file; without .shx there is no geometry, without .dbf no attributes.",
+    },
+    "error.font-cannot-draw": {
+        "vi": "Phông đóng gói không vẽ được {count} ký tự sắp in lên bản đồ: "
+              "{characters}. Chúng sẽ ra ô vuông, nên bản đồ dừng ở đây. Phông "
+              "kèm theo phủ chữ Latinh — kể cả tiếng Pháp, Tây Ban Nha, Ba Lan, "
+              "Rumani — nhưng không có chữ Hán, Kirin, Thái hay Lào.",
+        "en": "The packaged fonts cannot draw {count} of the characters this map "
+              "would letter: {characters}. They would come out as empty boxes, so "
+              "nothing is drawn. The bundled fonts cover Latin script — French, "
+              "Spanish, Polish and Romanian included — but hold no Chinese, "
+              "Cyrillic, Thai or Lao.",
     },
     "error.missing-font": {
         "vi": "Thiếu font. Dựng lại theo hướng dẫn trong README của thư mục font, "

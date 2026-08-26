@@ -1,6 +1,6 @@
 ---
 name: easy-map
-description: "Turn a spreadsheet into a print-ready administrative map, for someone who does not know GIS. Works for any country whose boundary files are installed - Vietnam ships with the skill at province and commune level, and others are added by dropping a shapefile, GeoJSON or KML into a folder. The skill reads and interprets the dataset first, recommends a scientifically sound map in plain language, matches place names without requiring admin codes, warns about misleading choices, and renders print-ready PNG maps plus a self-contained interactive HTML page into a timestamped output folder. The map can be lettered in any language. Also use when an experienced user states directly what map they want."
+description: "Turn a spreadsheet into a print-ready administrative map, for someone who does not know GIS. Works for any country whose boundary files are installed - Vietnam ships with the skill at province and commune level, and others are added by dropping a shapefile, GeoJSON or KML into a folder. The skill reads and interprets the dataset first, recommends a scientifically sound map in plain language, matches place names without requiring admin codes, warns about misleading choices, and renders print-ready PNG maps plus a self-contained interactive HTML page into a timestamped output folder. The map can be lettered in any Latin-script language. Also use when an experienced user states directly what map they want."
 ---
 
 # Easy Map
@@ -134,6 +134,13 @@ the options through as they are: do not add options, do not reword them, and do
 not turn a list that arrived as a list back into a paragraph. Where the host has
 no picker, print the same content as a Markdown table with a `#` column and take
 a number back.
+
+**One question has no options: the title.** It carries `answered_in_words: true`
+and `ingredients` instead of `choices`, because there is no list to pick a name
+from — the engine will not invent one for somebody else's figures. Draft it
+yourself from the ingredients, in the map's language, and put it to the person
+with the rest of the plan. Do not send it to the picker. See *What a title has
+to say*.
 
 Two constraints on what any question may contain.
 
@@ -694,10 +701,30 @@ also name a language neither mentioned, and `--map-text` is how you honour that.
 Three things the script will **not** translate, because they are not its text to translate:
 
 - **Place names.** A Vietnamese commune keeps its Vietnamese name on an English map, and a Romanian judeţ keeps its Romanian one. That is correct cartographic practice, not a gap.
-- **The title.** Pass `--title` in the chosen language.
-- **Legend titles**, which default to the Excel column headings. On an English map, pass `--legend-title` and `--symbol-legend-title` yourself, otherwise the legend will still read "Bao phủ 2026 (%)" on an otherwise English page.
+- **The title.** Pass `--title`, in the map's language. **`render` will not issue a code without one** — the title arrives in `must_ask` as a question answered in words rather than picked from a menu, and it is a numbered row of the plan the person agrees to.
+- **Legend titles**, which default to the Excel column headings. On an English map, pass `--legend-title` and `--symbol-legend-title` yourself, otherwise the legend will still read "Bao phủ 2026 (%)" on an otherwise English page. Both are numbered rows too, marked as the skill's choice while they are still column names.
 
 So when the user picks `en`, write the title and both legend titles into the command. Do not translate the workbook's column names anywhere else — the profile, the match review and the warnings stay as they are.
+
+### What a title has to say
+
+The gate hands you `ingredients` with the question: the `columns` being drawn,
+the `place`, and the `periods` where the data names any. A title is built from
+those three, and each one has been got wrong here:
+
+- **Every column, not the first one.** A map drawing a positivity rate *and* a
+  count of new diagnoses is not "Tỷ lệ dương tính (%)". Name both, or name what
+  the pair is about.
+- **Where.** `place` is the country for a national map and the province for a
+  single-province one. A map of Vietnam that never says Vietnam is a map that
+  cannot be filed.
+- **When.** From `periods`, or from the column headings where the year lives in
+  them — `Số ca HIV mới phát hiện 2026` says 2026 whether or not a period column
+  exists.
+
+Draft it, show it to the person with the rest of the plan, and let them change
+it. Do not send this question to the option picker: it has no `choices`, because
+there is no list to choose a name from.
 
 If the user wants both editions, run `render` twice with the same options and different `--language`; the shared classification is recomputed identically, so the two maps stay comparable.
 

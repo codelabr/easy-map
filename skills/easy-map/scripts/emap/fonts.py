@@ -35,6 +35,56 @@ def missing_files() -> list[str]:
     return [n for names in REQUIRED.values() for n in names if not (folder / n).exists()]
 
 
+#: Characters every font is allowed not to have, because nothing draws them:
+#: the space family, and the control codes.
+_IGNORE = set(range(0x00, 0x21)) | {0xA0, 0x200B, 0x2060, 0xFEFF}
+
+
+def _coverage() -> set[int]:
+    """Every code point *all* the packaged fonts can draw.
+
+    The intersection, not the union: a headline in a character only the body
+    font has is still a box on the plate, because the headline is set in the
+    display face.
+    """
+    from fontTools.ttLib import TTFont
+
+    folder = font_dir()
+    shared: set[int] | None = None
+    for names in REQUIRED.values():
+        for name in names:
+            path = folder / name
+            if not path.exists():
+                continue
+            points: set[int] = set()
+            for table in TTFont(path, lazy=True)["cmap"].tables:
+                points |= set(table.cmap)
+            shared = points if shared is None else (shared & points)
+    return shared or set()
+
+
+def undrawable(texts) -> list[str]:
+    """The characters in ``texts`` that no packaged font can draw.
+
+    Returned in the order first met, so the message names the ones a reader
+    will look for first. An empty list means the plate can be lettered.
+    """
+    try:
+        covered = _coverage()
+    except Exception:            # pragma: no cover - fontTools is optional
+        return []
+    if not covered:              # pragma: no cover - no fonts is install's error
+        return []
+    out: list[str] = []
+    for text in texts:
+        for char in str(text or ""):
+            point = ord(char)
+            if point in _IGNORE or point in covered or char in out:
+                continue
+            out.append(char)
+    return out
+
+
 def install(matplotlib_module) -> dict[str, str]:
     """Register the packaged fonts and make them the default.
 
