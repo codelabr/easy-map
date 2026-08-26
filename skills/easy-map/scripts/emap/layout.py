@@ -200,6 +200,13 @@ def build(layout: str, aspect: float, *, kicker: str, title: str, insight: str,
                  layout=layout, fonts=fonts, notes=notes, timeline_rect=timeline_rect)
 
 
+#: A legend column narrower than this is not a tight fit, it is a column that
+#: was never given any width. Nothing real is anywhere near it: the report
+#: layout asks for 2.30 in and the banner rail for 2.85, while a collapsed one
+#: measures 0.075. Half an inch sits in the empty space between.
+MIN_PANEL_IN = 0.5
+
+
 #: A text box may hang this far past the page edge before it is called
 #: overflow. Anti-aliasing and font hinting put a glyph's measured box a
 #: fraction of a point outside its ink, and reporting that as clipping would
@@ -236,7 +243,29 @@ def overflow(fig, *, slack: float = OVERFLOW_SLACK_PT, panels=()) -> list[dict[s
         items += [(t, ax) for t in ax.texts]
 
     out: list[dict[str, Any]] = []
+
+    # A collapsed column makes every label in it overflow by roughly the same
+    # large amount, whatever the label says. Reported one label at a time that
+    # reads as "these captions are too long", and three attempts were spent
+    # shortening them before anyone measured the column itself. So say it once,
+    # about the column, and leave its labels out — they are all one symptom.
+    collapsed = set()
+    for ax in watched:
+        width_in = ax.bbox.width / fig.dpi
+        if width_in >= MIN_PANEL_IN or not any(
+                t.get_visible() and str(t.get_text()).strip() for t in ax.texts):
+            continue
+        collapsed.add(id(ax))
+        out.append({"text": "", "side": "right",
+                    "outside_of": "collapsed legend column",
+                    "over_pt": round((MIN_PANEL_IN - width_in) * 72.0, 1),
+                    "panel_width_in": round(width_in, 3),
+                    "labels_in_it": len([t for t in ax.texts
+                                         if str(t.get_text()).strip()])})
+
     for artist, owner in items:
+        if owner is not None and id(owner) in collapsed:
+            continue
         if not artist.get_visible() or not str(artist.get_text()).strip():
             continue
         try:

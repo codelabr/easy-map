@@ -2276,10 +2276,18 @@ def _build_spec(args, ctx, value_column, value_info, symbol_info, bins,
     # the side column also hosts the locator, so keep it whenever one is drawn;
     # otherwise its caption would sit alone in the margin
     wants_locator = bool(ctx["locator"]) and args.locator != "off"
+    # A point map draws its key into that same column, through the same two
+    # channels an area map uses — colour for a category, size for a magnitude.
+    # Those two arrived after this condition was written and were never added
+    # to it, so the column collapsed to a hairline and the key was drawn into a
+    # box 0.075 in wide: every label, long or short, landed on the map.
+    wants_point_key = args.map_type == "point" and bool(
+        args.point_color_column or args.point_size_column)
 
     return {
         "language": lang,
-        "side_panel": bool(fills_areas or args.symbol_column or wants_locator),
+        "side_panel": bool(fills_areas or args.symbol_column or wants_locator
+                           or wants_point_key),
         "layout": args.layout, "map_type": args.map_type,
         "value_column": "__value" if value_column else None,
         "value_info": value_info,
