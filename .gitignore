@@ -33,3 +33,8 @@ __pycache__/
 *.tmp
 Thumbs.db
 .DS_Store
+
+# renaming worksheets: kept locally as a record, not shipped
+VOCAB.json
+ID_MAP.json
+IDS.json
