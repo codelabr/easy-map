@@ -185,6 +185,50 @@ class TestWritingThePlateOut(DrawCase):
             for path in written:
                 self.assertTrue(path.exists(), path)
 
+    def test_an_svg_carries_its_letters_as_shapes_not_as_font_names(self):
+        """An SVG that names "EasyMap Serif" falls back wherever that is not
+        installed — the same fault the interactive page had.
+
+        Written against the ambient setting on purpose. ``outline_svg_text``
+        used to name a branch that did nothing: True and False produced
+        identical files, and whether the letters were outlined was decided by
+        matplotlib's own ``svg.fonttype``. It happened to be right because the
+        default is 'path'; anyone with 'none' in their matplotlibrc got a
+        font-dependent map and nothing said so.
+        """
+        import re
+        import tempfile
+
+        import matplotlib
+
+        from emap import render
+
+        for ambient in ("path", "none"):
+            with self.subTest(matplotlibrc=ambient):
+                with matplotlib.rc_context({"svg.fonttype": ambient}):
+                    out = self.draw(self.numbers(), self.spec())
+                    with tempfile.TemporaryDirectory() as folder:
+                        written = render.save(out["plate"], Path(folder), "map",
+                                              formats="svg")
+                        svg = written[0].read_text(encoding="utf-8")
+                self.assertEqual(re.findall(r"<text", svg), [])
+                self.assertNotIn("font-family", svg)
+
+    def test_asking_for_live_text_in_the_svg_actually_gives_live_text(self):
+        """The other half of the same point: a flag that cannot be turned off
+        is not a flag, and nothing would have noticed."""
+        import re
+        import tempfile
+
+        from emap import render
+
+        out = self.draw(self.numbers(), self.spec())
+        with tempfile.TemporaryDirectory() as folder:
+            written = render.save(out["plate"], Path(folder), "map",
+                                  formats="svg", outline_svg_text=False)
+            svg = written[0].read_text(encoding="utf-8")
+        self.assertTrue(re.findall(r"<text", svg))
+
     def test_the_folder_is_made_rather_than_demanded(self):
         """The run folder exists, but a per-request subfolder may not."""
         import tempfile

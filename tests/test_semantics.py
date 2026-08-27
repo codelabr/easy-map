@@ -572,3 +572,108 @@ class TestOnWhatGroundsAWeightingColumnWasChosen(unittest.TestCase):
         columns = self.columns()
         self.assertEqual(sem.find_denominator("Tỷ lệ điều trị ARV (%)", columns),
                          sem.denominator("Tỷ lệ điều trị ARV (%)", columns).column)
+
+
+class TestTheHeadingAboveTheColourKey(unittest.TestCase):
+    """Where a unit goes when the class labels have no room for one.
+
+    ``axis_suffix`` was written and wired to nothing for a long time. Measured
+    on real labels: a rate legend reads ``3–12``, ``12–25`` with no unit among
+    the classes, while a percentage reads ``6%–10%`` and needs no help.
+
+    Said plainly, because the first account of this overstated it: on both HIV
+    workbooks every rate column is *named* after its unit, so the heading
+    already carried it and this changes nothing there. It is a safety net for a
+    column whose semantic comes from the workbook's data dictionary rather than
+    from its own name.
+    """
+
+    def heading(self, column, info, stated=None, map_type="choropleth"):
+        import argparse
+
+        import easy_map
+
+        args = argparse.Namespace(legend_title=stated, map_type=map_type)
+        return easy_map._legend_heading(args, column, info, "vi")
+
+    def rate(self, unit="trên 100.000 dân"):
+        return {"semantic": sem.RATE_PER, "unit": unit}
+
+    def test_a_rate_whose_name_omits_the_unit_gets_it_in_the_heading(self):
+        self.assertEqual(self.heading("Số ca mới", self.rate()),
+                         "Số ca mới (trên 100.000 dân)")
+
+    def test_a_rate_already_named_after_its_unit_is_left_alone(self):
+        """Compared word by word. Testing for the unit verbatim produced
+        ``Tỷ suất ca mới/100.000 dân (trên 100.000 dân)`` on real data — the
+        same fact twice, because one writes "/100.000 dân" and the other
+        "trên 100.000 dân"."""
+        self.assertEqual(self.heading("Tỷ suất ca mới/100.000 dân", self.rate()),
+                         "Tỷ suất ca mới/100.000 dân")
+
+    def test_a_different_denominator_is_still_worth_saying(self):
+        """Per thousand and per hundred thousand differ by nothing but the
+        digits, and ``_tokens`` drops digits — so they are compared apart."""
+        self.assertEqual(
+            self.heading("Tỷ suất ca mới/1.000 dân", self.rate()),
+            "Tỷ suất ca mới/1.000 dân (trên 100.000 dân)")
+
+    def test_a_heading_that_names_the_number_but_not_the_thing_counted(self):
+        """The words matter on their own, not only the digits.
+
+        Removing the word comparison left every test above green, because in
+        each of them the digits already settled it. This is the case where they
+        do not: the heading says 100.000 and never says of what.
+        """
+        self.assertEqual(self.heading("Chỉ số trên 100.000", self.rate()),
+                         "Chỉ số trên 100.000 (trên 100.000 dân)")
+
+    def test_a_percentage_is_left_as_it_was(self):
+        """``6%–10%`` carries its own mark. Moving it would change every
+        percentage map already in circulation for no gain."""
+        pct = {"semantic": sem.PERCENT, "unit": "%"}
+        self.assertEqual(self.heading("Tỷ lệ dương tính (%)", pct),
+                         "Tỷ lệ dương tính (%)")
+
+    def test_a_percentage_is_left_alone_even_when_its_name_omits_the_sign(self):
+        """The one that separates "percentages are excluded" from "the sign
+        happens to add nothing": with the exclusion removed, every test above
+        still passed, because ``%`` has no words and no digits to compare."""
+        pct = {"semantic": sem.PERCENT, "unit": "%"}
+        self.assertEqual(self.heading("Tỷ lệ dương tính", pct),
+                         "Tỷ lệ dương tính")
+
+    def test_a_count_gets_nothing_added(self):
+        self.assertEqual(self.heading("Dân số", {"semantic": sem.COUNT}),
+                         "Dân số")
+
+    def test_money_is_left_alone_although_it_has_a_unit(self):
+        """This is what the rate-only rule is actually for.
+
+        Removing it does not change a percentage — ``%`` has no words and no
+        digits, so the duplicate check declines it anyway — but it does change
+        money, whose unit is words. The scope agreed was rates; a money map
+        gaining "(triệu đồng)" in its heading was not asked for.
+        """
+        money = {"semantic": sem.MONEY, "unit": "triệu đồng"}
+        self.assertEqual(self.heading("Kinh phí chương trình", money),
+                         "Kinh phí chương trình")
+
+    def test_a_heading_the_caller_wrote_is_never_touched(self):
+        """They have already said what they wanted. Appending to it is how a
+        heading ends up reading "Cases per 100,000 (per 100,000)"."""
+        self.assertEqual(self.heading("x", self.rate(), stated="Chữ của tôi"),
+                         "Chữ của tôi")
+
+    def test_a_change_map_keeps_its_own_wording(self):
+        self.assertNotEqual(self.heading("x", self.rate(), map_type="change"), "x")
+
+    def test_axis_suffix_is_no_longer_wired_to_nothing(self):
+        """It sat unused long enough to look like working API. Whatever else
+        changes, something has to call it."""
+        import inspect
+
+        import easy_map
+
+        self.assertIn("heading_unit", inspect.getsource(easy_map._legend_heading))
+        self.assertIn("axis_suffix", inspect.getsource(sem.heading_unit))

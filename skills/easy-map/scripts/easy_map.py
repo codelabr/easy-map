@@ -1677,6 +1677,36 @@ def _period_pins(args) -> list[str]:
             if column == args.period_column]
 
 
+def _legend_heading(args, value_column, value_info, lang) -> str:
+    """The heading above the colour key, carrying the unit when the classes do not.
+
+    A rate's class labels are bare numbers — ``3–12``, ``12–25`` — so nothing
+    *among the classes* says they are cases per hundred thousand. A percentage
+    needs no such help: ``6%–10%`` carries its own mark, and moving it would
+    change every map already in circulation.
+
+    How much this buys, stated honestly rather than assumed: on both HIV
+    workbooks at hand, every rate column is *named* after its unit
+    (``Tỷ suất ca mới/100.000 dân``), so the heading already said it and this
+    adds nothing. It matters where the name omits the unit — a column whose
+    semantic comes from the workbook's own data dictionary rather than from its
+    heading. A safety net, not a repair of something seen to be broken.
+
+    Never touches a heading the caller wrote. Somebody who typed their own words
+    has already said what they wanted, and appending to it is how a title ends
+    up reading "Cases per 100,000 (cases per 100,000)".
+    """
+    if args.legend_title:
+        return args.legend_title
+    if args.map_type == "change":
+        return i18n.t(lang, "change_legend")
+    heading = value_column or ""
+    unit = sem.heading_unit(value_info or {})
+    if unit and sem.adds_something(unit, heading):
+        heading = f"{heading} ({unit})" if heading else unit
+    return heading
+
+
 def _map_label(args, value_column, ctx) -> str:
     """What the interactive page's map picker shows.
 
@@ -2334,9 +2364,7 @@ def _build_spec(args, ctx, value_column, value_info, symbol_info, bins,
                            if args.category_order and "__value" in frame.columns
                            else None),
         "labels": args.labels, "label_fontsize": args.label_fontsize,
-        "legend_title": (args.legend_title
-                         or (i18n.t(lang, "change_legend") if args.map_type == "change"
-                             else value_column or "")),
+        "legend_title": _legend_heading(args, value_column, value_info, lang),
         "symbol_legend_title": args.symbol_legend_title or args.symbol_column or "",
         "kicker": kicker, "title": title, "insight": insight,
         "source": source, "method": method_note,

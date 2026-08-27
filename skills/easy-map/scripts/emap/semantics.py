@@ -584,7 +584,15 @@ def format_value(value: float | None, info: dict[str, Any], decimals: int | None
 
 
 def axis_suffix(info: dict[str, Any]) -> str:
-    """Short unit shown once in the legend heading rather than on every class."""
+    """Short unit shown once in the legend heading rather than on every class.
+
+    Written, and then wired to nothing for a long time. Measured on real
+    labels: a percentage legend reads ``1%–6%``, ``6%–10%`` — the sign eight
+    times over four classes, which is only clutter. A rate legend reads
+    ``3–12``, ``12–25`` with **no unit at all**, so the reader cannot tell
+    whether those are cases per hundred thousand or anything else, and the
+    engine held the answer the whole time.
+    """
     semantic = info.get("semantic")
     if semantic == PERCENT:
         return "%"
@@ -593,3 +601,35 @@ def axis_suffix(info: dict[str, Any]) -> str:
     if semantic == MONEY:
         return info.get("unit", "")
     return ""
+
+
+def adds_something(unit: str, heading: str) -> bool:
+    """Whether printing ``unit`` after ``heading`` tells the reader anything new.
+
+    Compared word by word, not as strings. The first version tested whether the
+    unit appeared verbatim in the heading and produced, on real data,
+    ``Tỷ suất ca mới/100.000 dân (trên 100.000 dân)`` — the same fact twice,
+    because one says "/100.000 dân" and the other "trên 100.000 dân". The words
+    are what carry the meaning; the punctuation between them does not.
+
+    Digits are compared separately: ``_tokens`` drops them, and a rate per
+    hundred thousand differs from a rate per thousand by nothing else.
+    """
+    words = _tokens(unit) - _tokens(heading)
+    numbers = set(re.findall(r"\d+", deaccent(unit)))
+    numbers -= set(re.findall(r"\d+", deaccent(heading)))
+    return bool(words or numbers)
+
+
+def heading_unit(info: dict[str, Any]) -> str:
+    """The unit a legend heading should carry because its labels do not.
+
+    Only the units that go missing from the labels. ``%`` is left out on
+    purpose: it sits against its number without a space and reads as part of
+    it, so repeating it costs a reader nothing and moving it would change every
+    percentage map already in circulation. A rate has no such mark — its labels
+    are bare numbers — and that is the gap worth closing.
+    """
+    if info.get("semantic") != RATE_PER:
+        return ""
+    return axis_suffix(info).strip()

@@ -90,17 +90,6 @@ def symbol_legend(ax, x: float, y: float, values: Sequence[float], title: str,
     return cy - ry - _pt_to_frac(ax, fs * 2.4)[1]
 
 
-def category_legend(ax, x: float, y: float, pairs: Sequence[tuple[str, str]], title: str,
-                    *, no_data_label: str | None = None,
-                    fs_title: float = 9.5, fs: float = 9.0) -> float:
-    """Nothing calls this yet; the label is a parameter so nothing ever ships a
-    Vietnamese caption onto an English map when something does."""
-    colours = [c for c, _ in pairs]
-    labels = [l for _, l in pairs]
-    return colour_legend(ax, x, y, colours, labels, title,
-                         no_data_label=no_data_label, fs_title=fs_title, fs=fs)
-
-
 def nice_length(span_m: float) -> float:
     target = span_m * 0.25
     exp = math.floor(math.log10(max(target, 1.0)))

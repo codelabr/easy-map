@@ -352,9 +352,20 @@ def save(plate: lay.Plate, folder: Path, name: str, formats: str = "png",
     written: list[Path] = []
     wanted = ["png"] if formats == "png" else (["svg"] if formats == "svg" else ["png", "svg"])
     for fmt in wanted:
-        if fmt == "svg" and outline_svg_text:
-            plate.fig.savefig(folder / f"{name}.svg", format="svg", facecolor="white",
-                              metadata={"Creator": "easy-map"})
+        if fmt == "svg":
+            # ``outline_svg_text`` used to name a branch that did not do it: the
+            # two paths differed only by a dpi that means nothing to SVG and a
+            # metadata line. Whether the letters came out as outlines was
+            # decided entirely by matplotlib's own ``svg.fonttype``, which this
+            # never set — so it happened to work because the default is 'path',
+            # and anyone with 'none' in their matplotlibrc got an SVG that
+            # names "EasyMap Serif" and falls back wherever that is not
+            # installed. Same fault as the page that carried no font of its own.
+            with plt.rc_context({"svg.fonttype": "path" if outline_svg_text
+                                 else "none"}):
+                plate.fig.savefig(folder / f"{name}.svg", format="svg",
+                                  facecolor="white",
+                                  metadata={"Creator": "easy-map"})
         else:
             plate.fig.savefig(folder / f"{name}.{fmt}", dpi=dpi, facecolor="white")
         written.append(folder / f"{name}.{fmt}")

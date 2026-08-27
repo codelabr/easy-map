@@ -117,14 +117,42 @@ def install(matplotlib_module) -> dict[str, str]:
     return {"body": BODY, "display": DISPLAY}
 
 
-def verify_vietnamese(sample: str = "ệỹẫợừửỗẳ") -> list[str]:
-    """Return characters the packaged body font cannot draw."""
-    try:
-        from fontTools.ttLib import TTFont
-    except ImportError:
-        return []
-    path = font_dir() / "OpenSans-Regular.ttf"
-    if not path.exists():
-        return list(sample)
-    cmap = set(TTFont(path).getBestCmap())
-    return [c for c in sample if ord(c) not in cmap]
+def _vietnamese_repertoire() -> str:
+    """Every letter Vietnamese writing uses, and nothing else.
+
+    Built from the alphabet and the five tones rather than taken as a block of
+    code points. Sweeping in the whole of Latin Extended-A is quicker to write
+    and reports ``ŉ`` — a retired Dutch letter no Vietnamese text contains — as
+    a gap in the bundle. A check that cries wolf is worse than none: it teaches
+    whoever runs it to expect a failure and ignore it.
+    """
+    import unicodedata
+
+    plain = "aăâbcdđeêghiklmnoôơpqrstuưvxy"
+    vowels = "aăâeêioôơuưy"
+    tones = "̣̀́̃̉"          # ̀ ́ ̃ ̉ ̣
+    letters = set(plain)
+    for vowel in vowels:
+        for tone in tones:
+            letters.add(unicodedata.normalize("NFC", vowel + tone))
+    letters |= {c.upper() for c in letters}
+    ascii_printable = {chr(p) for p in range(0x20, 0x7F)}
+    return "".join(sorted(letters | ascii_printable))
+
+
+def verify_vietnamese(sample: str | None = None) -> list[str]:
+    """Characters of Vietnamese the packaged fonts cannot draw.
+
+    ``assets/fonts/README.md`` tells a maintainer to run this after changing
+    the bundle, so it has to answer the same question the engine asks before it
+    draws — and it did not. It checked ``OpenSans-Regular`` alone against eight
+    sample letters, while :func:`undrawable` checks the **intersection** of
+    every packaged face, because a headline is set in the display font and a
+    glyph only the body font has is still a box on the plate. Two functions
+    answering one question, one weaker, and the weak one is the one the
+    documentation points at.
+
+    Now it delegates, and the default sample is the whole repertoire rather
+    than a handful of letters that happened to be typed once.
+    """
+    return undrawable([sample if sample is not None else _vietnamese_repertoire()])

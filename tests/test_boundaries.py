@@ -1681,3 +1681,58 @@ class TestWhatALanguageChangesInAFileName(unittest.TestCase):
         _, base = easy_map.map_basename(
             self._args(title=None, language="en"), None, {"name": "national"})
         self.assertEqual(base, "map-national_report_en")
+
+
+class TestTheCheckTheFontReadmePointsAt(unittest.TestCase):
+    """``verify_vietnamese``: the one a maintainer is told to run.
+
+    It has to answer the same question the engine asks before it draws, and it
+    did not. It checked ``OpenSans-Regular`` alone against eight sample
+    letters, while the render guard checks the **intersection** of every
+    packaged face — a headline is set in the display font, so a glyph only the
+    body font has is still a box. Two functions, one question, and the weaker
+    one is the one the documentation points at.
+    """
+
+    def test_the_packaged_bundle_draws_every_vietnamese_letter(self):
+        from emap import fonts
+
+        self.assertEqual(fonts.verify_vietnamese(), [])
+
+    def test_it_checks_the_whole_repertoire_not_a_handful_of_samples(self):
+        from emap import fonts
+
+        letters = fonts._vietnamese_repertoire()
+        self.assertGreater(len(letters), 150)
+        for probe in "ệỹẫợừửỗẳĐƯƠăâêôơư":
+            with self.subTest(letter=probe):
+                self.assertIn(probe, letters)
+
+    def test_it_does_not_ask_for_letters_vietnamese_never_uses(self):
+        """Sweeping in the whole of Latin Extended-A reports a retired Dutch
+        letter as a gap in the bundle. A check that cries wolf teaches whoever
+        runs it to expect a failure and ignore it."""
+        from emap import fonts
+
+        letters = fonts._vietnamese_repertoire()
+        for stranger in "ŉøßþðæœłżšçñ":
+            with self.subTest(letter=stranger):
+                self.assertNotIn(stranger, letters)
+
+    def test_it_gives_the_same_answer_as_the_guard_that_stops_a_render(self):
+        """One implementation. Two that can drift is how the documentation
+        ends up promising something the engine does not check.
+
+        ``ŉ`` and ``‗`` are in the sample list on purpose: the body font has
+        them and the display font does not, so they are exactly the characters
+        that tell "check one font" apart from "check what every font shares".
+        Without one of those, reverting to the old single-font version passed
+        this test — measured, four ordinary samples all missed the five code
+        points where the two answers differ.
+        """
+        from emap import fonts
+
+        for sample in ("Cần Thơ", "阳性率", "Москва", "Français", "ŉ", "a‗b"):
+            with self.subTest(sample=sample):
+                self.assertEqual(fonts.verify_vietnamese(sample),
+                                 fonts.undrawable([sample]))
