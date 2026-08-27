@@ -6,6 +6,13 @@ output/*
 
 shapefiles/*/
 shapefiles/ho_so_quoc_gia.json
+# Boundary data is attached to a GitHub release, not committed: the two Vietnam
+# archives are 88 MB, the commune one alone is above GitHub's 50 MB warning, and
+# every country added would otherwise sit in the history of every clone for ever.
+# A zip dropped in here is still used by the installer, for a closed network.
+shapefiles/*.zip
+# release assets built by tools/pack_boundaries.py, uploaded once
+dist/
 
 slidedeck/
 easy-map-introduction.html

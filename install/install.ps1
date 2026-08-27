@@ -14,9 +14,11 @@
   works from any working folder rather than only inside a clone of the source
   repository.
 
-  Boundary shapefiles are not installed: they are ~135 MB and their terms of
-  use are the user's to accept. The script asks where they are, if anywhere,
-  and records the answer for the engine to find.
+  Boundary shapefiles are fetched from the project's latest GitHub release,
+  about 88 MB to download and 135 MB unpacked, after asking. A path given on
+  the command line wins, and so does an archive already sitting in the
+  shapefiles folder, which is how to install on a closed network. Their terms
+  of use are the user's to accept; see shapefiles\README.md.
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File install\install.ps1
@@ -249,23 +251,45 @@ if (-not $SkipPython) {
 }
 
 # --- boundaries ------------------------------------------------------------
-# The package carries the two boundary sets as zips, so an ordinary install
-# needs no separate download and no manual unpacking. A path given on the
-# command line still wins: somebody who already holds them should not be made
-# to keep a second copy.
-$Bundle = @{
-  provinces = Join-Path $Root 'shapefiles\provinces.zip'
-  communes  = Join-Path $Root 'shapefiles\communes.zip'
+# The boundary sets are attached to a GitHub release rather than committed. The
+# two Vietnam archives came to 88 MB, the commune one alone 74.7 MB against
+# GitHub's 50 MB warning, and every country added would otherwise land in the
+# history of every clone for ever.
+#
+# A local copy still wins twice over: a path given on the command line, and an
+# archive sitting beside the installer. Someone on a closed network can carry
+# the zips in by hand and the install works with no download at all.
+$ReleaseUrl = 'https://github.com/codelabr/easy-map/releases/latest/download'
+$BundleDir  = Join-Path $Root 'shapefiles'
+# One per country and tier. The layout lives inside each archive, so unpacking
+# is extraction into the root and nothing here needs to know the folder names.
+$Assets = @('viet-nam-province', 'viet-nam-commune')
+
+function Get-BoundaryAsset {
+  param([string]$Name, [string]$Destination)
+  $local = Join-Path $BundleDir "$Name.zip"
+  if (Test-Path $local) {
+    Write-Host ("  [local]     {0}.zip" -f $Name)
+    Copy-Item $local $Destination -Force
+    return $true
+  }
+  Write-Host ("  downloading {0}.zip" -f $Name)
+  try {
+    $previous = $ProgressPreference
+    $ProgressPreference = 'SilentlyContinue'
+    Invoke-WebRequest -Uri "$ReleaseUrl/$Name.zip" -OutFile $Destination -UseBasicParsing
+    $ProgressPreference = $previous
+    return $true
+  } catch {
+    return $false
+  }
 }
-$HasBundle = -not $SkipShapefiles -and
-             ($Bundle.Values | Where-Object { Test-Path $_ }).Count -eq $Bundle.Count
 
-if (-not $Shapefiles -and $HasBundle) {
+if (-not $Shapefiles -and -not $SkipShapefiles) {
   $target = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.easy-map\shapefiles'
-  $already = @('provinces', 'communes') |
-             Where-Object { Get-ChildItem (Join-Path $target $_) -Filter *.shp -ErrorAction SilentlyContinue }
+  $unpacked = Get-ChildItem $target -Recurse -Filter *.shp -ErrorAction SilentlyContinue
 
-  if ($already.Count -eq 2) {
+  if ($unpacked) {
     Write-Host ''
     Write-Host ("  [found]     boundaries already unpacked at {0}" -f $target) -ForegroundColor Green
     $Shapefiles = $target
@@ -273,20 +297,32 @@ if (-not $Shapefiles -and $HasBundle) {
     $unpack = $true
     if (-not $Quiet) {
       Write-Host ''
-      Write-Host "This package includes Vietnam's administrative boundaries."
-      Write-Host ("  Unpacking them takes about 135 MB at {0}" -f $target)
-      $answer = Read-Host "Unpack them now? [Y/n]"
+      Write-Host "Vietnam's administrative boundaries are needed to draw a map."
+      Write-Host ("  About 88 MB to fetch, 135 MB unpacked at {0}" -f $target)
+      $answer = Read-Host "Fetch them now? [Y/n]"
       $unpack = [string]::IsNullOrWhiteSpace($answer) -or $answer -match '^\s*[Yy]'
     }
     if ($unpack) {
-      foreach ($level in 'provinces', 'communes') {
-        $into = Join-Path $target $level
-        Write-Host ("  unpacking {0}" -f $level)
-        New-Item -ItemType Directory -Force $into | Out-Null
-        Expand-Archive -LiteralPath $Bundle[$level] -DestinationPath $into -Force
+      New-Item -ItemType Directory -Force $target | Out-Null
+      $got = 0
+      foreach ($name in $Assets) {
+        $tmp = Join-Path $target ".$name.zip.part"
+        if (Get-BoundaryAsset -Name $name -Destination $tmp) {
+          Expand-Archive -LiteralPath $tmp -DestinationPath $target -Force
+          $got++
+          # the archive was fetched for this run, so it goes; a copy the user
+          # placed in shapefiles\ is theirs and is left alone
+          Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+        } else {
+          Write-Host ("  warning: could not fetch {0}.zip" -f $name) -ForegroundColor Yellow
+        }
       }
-      $Shapefiles = $target
-      Write-Host "  [ok]        boundaries unpacked" -ForegroundColor Green
+      if ($got -gt 0) {
+        $Shapefiles = $target
+        Write-Host ("  [ok]        {0} of {1} boundary sets unpacked" -f $got, $Assets.Count) -ForegroundColor Green
+      } else {
+        Write-Host "  no boundaries installed; see shapefiles\README.md"
+      }
     }
   }
 }

@@ -154,5 +154,152 @@ class TestGeometryHelpers(unittest.TestCase):
                                           lab._Box(0, 0, 100, 100)))
 
 
+class TestALabelSitsOnTheUnitItNames(unittest.TestCase):
+    """The question a reader asks of a label, and the one nothing answered.
+
+    Measured on 103 communes of Cần Thơ: 19 of 42 names sat mostly on somebody
+    else's unit, one with 2% of itself on the unit it named — and the report
+    said **nothing was moved**, so not a single leader line was drawn. Two
+    causes, both here: the search began one ring out and never tried the
+    feature's own anchor, and a leader was drawn only past ring 1, which called
+    that first offset "not moved".
+    """
+
+    def setUp(self):
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        self.plt = plt
+        self.fig, self.ax = plt.subplots(figsize=(6, 6), dpi=100)
+        self.ax.set_xlim(0, 100)
+        self.ax.set_ylim(0, 100)
+
+    def tearDown(self):
+        self.plt.close(self.fig)
+
+    def item(self, x, y, name, keepout=0.0):
+        return {"x": x, "y": y, "name": name, "value_text": None,
+                "keepout": keepout, "rank": 1.0}
+
+    def place(self, items, **kw):
+        return lab.place(self.ax, items, colors=COLORS, **kw)
+
+    def box_of(self, name):
+        self.fig.canvas.draw()
+        r = self.fig.canvas.get_renderer()
+        for t in self.ax.texts:
+            if t.get_text() == name:
+                return t.get_window_extent(renderer=r)
+        self.fail(f"{name} was not drawn")
+
+    def anchor(self, x, y):
+        return self.ax.transData.transform((x, y))
+
+    def test_a_lone_label_covers_its_own_anchor(self):
+        """The whole point. A name over the point it names needs no explaining;
+        one beside it needs a line, and one beside it *without* a line is what
+        made a commune map unreadable."""
+        self.place([self.item(50, 50, "Hà Nội")])
+        box = self.box_of("Hà Nội")
+        px, py = self.anchor(50, 50)
+        self.assertTrue(box.x0 <= px <= box.x1 and box.y0 <= py <= box.y1)
+
+    def test_a_lone_label_needs_no_leader(self):
+        report = self.place([self.item(50, 50, "Hà Nội")])
+        self.assertEqual(report["moved"], 0)
+        self.assertEqual(len(self.ax.lines), 0)
+
+    def test_a_label_pushed_off_its_anchor_gets_a_leader(self):
+        """It used to take two rings of displacement before a line was drawn,
+        so the first — and commonest — displacement was silent."""
+        crowd = [self.item(50, 50, "Trung tâm")] + [
+            self.item(50 + dx, 50 + dy, f"Kề {i}")
+            for i, (dx, dy) in enumerate([(0, 6), (0, -6), (6, 0), (-6, 0),
+                                          (5, 5), (-5, 5), (5, -5), (-5, -5)])]
+        report = self.place(crowd)
+        self.assertGreater(report["moved"], 0)
+        self.assertEqual(len(self.ax.lines), report["moved"],
+                         "every displaced label must carry one leader")
+
+    def test_a_label_moved_only_one_ring_still_gets_a_leader(self):
+        """The case the old rule missed, and the commonest one.
+
+        One unit whose anchor is covered by a reserved rectangle, so the name
+        goes exactly one ring out. Under ``ring > 1.0`` that counted as *not
+        moved* and drew nothing — a name sitting a centimetre from its unit
+        with no line tying it back. Every other test here passes under either
+        rule, which is why reverting the rule stayed green until this existed.
+
+        Two coincident points would not do: each blocks the other's anchor, so
+        both move and the case stops being about one ring.
+        """
+        report = self.place([self.item(50, 50, "Hà Nội")],
+                            keepout_boxes=[(49.0, 49.0, 51.0, 51.0)])
+        self.assertEqual(report["drawn"], 1)
+        self.assertEqual(report["moved"], 1)
+        self.assertEqual(len(self.ax.lines), 1)
+
+    def test_a_choropleth_reserves_no_space_for_a_circle_it_does_not_draw(self):
+        """``render`` decides the keepout, and used to pass a fraction of the
+        frame for every unit whether a symbol was drawn or not. That reserved a
+        ring of blank space around each anchor, which is what pushed names off
+        their own units. Read from the source: the default belongs to the
+        caller, and nothing else here can see it."""
+        import inspect
+        import re
+
+        from emap import render
+
+        line = next(l for l in inspect.getsource(render.draw).splitlines()
+                    if '"keepout"' in l)
+        default = re.search(r'radius_by_id\.get\([^,]+,\s*([^)]+)\)', line)
+        self.assertIsNotNone(default, f"keepout is no longer a lookup: {line}")
+        self.assertEqual(default.group(1).strip(), "0.0")
+
+    def test_a_name_resting_against_its_circle_needs_no_leader(self):
+        """Where a symbol is drawn, the circle marks the place and a name
+        beside it reads as its own. Demanding that the name cover the anchor
+        there put a leader under **every** label on a proportional-symbol map —
+        measured, 33 of 33 on Cần Thơ — which is clutter, not explanation."""
+        report = self.place([self.item(50, 50, "Hà Nội", keepout=8.0)])
+        self.assertEqual(report["drawn"], 1)
+        self.assertEqual(report["moved"], 0)
+        self.assertEqual(len(self.ax.lines), 0)
+
+    def test_a_name_pushed_well_past_its_circle_still_gets_one(self):
+        """Adjacency is what earns the silence, not the presence of a symbol."""
+        crowd = [self.item(50, 50, "Trung tâm", keepout=8.0)] + [
+            self.item(50 + dx, 50 + dy, f"Kề {i}", keepout=8.0)
+            for i, (dx, dy) in enumerate([(0, 7), (0, -7), (7, 0), (-7, 0),
+                                          (6, 6), (-6, 6), (6, -6), (-6, -6)])]
+        report = self.place(crowd)
+        self.assertGreater(report["moved"], 0)
+        self.assertEqual(len(self.ax.lines), report["moved"])
+
+    def test_a_symbol_still_keeps_the_name_off_itself(self):
+        """A name on the anchor is right where nothing is drawn there. Where a
+        circle *is* drawn, the name must clear it — that is what keepout is."""
+        self.place([self.item(50, 50, "Hà Nội", keepout=8.0)])
+        box = self.box_of("Hà Nội")
+        px, py = self.anchor(50, 50)
+        self.assertFalse(box.x0 <= px <= box.x1 and box.y0 <= py <= box.y1)
+
+    def test_a_units_own_keepout_never_blocks_its_own_name(self):
+        """Every feature's keepout goes into the obstacle list. Leaving its own
+        in there is what stopped the anchor from ever being tried: the label
+        collided with the unit it belonged to."""
+        report = self.place([self.item(50, 50, "Hà Nội")])
+        self.assertEqual(report["drawn"], 1)
+        self.assertEqual(report["moved"], 0)
+
+    def test_the_anchor_is_the_first_thing_tried(self):
+        import inspect
+
+        self.assertEqual(lab._RINGS[0], 0.0,
+                         "the search no longer tries the feature's own anchor")
+        self.assertIn("covers_anchor", inspect.getsource(lab.place))
+
+
 if __name__ == "__main__":
     unittest.main()

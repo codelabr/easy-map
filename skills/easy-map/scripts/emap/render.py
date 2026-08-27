@@ -252,7 +252,12 @@ def draw(deps, *, frame, spec: dict[str, Any], fonts: dict[str, str],
             items.append({
                 "x": px, "y": py, "name": str(row[name_field]),
                 "value_text": value_text,
-                "keepout": radius_by_id.get(row["__shape_id"], span_y * 0.004),
+                # No symbol drawn means nothing to keep clear. The default
+                # used to be a fraction of the frame, which reserved a circle
+                # of blank space around every unit on a plain choropleth --
+                # space no ink ever occupied, and enough of it to push names
+                # off their own units.
+                "keepout": radius_by_id.get(row["__shape_id"], 0.0),
                 "rank": rank,
             })
         label_report = lab.place(ax, items, colors=LABEL_COLORS,

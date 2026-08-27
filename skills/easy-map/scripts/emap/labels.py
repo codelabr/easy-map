@@ -29,7 +29,19 @@ _DIRECTIONS = [
     (0.7, 0.7, "left", "bottom"),
     (-0.7, 0.7, "right", "bottom"),
 ]
-_RINGS = (1.0, 1.9, 3.0, 4.4, 6.2)
+#: How far out to try, in multiples of a line of type. Ring 0 is the feature's
+#: own anchor point — the name sits *on* the unit it belongs to, which is what
+#: an atlas does and what makes a label need no explaining. It was missing:
+#: every label started one ring out, already a symbol radius plus four points
+#: plus a line of type from the anchor, and on a commune map that is enough to
+#: land the name on the neighbour. Measured on 103 communes of Cần Thơ before
+#: this was added: 19 of 42 names sat mostly on another unit, and one sat with
+#: 2% of itself on the unit it named.
+_RINGS = (0.0, 1.0, 1.9, 3.0, 4.4, 6.2)
+
+#: The centred placement ring 0 uses. Kept out of ``_DIRECTIONS`` because the
+#: other eight are offsets and this one is not.
+_ON_ANCHOR = (0.0, 0.0, "center", "center")
 
 HALO = 2.6
 
@@ -98,11 +110,26 @@ def place(ax, items: Sequence[dict[str, Any]], *, colors: dict[str, str],
                                   ax.transData.transform((x1, y1)))
         occupied.append(_Box(min(px0, px1), min(py0, py1),
                              max(px0, px1), max(py0, py1)))
-    # features themselves are obstacles, so a label never sits on another symbol
+    # Features themselves are obstacles, so a label never sits on another
+    # symbol. A feature with **no** symbol drawn holds its own box apart: there
+    # is no ink at that point, a name belongs on the unit it names, and leaving
+    # the box in stopped ring 0 from ever succeeding — every label began one
+    # ring out whether it needed to or not.
+    #
+    # A feature that *does* draw a circle keeps its own box in the list. The
+    # name must clear the circle; that is what keepout is for, and dropping it
+    # put the name straight on top of the mark.
+    own_box: dict[int, _Box] = {}
     for it in items:
         px, py = ax.transData.transform((it["x"], it["y"]))
         r = _radius_px(ax, it.get("keepout", 0.0))
-        occupied.append(_Box(px - r, py - r, px + r, py + r))
+        box = _Box(px - r, py - r, px + r, py + r)
+        # asked of the *declared* keepout, not of ``r``: ``_radius_px`` floors
+        # at three pixels so that a real symbol always has some clearance, and
+        # reading that floor back would say every feature has a symbol
+        if not it.get("keepout"):
+            own_box[id(it)] = box
+        occupied.append(box)
 
     placed, moved = 0, 0
     import matplotlib.patheffects as pe
@@ -117,10 +144,12 @@ def place(ax, items: Sequence[dict[str, Any]], *, colors: dict[str, str],
 
         # A name alone fits where a name over its value will not, so a crowded
         # cluster loses the numbers before it loses the place names.
-        best = _search(ax, it, px, py, r, occupied, ax_box, renderer, fontsize,
+        mine = own_box.get(id(it))
+        others = [b for b in occupied if b is not mine]
+        best = _search(ax, it, px, py, r, others, ax_box, renderer, fontsize,
                        value_fontsize, colors, halo, with_value=True)
         if best is None and it.get("value_text"):
-            best = _search(ax, it, px, py, r, occupied, ax_box, renderer, fontsize,
+            best = _search(ax, it, px, py, r, others, ax_box, renderer, fontsize,
                            value_fontsize, colors, halo, with_value=False)
             if best is not None:
                 # the reader sees a name with no number next to it and has no way
@@ -136,7 +165,23 @@ def place(ax, items: Sequence[dict[str, Any]], *, colors: dict[str, str],
         group, box, ring, dx, dy = best
         occupied.append(box)
         placed += 1
-        if ring > 1.0:
+        # A leader says "this name belongs to that place". It is needed
+        # exactly when nothing else already says so.
+        #
+        # On a plain map the anchor is unmarked, so the name has to cover it —
+        # anything short of that needs a line. The rule used to be ``ring >
+        # 1.0``, which called the first offset "not moved" and drew nothing, so
+        # 45% of the names on a commune map sat mostly on somebody else with
+        # nothing tying them back.
+        #
+        # Where a symbol *is* drawn the circle marks the place, and a name
+        # resting against it reads as its own without help. Requiring the name
+        # to cover the anchor there would put a leader under every label on a
+        # proportional-symbol map — measured, 33 of 33 — which is clutter, not
+        # explanation.
+        covers_anchor = (box.x0 <= px <= box.x1) and (box.y0 <= py <= box.y1)
+        against_symbol = bool(it.get("keepout")) and ring <= 1.0
+        if not covers_anchor and not against_symbol:
             moved += 1
             ex, ey = box.nearest_edge_point(px, py)
             sx, sy = _edge_of_symbol(px, py, ex, ey, r)
@@ -154,7 +199,8 @@ def _search(ax, item, px, py, r, occupied, ax_box, renderer, fontsize,
     """First position, working outwards, where the real text box hits nothing."""
     drawn = dict(item) if with_value else {**item, "value_text": None}
     for ring in _RINGS:
-        for dx, dy, ha, va in _DIRECTIONS:
+        # ring 0 is one position, not eight: the anchor has no direction
+        for dx, dy, ha, va in ([_ON_ANCHOR] if ring == 0.0 else _DIRECTIONS):
             gap = r + 4 + ring * fontsize * 1.15
             cx, cy = px + dx * gap, py + dy * gap
             group = _draw_label(ax, drawn, cx, cy, ha, va, fontsize, value_fontsize,

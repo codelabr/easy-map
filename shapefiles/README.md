@@ -83,6 +83,37 @@ Attribute fields the engine reads:
 Without that field, a series spanning the 2025 boundary cannot be joined on
 place name.
 
+## Where the data lives
+
+Not in this repository. Each country and tier is one archive attached to a
+GitHub release, named `<country>-<tier>.zip`, and the folder layout lives
+**inside** the archive:
+
+```text
+viet-nam-commune.zip
+  viet-nam/commune/Việt Nam (phường xã) - 34.shp
+  ...
+```
+
+so unpacking is extraction into the shapefile root and the installer needs to
+know no layout at all. Adding a country needs no change to the installer.
+
+Three reasons the data is not committed, measured on the set we had: the two
+Vietnam archives come to 88 MB; the commune one alone is 74.7 MB, above
+GitHub's 50 MB warning and near its 100 MB limit; and every country added would
+have gone into the history of every clone for ever.
+
+The installer fetches them from the latest release. **A zip placed in this
+folder is used instead of downloading** — the way to install on a closed
+network is to carry the archives in by hand. An archive the installer
+downloaded is deleted after unpacking; one you placed here is left alone.
+
+Build the archives from a local set with:
+
+```bash
+python tools/pack_boundaries.py
+```
+
 ## Provenance and terms of use
 
 Downloaded from <https://gis.vn/ban-do-hanh-chinh-viet-nam>, the **34-province**
@@ -94,6 +125,24 @@ the MIT licence that covers the source code — see
 [`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md). If you intend to
 publish maps drawn from them, or to redistribute the data again, settle the
 terms with the provider yourself.
+
+### Countries other than Vietnam
+
+Boundaries for other countries are **not** distributed here, because their
+provenance was never recorded and their terms were never established — the
+right state until somebody can attest to them. Drop a set into
+`shapefiles/<country>/<tier>/` and it is used; run `tools/pack_boundaries.py`
+to turn it into a release archive.
+
+If you are looking for a set that may be redistributed, the simplest terms
+belong to **Natural Earth** (<https://www.naturalearthdata.com>), whose
+`admin_1_states_provinces` layer covers every country and is placed in the
+**public domain** — no permission and no attribution required. Two alternatives
+with more detail and more conditions: **US Census TIGER/Line** for the United
+States (a work of the US government, public domain) and **Statistics Canada
+boundary files** for Canada (open licence, attribution required). Whichever you
+choose, record it in [`../THIRD-PARTY-NOTICES.md`](../THIRD-PARTY-NOTICES.md)
+before redistributing anything.
 
 ## Using a different source
 

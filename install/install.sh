@@ -12,8 +12,11 @@
 # fonts, references) and points the copy at its own engine, so the skill works
 # from any working folder rather than only inside a clone of the source repo.
 #
-# Boundary shapefiles are not installed: ~135 MB, and their terms of use are
-# yours to accept. The script asks where they are and records the answer.
+# Boundary shapefiles are fetched from the project's latest GitHub release,
+# about 88 MB to download and 135 MB unpacked, after asking. A path given on
+# the command line wins, and so does an archive already in the shapefiles
+# folder, which is how to install on a closed network. Their terms of use are
+# yours to accept; see shapefiles/README.md.
 #
 #   ./install/install.sh
 #   ./install/install.sh --targets codex,claude --shapefiles ~/gis/boundaries --quiet
@@ -212,46 +215,81 @@ if [ "$SKIP_PYTHON" = 0 ]; then
 fi
 
 # --- boundaries ------------------------------------------------------------
-# The package carries the two boundary sets as zips, so an ordinary install
-# needs no separate download and no manual unpacking. A path given on the
-# command line still wins: somebody who already holds them should not be made
-# to keep a second copy.
+# The boundary sets are attached to a GitHub release rather than committed. The
+# two Vietnam archives came to 88 MB, the commune one alone 74.7 MB against
+# GitHub's 50 MB warning, and every country added would otherwise land in the
+# history of every clone for ever.
+#
+# A local copy still wins twice over: a path given on the command line, and an
+# archive sitting beside the installer. Someone on a closed network can carry
+# the zips in by hand and the install works with no download at all.
+RELEASE_URL="https://github.com/codelabr/easy-map/releases/latest/download"
 BUNDLE_DIR="$ROOT/shapefiles"
-HAS_BUNDLE=0
-if [ "$SKIP_SHAPEFILES" = 0 ] &&
-   [ -f "$BUNDLE_DIR/provinces.zip" ] && [ -f "$BUNDLE_DIR/communes.zip" ]; then
-  HAS_BUNDLE=1
-fi
+# One per country and tier. The layout lives inside each archive, so unpacking
+# is extraction into the root and nothing here needs to know the folder names.
+ASSETS="viet-nam-province viet-nam-commune"
 
-if [ -z "$SHAPEFILES" ] && [ "$HAS_BUNDLE" = 1 ]; then
+fetch_asset() {   # $1 asset name, $2 destination file. Returns 1 if unavailable.
+  local name="$1" dest="$2"
+  if [ -f "$BUNDLE_DIR/$name.zip" ]; then
+    printf '  [local]     %s
+' "$name.zip"
+    cp "$BUNDLE_DIR/$name.zip" "$dest"
+    return 0
+  fi
+  printf '  downloading %s
+' "$name.zip"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$RELEASE_URL/$name.zip" -o "$dest" && return 0
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q "$RELEASE_URL/$name.zip" -O "$dest" && return 0
+  fi
+  return 1
+}
+
+if [ -z "$SHAPEFILES" ] && [ "$SKIP_SHAPEFILES" = 0 ]; then
   TARGET="$HOME/.easy-map/shapefiles"
-  READY=0
-  for level in provinces communes; do
-    ls "$TARGET/$level"/*.shp >/dev/null 2>&1 && READY=$((READY+1))
-  done
-
-  if [ "$READY" = 2 ]; then
-    printf '\n  [found]     boundaries already unpacked at %s\n' "$TARGET"
+  if ls "$TARGET"/*/*/*.shp >/dev/null 2>&1; then
+    printf '
+  [found]     boundaries already unpacked at %s
+' "$TARGET"
     SHAPEFILES="$TARGET"
   else
     UNPACK=1
     if [ "$QUIET" = 0 ]; then
-      printf "\nThis package includes Vietnam's administrative boundaries.\n"
-      printf '  Unpacking them takes about 135 MB at %s\n' "$TARGET"
-      read -r -p "Unpack them now? [Y/n] " answer
+      printf "
+Vietnam's administrative boundaries are needed to draw a map.
+"
+      printf '  About 88 MB to fetch, 135 MB unpacked at %s
+' "$TARGET"
+      read -r -p "Fetch them now? [Y/n] " answer
       case "$answer" in [Nn]*) UNPACK=0 ;; esac
     fi
     if [ "$UNPACK" = 1 ]; then
-      for level in provinces communes; do
-        printf '  unpacking %s\n' "$level"
-        mkdir -p "$TARGET/$level"
-        # python3 rather than unzip: it is already required by the step that
-        # rewrites SKILL.md, so this adds no tool that has to be present.
-        python3 -c "import sys,zipfile;zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" \
-                "$BUNDLE_DIR/$level.zip" "$TARGET/$level"
+      mkdir -p "$TARGET"
+      GOT=0
+      for name in $ASSETS; do
+        tmp="$TARGET/.$name.zip.part"
+        if fetch_asset "$name" "$tmp"; then
+          # python3 rather than unzip: it is already required by the step that
+          # rewrites SKILL.md, so this adds no tool that has to be present.
+          python3 -c "import sys,zipfile;zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])"                   "$tmp" "$TARGET" && GOT=$((GOT+1))
+          # the archive was fetched for this run, so it goes; a copy the user
+          # placed in shapefiles/ is theirs and is left alone
+          rm -f "$tmp"
+        else
+          printf '  warning: could not fetch %s
+' "$name.zip"
+        fi
       done
-      SHAPEFILES="$TARGET"
-      printf '  [ok]        boundaries unpacked\n'
+      if [ "$GOT" -gt 0 ]; then
+        SHAPEFILES="$TARGET"
+        printf '  [ok]        %s of %s boundary sets unpacked
+' "$GOT" "$(echo $ASSETS | wc -w)"
+      else
+        printf '  no boundaries installed; see shapefiles/README.md
+'
+      fi
     fi
   fi
 fi
