@@ -120,8 +120,87 @@ class TestSelfContained(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_nothing_is_fetched_from_the_network(self):
-        for pattern in ("http://", "https://", "<link", "<script src", "@import", "url("):
+        for pattern in ("http://", "https://", "<link", "<script src", "@import"):
             self.assertNotIn(pattern, self.page, f"page reaches outside itself: {pattern}")
+
+    def test_every_url_in_the_page_carries_its_own_bytes(self):
+        """This used to forbid ``url(`` outright, which was the right rule
+        while the page had no fonts of its own. A ``data:`` URL fetches
+        nothing, so the rule to keep is about where the bytes come from — not
+        about the word. Forbidding the word instead would have blocked the fix
+        for the very promise it was guarding."""
+        for url in re.findall(r"url\(([^)]*)\)", self.page):
+            with self.subTest(url=url[:40]):
+                self.assertTrue(url.startswith("data:"),
+                                f"page depends on something outside itself: {url[:60]}")
+
+    def test_the_interface_typeface_travels_with_the_page(self):
+        """The plate is a PNG, so words *on the map* keep their typeface
+        anywhere. The page around it asked for Open Sans and fell back to
+        whatever the reader had installed — so one self-contained file changed
+        appearance depending on the machine, which is not quite the promise."""
+        # read the weights off the ``@font-face`` blocks themselves: plain
+        # ``font-weight:600`` also appears in the CSS for the buttons, so
+        # searching the whole page for it passes with no font embedded at all
+        faces = re.findall(r"@font-face\s*{([^}]*)}", self.page)
+        self.assertTrue(faces, "the page carries no font of its own")
+        weights = {int(re.search(r"font-weight:(\d+)", f).group(1))
+                   for f in faces if re.search(r"font-weight:(\d+)", f)}
+        self.assertEqual(weights, {400, 600, 700},
+                         "the page is missing a weight it asks for")
+
+    def test_the_embedded_faces_are_not_so_heavy_the_page_stops_being_sendable(self):
+        """Three weights of a subset font, about 154 KB of base64. Worth
+        paying; a page nobody can attach to an email is not."""
+        faces = re.findall(r"url\(data:font/[^)]*\)", self.page)
+        self.assertTrue(faces)
+        self.assertLess(sum(len(f) for f in faces), 400_000)
+
+    def test_every_character_the_page_shows_is_in_the_font_it_carries(self):
+        """The invariant, and the reason to state it this way rather than as a
+        list of scripts: it found two characters nobody had thought about.
+
+        The keyboard hint said "use the arrow keys" with the arrow glyphs
+        themselves, and the packaged subset has no arrows. A browser falls back
+        per glyph, so on an ordinary machine they still drew — from whatever
+        font happened to have them, which is exactly the dependency embedding
+        the font was meant to remove. Said in words instead, and now pinned.
+        """
+        try:
+            from fontTools.ttLib import TTFont
+        except Exception:                       # pragma: no cover
+            self.skipTest("fontTools not installed")
+        import base64
+        import io
+        import json
+
+        blob = re.search(r"font-weight:400;[^)]*base64,([A-Za-z0-9+/=]+)\)",
+                         self.page)
+        self.assertIsNotNone(blob, "the page carries no regular face")
+        face = TTFont(io.BytesIO(base64.b64decode(blob.group(1))), lazy=True)
+        covered = set()
+        for table in face["cmap"].tables:
+            covered |= set(table.cmap)
+
+        payload = json.loads(re.search(r"const D = (\{.*?\});", self.page,
+                                       re.S).group(1))
+        shown = set()
+        for entry in payload["entries"]:
+            for shape in entry["shapes"]:
+                shown |= set(shape["name"])
+            for reading in entry["values"].values():
+                shown |= set("".join(reading))
+            shown |= set(entry["label"]) | set(entry["title"])
+        # both languages travel in every page, so both must be drawable
+        for table in payload["text"].values():
+            for value in table.values():
+                shown |= set(str(value))
+
+        ignore = set(range(0x20)) | {0xA0}
+        missing = sorted(c for c in shown if ord(c) not in covered
+                         and ord(c) not in ignore)
+        self.assertEqual(missing, [],
+                         f"the page shows characters its own font lacks: {missing}")
 
     def test_no_sibling_file_is_referenced(self):
         for src in re.findall(r'src="([^"]*)"', self.page):

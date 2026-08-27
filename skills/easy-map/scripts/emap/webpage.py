@@ -22,7 +22,7 @@ import json
 from pathlib import Path
 from typing import Any, Sequence
 
-from . import i18n, semantics as sem, spotlight
+from . import fonts, i18n, semantics as sem, spotlight
 
 #: Screen resolution, not print resolution — but high enough that zooming has
 #: something to show.
@@ -71,7 +71,8 @@ TEXT = {
         "hint_still": "Bấm vào một đơn vị để xem chi tiết. Rê chuột để xem nhanh số "
                       "liệu. Bấm nút + để phóng to (hoặc giữ Ctrl và lăn chuột), kéo "
                       "để di chuyển, bấm đúp để về khung ban đầu.",
-        "hint_series": "Kéo thanh trượt hoặc dùng phím ← →. Rê chuột vào một đơn vị để "
+        "hint_series": "Kéo thanh trượt hoặc dùng phím mũi tên trái/phải. Rê chuột "
+                       "vào một đơn vị để "
                        "xem số liệu. Bấm nút + để phóng to (hoặc giữ Ctrl và lăn chuột), "
                        "bấm đúp để về khung ban đầu.",
     },
@@ -87,7 +88,8 @@ TEXT = {
         "hint_still": "Click a unit for its details. Hover for a quick reading. "
                       "Use + to zoom (or Ctrl + scroll), drag to pan, double-click "
                       "to reset.",
-        "hint_series": "Drag the slider or use ← →. Hover a unit to see its value. "
+        "hint_series": "Drag the slider or use the left and right arrow keys. "
+                       "Hover a unit to see its value. "
                        "Use + to zoom (or Ctrl + scroll), double-click to reset.",
     },
 }
@@ -389,11 +391,54 @@ def build(run_dir: Path, kind: str) -> dict[str, Any] | None:
     }
 
 
+#: The page's own chrome — buttons, tooltips, the unit panel, the search box —
+#: is HTML text, not part of the picture. Weight to the file that carries it.
+_UI_FONTS = ((400, "OpenSans-Regular.ttf"),
+             (600, "OpenSans-SemiBold.ttf"),
+             (700, "OpenSans-Bold.ttf"))
+
+
+def _font_faces() -> str:
+    """The interface typeface, carried inside the page.
+
+    The plate is a PNG, so every word printed *on the map* keeps its typeface
+    wherever the file is opened. The page around it did not: it asked for
+    "Open Sans" and fell back to whatever the reader's machine had, which on a
+    clean machine is not Open Sans. One self-contained file that changes
+    appearance depending on what is installed is not quite the promise.
+
+    Costs about 154 KB of base64 across three weights, some 13% of a page — the
+    packaged files are already subsets at 39 KB each. Subsetting them again per
+    page saves 18 KB and buys a font-tools dependency at render time, which is
+    not a trade worth making.
+
+    Open Sans carries **no Reserved Font Name**, so the subset keeps its own
+    name and the page may ask for it by that name — see THIRD-PARTY-NOTICES.md.
+    A missing file is skipped rather than fatal: ``fonts.install`` already
+    stops the run over missing faces, and a page is worth having with the
+    fallback if it somehow gets this far.
+    """
+    folder = fonts.font_dir()
+    blocks = []
+    for weight, name in _UI_FONTS:
+        path = folder / name
+        if not path.exists():                # pragma: no cover - install guards
+            continue
+        blob = base64.b64encode(path.read_bytes()).decode("ascii")
+        blocks.append(
+            '  @font-face { font-family:"Open Sans"; font-style:normal;'
+            f'  font-weight:{weight}; font-display:swap;'
+            f'  src:url(data:font/ttf;base64,{blob})'
+            '  format("truetype"); }')
+    return "\n".join(blocks)
+
+
 def _page(title: str, payload: dict[str, Any], lang: str = "vi") -> str:
     # The page's own text follows the reader's language already; the document's
     # lang attribute did not, so an English page told the browser and every
     # screen reader it was Vietnamese.
     return (PAGE
+            .replace("__FONTS__", _font_faces())
             .replace("__LANG__", html.escape(lang))
             .replace("__TITLE__", html.escape(title or TEXT[lang]["map"]))
             .replace("__ICON_PLAY__", ICON_PLAY)
@@ -414,6 +459,7 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__</title>
 <style>
+__FONTS__
   :root { --ink:#1b1b1b; --muted:#6b7780; --blue:#005eaa; --line:#d7dde1;
           --amber:#fbab18; --paper:#fff; }
   * { box-sizing:border-box; }
