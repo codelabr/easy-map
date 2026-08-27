@@ -1,26 +1,30 @@
 # Administrative boundaries
 
-The two boundary sets ship with this repository, as zips:
+**A fresh clone holds no boundary data here.** It is fetched at install time:
+each country and tier is one zip attached to a GitHub release, described under
+[Where the data lives](#where-the-data-lives) below.
 
-| File | Packed | Unpacked | Contents |
+| Release asset | Packed | Unpacked | Contents |
 |---|---|---|---|
-| `provinces.zip` | 13.0 MB | 20.1 MB | 34 provinces and centrally-run cities |
-| `communes.zip` | 74.7 MB | 114.4 MB | 3,321 wards and communes |
+| `viet-nam-province.zip` | 13.0 MB | 20.1 MB | 34 provinces and centrally-run cities |
+| `viet-nam-commune.zip` | 74.7 MB | 114.4 MB | 3,321 wards and communes |
 
-They are zipped because the commune `.shp` is **111.3 MB**, over GitHub's
-100 MB per-file limit. Compressed it fits, though GitHub still warns above
-50 MB.
+They are zipped rather than attached loose because the commune `.shp` alone is
+**111.3 MB**, over GitHub's 100 MB per-file limit. Compressed it fits, though
+GitHub still warns above 50 MB.
 
-**The installer unpacks them for you** into `~/.easy-map/shapefiles/` and
-records that path in `EASY_MAP_SHAPEFILES`. Nothing here needs doing by hand
-unless you want the boundaries somewhere else. Pass `-SkipShapefiles` /
-`--skip-shapefiles` to leave them packed.
+**The installer fetches and unpacks them for you** into
+`~/.easy-map/shapefiles/` and records that path in `EASY_MAP_SHAPEFILES`.
+Nothing here needs doing by hand unless you want the boundaries somewhere else.
+Pass `-SkipShapefiles` / `--skip-shapefiles` to skip that step.
 
-## Unpacking them yourself
+## Unpacking one yourself
+
+The folder layout is stored **inside** the archive, so extraction goes into the
+shapefile root and nothing has to be renamed or moved afterwards:
 
 ```bash
-python -c "import zipfile; zipfile.ZipFile('shapefiles/provinces.zip').extractall('shapefiles/viet-nam/province')"
-python -c "import zipfile; zipfile.ZipFile('shapefiles/communes.zip').extractall('shapefiles/viet-nam/commune')"
+python -c "import zipfile; zipfile.ZipFile('viet-nam-commune.zip').extractall('shapefiles')"
 ```
 
 ## The layout

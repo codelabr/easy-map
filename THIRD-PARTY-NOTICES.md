@@ -1,13 +1,18 @@
 # Third-party notices
 
 The source code in this repository is under the **MIT License** (see `LICENSE`).
-Two kinds of file shipped with it are **not**: the fonts, and the boundary data.
+Two kinds of file distributed with it are **not**: the fonts, which ship inside
+the repository, and the boundary data, which does not.
 
 ## Administrative boundary data
 
-`shapefiles/provinces.zip` and `shapefiles/communes.zip` hold Vietnam's
-post-2025 province and commune boundaries, downloaded from
+**Not in this repository.** `viet-nam-province.zip` and `viet-nam-commune.zip`
+are attached to a GitHub release and downloaded by the installer. They hold
+Vietnam's post-2025 province and commune boundaries, taken from
 <https://gis.vn/ban-do-hanh-chinh-viet-nam>.
+
+Being a release asset rather than a committed file changes nothing about the
+terms. It is still redistribution, and the paragraph below still governs it.
 
 **The source page states no licence.** These files are therefore redistributed
 here on the judgement of this repository's owner rather than under any grant

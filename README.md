@@ -17,7 +17,7 @@ have agreed to a numbered plan.
   <sub>One request, drawn from <b>simulated</b> data.</sub>
 </p>
 
-**Vietnam ships with it**, at the two tiers left by the 2025 reform to a
+**Vietnam comes ready to draw**, at the two tiers left by the 2025 reform to a
 two-tier local government model: **province** and **commune**. The district tier
 the reform abolished is not supported; district figures can only be aggregated
 up to province.
@@ -67,12 +67,14 @@ curl -fsSL https://raw.githubusercontent.com/codelabr/easy-map/main/install/web.
 ```
 
 It reports which assistants it found, installs Python if there is none, and
-unpacks Vietnam's administrative boundaries — which ship with the package, so
-there is nothing else to download. Then **start a new assistant session**; one
-already open will not see it.
+fetches Vietnam's administrative boundaries. Then **start a new assistant
+session**; one already open will not see it.
 
-The boundaries take about 135 MB unpacked. Pass `-SkipShapefiles` /
-`--skip-shapefiles` to leave them alone. They are third-party data and are
+The boundaries are **not** in this repository: they are attached to a release
+and downloaded on first install — about 88 MB to fetch, 135 MB unpacked. An
+archive you place in `shapefiles/` yourself is used instead of downloading, so
+a machine with no internet access can still be set up. Pass `-SkipShapefiles` /
+`--skip-shapefiles` to skip the step entirely. The data is third-party and is
 **not** under this repository's licence — see
 [`shapefiles/README.md`](shapefiles/README.md).
 
@@ -99,16 +101,17 @@ This boundary is the point of the project:
 | Interprets column headings and works out what they mean | Matches place names against the shapefile |
 | Recommends the indicator to map, and says why | Tells a count from a rate, and so how repeated rows combine |
 | Writes the title, the legend headings, the sentence underneath | Computes class breaks, projection and label placement |
-| Asks the questions that are the user's to answer | Runs 17 cartographic checks before drawing |
+| Asks the questions that are the user's to answer | Runs 15 cartographic checks before drawing |
 
 **Not one figure on the map comes from the language model.** All of the
-arithmetic lives in `skills/easy-map/scripts/emap/`, under more than 600
-automated tests.
+arithmetic lives in `skills/easy-map/scripts/emap/`, under more than 900
+automated tests. Both numbers in this section are counted from the source by
+`tests/test_readme_numbers.py`, so they cannot quietly go stale.
 
 ## Limitations
 
-- **The bundled boundaries are post-reform Vietnam.** Other countries work, but
-  you supply the files.
+- **The only boundaries published with the project are post-reform Vietnam.**
+  Other countries work, but you supply the files.
 - **The offshore inset has to be declared, and only Vietnam's is built in.** The
   dividing meridian is a cartographic decision the geometry does not contain, so
   no country gets a corner box until somebody writes the meridian into the

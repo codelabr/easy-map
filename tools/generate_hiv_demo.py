@@ -34,9 +34,23 @@ AMBIGUOUS_NAMES = {"Hải Phòng": ["Cẩm Giang", "Cẩm Giàng"]}
 
 
 def load_shapes():
-    provinces = gpd.read_file(ROOT / "shapefiles" / "provinces" / "Việt Nam (tỉnh thành) - 34.shp")
-    communes = gpd.read_file(ROOT / "shapefiles" / "communes" / "Việt Nam (phường xã) - 34.shp")
-    return provinces, communes
+    """The two Vietnam tiers, found rather than named.
+
+    This used to spell out ``shapefiles/provinces/Việt Nam (tỉnh thành) - 34.shp``
+    and broke silently when the folders became ``viet-nam/province/`` — a path
+    written once in a generator nothing else exercises. A tier folder holds
+    exactly one dataset, so globbing it needs no filename at all.
+    """
+    def one(tier: str):
+        folder = ROOT / "shapefiles" / "viet-nam" / tier
+        found = sorted(folder.glob("*.shp"))
+        if not found:
+            raise SystemExit(
+                f"no shapefile in {folder}. Install the boundaries first, or "
+                f"point EASY_MAP_SHAPEFILES at them.")
+        return gpd.read_file(found[0])
+
+    return one("province"), one("commune")
 
 
 # --------------------------------------------------------------------------

@@ -13,7 +13,7 @@ output on any machine, including a sandbox with no system fonts installed.
 | `OpenSans-Regular.ttf` | body text, legends, footer |
 | `OpenSans-SemiBold.ttf` | map labels |
 | `OpenSans-Bold.ttf` | legend headings, `banner` title |
-| `EasyMapSerif-Regular.ttf` | reserved |
+| `EasyMapSerif-Regular.ttf` | ships, but nothing selects it — both users of the display face ask for bold |
 | `EasyMapSerif-Bold.ttf` | `report` layout headline |
 
 ## Provenance
@@ -33,8 +33,8 @@ and the minus sign:
 U+0000-00FF,U+0100-024F,U+0300-036F,U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2122,U+2212
 ```
 
-Subsetting takes the set from 2.482 KB to 741 KB. TrueType hinting is dropped —
-output is rendered at 220 DPI where it has no effect.
+The five files come to **746 KB** together, measured. TrueType hinting is
+dropped: output is rendered at 220 DPI, where it has no effect.
 
 ## Rebuilding
 
@@ -49,12 +49,26 @@ Keeping the name records matters: pinning `opsz=18` renames Merriweather's
 nameID 1 to "Merriweather 18pt", and FreeType only reports the plain family name
 because nameID 16 (Typographic Family) carries it. A default subset drops
 nameID 16, matplotlib then sees a family called "Merriweather 18pt", and the run
-aborts. After rebuilding, confirm the family name matplotlib actually reads:
+aborts.
+
+**Then rename the serif, before it goes anywhere.** Subsetting deletes glyphs,
+which makes the files a Modified Version, and OFL 1.1 clause 3 forbids a
+Modified Version from carrying the Reserved Font Name. Rewrite nameIDs 1, 4, 6
+and 16 to *EasyMap Serif* — the exact values are tabulated in
+`../../../../THIRD-PARTY-NOTICES.md`. Leave nameID 0 and nameIDs 13–14 alone;
+clause 2 requires the copyright and licence to stay inside the file.
+
+Open Sans carries no Reserved Font Name and keeps its own.
+
+After rebuilding, confirm the family names matplotlib actually reads. These are
+the names `emap/fonts.py` asks for, so a mismatch is not cosmetic — the run
+aborts rather than substituting a typeface:
 
 ```python
-from matplotlib import font_manager
-prop = font_manager.ttfFontProperty(font_manager.get_font("Merriweather-Bold.ttf"))
-assert prop.name == "Merriweather"
+from matplotlib import font_manager as fm
+for filename, family in (("OpenSans-Regular.ttf", "Open Sans"),
+                         ("EasyMapSerif-Bold.ttf", "EasyMap Serif")):
+    assert fm.ttfFontProperty(fm.get_font(filename)).name == family, filename
 ```
 
 After any change, verify Vietnamese coverage before committing:

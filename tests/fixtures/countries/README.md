@@ -11,15 +11,19 @@ measured rather than believed.
 
 ## What makes it a control case
 
-Four properties are deliberate. Each one breaks a constant the engine currently
-pins to Vietnam.
+Four properties are deliberate. Each one was chosen to break a constant the
+engine had pinned to Vietnam — and **all four constants are now gone**, which
+is the whole point: the fixture was the thing that made them visible.
 
-| Property | Fictavia | Vietnam | What it breaks |
-|---|---|---|---|
-| Shape | 27° wide × 7° tall, aspect **0.2593** | 8.5 × 16.2, aspect **1.9032** | `furniture.LOCATOR_ASPECT = 2.2` |
-| Position | lon 12–46, lat 44–51 | lon 102–117, lat 7–23 | `semantics.py` coordinate rule, `lon 100–115` / `lat 7–24` |
-| Schema | `NAME_1`, `NAME_2`, no population, no area | `ten_tinh`, `ten_xa`, `dan_so`, `dtich_km2` | `dataio.PROVINCE_NAME_FIELDS` / `COMMUNE_NAME_FIELDS` |
-| Detached territory | two islands east of 42°E | Hoàng Sa, Trường Sa east of 111°E | `insets.ARCHIPELAGO_LON = 111.0` — since wave 4 a declaration, `insets._DECLARED` |
+| Property | Fictavia | Vietnam | The constant it broke | What replaced it |
+|---|---|---|---|---|
+| Shape | 27° wide × 7° tall, aspect **0.2593** | 8.5 × 16.2, aspect **1.9032** | `furniture.LOCATOR_ASPECT = 2.2` | `furniture.locator_aspect(frame)`, measured per country |
+| Position | lon 12–46, lat 44–51 | lon 102–117, lat 7–23 | `semantics.py` coordinate rule, `lon 100–115` / `lat 7–24` | a worldwide longitude/latitude range |
+| Schema | `NAME_1`, `NAME_2`, no population, no area | `ten_tinh`, `ten_xa`, `dan_so`, `dtich_km2` | `dataio.PROVINCE_NAME_FIELDS` / `COMMUNE_NAME_FIELDS` | the name column worked out from the data |
+| Detached territory | two islands east of 42°E | Hoàng Sa, Trường Sa east of 111°E | `insets.ARCHIPELAGO_LON = 111.0` | `insets._DECLARED` — a meridian somebody declares, never inferred |
+
+The names in the fourth column are kept so that a reader who meets one in an
+old commit or an old note can find out what became of it.
 
 The islands are fragments of an ordinary region, not a region of their own —
 the same arrangement Vietnam has, where Hoàng Sa is eighteen fragments of Đà
