@@ -24,10 +24,31 @@ from typing import Any, Sequence
 
 from . import i18n, semantics as sem, spotlight
 
-#: Screen resolution, not print resolution. The PNG files next to the page stay
-#: at full DPI; embedding those would multiply the page size for detail nobody
-#: can see until they zoom far past what the geometry supports.
-HTML_DPI = 150
+#: Screen resolution, not print resolution — but high enough that zooming has
+#: something to show.
+#:
+#: This was 150, on the reasoning that nobody would zoom far enough to notice.
+#: Measured, that reasoning was wrong by more than a factor of two: the page
+#: caps its own width at 1180 CSS pixels and a 150 dpi report plate is 1519
+#: pixels wide, so detail runs out at **1.29x** — and on a 2x display the image
+#: is already being enlarged at rest. The zoom went to 8x, so most of the range
+#: was magnifying an image with nothing left to give.
+#:
+#: A map is flat colour and compresses well, so the cost is far below the pixel
+#: count. Measured end to end on one national plate:
+#:
+#: ===== =========== ========= =================
+#: dpi   image px    page      sharp up to
+#: ===== =========== ========= =================
+#: 150   1519x1777   688 KB    1.29x
+#: 220   2228x2607   919 KB    1.89x
+#: 300   3039x3555   1184 KB   2.58x
+#: 400   4052x4740   1522 KB   3.44x
+#: ===== =========== ========= =================
+#:
+#: 300 buys a genuinely useful zoom for 72% more page. Above that the returns
+#: fall off and the page stops being something you attach to an email.
+HTML_DPI = 300
 
 #: outline detail is reduced to keep the page small; 1.5 screen pixels is well
 #: below what a reader can distinguish
@@ -761,8 +782,22 @@ function apply() {
   viewport.dataset.grab = z > 1 ? '1' : '0';
 }
 function reset() { z = 1; tx = 0; ty = 0; apply(); }
+/* How far in it is worth going: the point where one image pixel covers one
+   screen pixel, plus a little. Past that the reader is enlarging an image with
+   no more detail in it, which the old fixed ceiling of 8 let them do for most
+   of its range. Read from the image itself rather than assumed, because the
+   answer depends on the plate's shape, the window, and the display. */
+const OVERZOOM = 1.5;          /* shapes stay useful a bit past native */
+function ceiling() {
+  const img = canvas.querySelector('img');
+  const wide = canvas.clientWidth * (window.devicePixelRatio || 1);
+  if (!img || !img.naturalWidth || !wide) return 8;
+  /* never below 2: a very wide window on a low-resolution plate would
+     otherwise leave the reader unable to zoom at all */
+  return Math.max(2, Math.min(8, img.naturalWidth / wide * OVERZOOM));
+}
 function zoomAt(factor, cx, cy) {
-  const next = Math.min(8, Math.max(1, z * factor));
+  const next = Math.min(ceiling(), Math.max(1, z * factor));
   if (next === z) return;
   tx = cx - (cx - tx) * (next / z);
   ty = cy - (cy - ty) * (next / z);

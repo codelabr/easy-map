@@ -214,7 +214,9 @@ def build(deps, df, *, sheet: str | None, admin_level: str,
               if c["semantic"] in {sem.COUNT, sem.PERCENT, sem.RATE_PER, sem.POINT}}
     for info in columns:
         if info["semantic"] in {sem.PERCENT, sem.RATE_PER, sem.POINT}:
-            info["weight_column"] = sem.find_denominator(info["column"], columns, series)
+            found = sem.denominator(info["column"], columns, series)
+            info["weight_column"] = found.column
+            info["weight_basis"] = found.basis
 
     return {
         "sheet": sheet,

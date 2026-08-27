@@ -1536,7 +1536,7 @@ def _title_ingredients(args, joined, value_column, scope, prepared,
 
 
 def _plan(args, excel, joined, value_column, scope, prepared, method, bins,
-          country_name=None):
+          country_name=None, weight_column=None):
     """The numbered table the person agrees to, and the settings it stands for.
 
     Every value is written in the language of the conversation and in ordinary
@@ -1614,6 +1614,8 @@ def _plan(args, excel, joined, value_column, scope, prepared, method, bins,
     rows += [
         ("repeated-rows", (wording.label("aggregate", method)
                       if method in wording.VALUES["aggregate"] else unknown), "aggregate"),
+        ("weight", (weight_column or messages.text("table.no-weight")),
+         "weight_column"),
         ("output", (f"{args.formats.upper()} {args.dpi} dpi"
                     + ("" if args.no_html else messages.text("table.with-html"))), "formats"),
     ]
@@ -1982,8 +1984,14 @@ def command_render(args: argparse.Namespace) -> None:
                      if c["semantic"] in {sem.COUNT, sem.PERCENT, sem.RATE_PER, sem.POINT}}
     for info in columns:
         if info["semantic"] in {sem.PERCENT, sem.RATE_PER, sem.POINT}:
-            info["weight_column"] = sem.find_denominator(info["column"], columns,
-                                                        weight_series)
+            found = sem.denominator(info["column"], columns, weight_series)
+            info["weight_column"] = found.column
+            info["weight_basis"] = found.basis
+            if args.weight_column:
+                # the person is looking at their own indicator definitions; the
+                # engine is reading column headings
+                info["weight_column"] = args.weight_column
+                info["weight_basis"] = "stated"
     by_name = {c["column"]: c for c in columns}
 
     value_column = args.value_column or args.category_column
@@ -2052,6 +2060,7 @@ def command_render(args: argparse.Namespace) -> None:
     if value_column and args.map_type != "boundary" and not coordinates_only:
         method = aggregate.resolve(args.aggregate, value_info)
         issues += guardrails.check_aggregation(value_info, method, duplicates)
+        issues += guardrails.check_weighting(value_info, method, duplicates)
         issues += guardrails.check_colour_choice(value_info, args.map_type)
         values = aggregate.combine(deps, joined, "__shape_id", value_column, value_info,
                                    args.aggregate)
@@ -2138,7 +2147,11 @@ def command_render(args: argparse.Namespace) -> None:
 
     settings, numbered, must_ask = _plan(args, excel, joined, value_column,
                                          scope, prepared, method, bins,
-                                         country_reading.get('country_name'))
+                                         country_reading.get('country_name'),
+                                         # only meaningful when rows are
+                                         # combined, but the reader agrees to
+                                         # the plan before that is known
+                                         weight_column=value_info.get("weight_column"))
     # No code unlocks a plan that still has a question open in it. The hash
     # covers the settings, and a defaulted language reads the same in the table
     # as a chosen one — so without this an agent could take the code from its own
@@ -2482,6 +2495,11 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--point-size-column", metavar="COLUMN",
                    help="point map: the numeric column that decides dot size; area is "
                         "proportional to the value, on the legend's own scale")
+    r.add_argument("--weight-column", metavar="COLUMN",
+                   help="the column a rate should be weighted by when rows "
+                        "sharing a place name are averaged — its denominator. "
+                        "Only needed when the engine says it matched one by "
+                        "name rather than proving it from the numbers")
     r.add_argument("--aggregate", default="auto", choices=list(aggregate.METHODS))
     r.add_argument("--map-text", action="append", metavar="KEY=VALUE",
                    help="replace one string the engine letters on the map, e.g. "

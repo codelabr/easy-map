@@ -309,6 +309,37 @@ def check_labels(report: dict[str, Any], in_frame: int,
     )]
 
 
+def check_weighting(column_info: dict[str, Any], method: str,
+                    duplicated_rows: int,
+                    lang: str | None = None) -> list[dict[str, Any]]:
+    """A weighted mean whose weight was matched by name, not proved.
+
+    The weighting column is a rate's denominator. Where the numbers are at
+    hand the engine finds it by arithmetic — it reproduces the rate row by row
+    — and that answer is as good as the data. Where they are not, it falls back
+    to matching column headings, and a heading match can pick the rate's own
+    **numerator**: measured on a real provincial HIV sheet, four of seven rates
+    were named-matched and two of those took their own numerator as the weight.
+    Weighting a coverage rate by the people already covered is not a small
+    error; it is the wrong sum.
+
+    Only fires when rows are actually being combined. A sheet with one row per
+    place never uses the weight, and warning there would be noise.
+    """
+    if duplicated_rows <= 0 or method != "weighted-mean":
+        return []
+    basis = column_info.get("weight_basis")
+    if basis in sem.PROVEN or basis == "stated":
+        return []
+    weight = column_info.get("weight_column")
+    if not weight:
+        return []
+    return [_issue("weight-guessed", WARNING, lang=lang,
+                   fmt={"column": column_info.get("column"), "weight": weight},
+                   extra={"column": column_info.get("column"),
+                          "weight_column": weight, "weight_basis": basis})]
+
+
 def check_category_order(labels: Sequence[Any], recognised: bool,
                          stated: bool, lang: str | None = None
                          ) -> list[dict[str, Any]]:

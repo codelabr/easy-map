@@ -14,11 +14,12 @@ from __future__ import annotations
 import math
 import re
 import unicodedata
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, NamedTuple, Sequence
 
 from . import messages as msg
 
-__all__ = ["infer", "find_denominator", "format_value", "order_categories"]
+__all__ = ["infer", "denominator", "find_denominator", "format_value",
+           "order_categories"]
 
 COUNT = "count"
 PERCENT = "percent"
@@ -439,23 +440,50 @@ def _as_float(value: Any) -> float | None:
     return None if math.isnan(f) else f
 
 
-def find_denominator(percent_column: str, candidates: Iterable[dict[str, Any]],
-                     series: dict[str, Sequence[Any]] | None = None) -> str | None:
-    """Pick the column a rate should be weighted by, so means stay honest.
+#: How a weighting column was arrived at. ``FITTED`` means the arithmetic
+#: reproduced the rate row by row and the answer is as good as the data.
+#: Everything else is a guess from the column's name, and a guess can pick a
+#: rate's own **numerator** — measured on real HIV data, four of seven rates
+#: were named-matched and two of those took their own numerator as the weight.
+FITTED, BY_NAME, BY_HINT, BY_POPULATION, NONE = (
+    "fitted", "name", "hint", "population", "none")
+
+#: The bases that were proved rather than guessed. A caller deciding whether to
+#: warn asks this rather than listing the guesses, so a basis added later is
+#: treated as unproven until somebody says otherwise.
+PROVEN = {FITTED}
+
+
+class Denominator(NamedTuple):
+    """The column a rate should be weighted by, and how it was arrived at."""
+
+    column: str | None
+    basis: str
+
+
+def denominator(percent_column: str, candidates: Iterable[dict[str, Any]],
+                series: dict[str, Sequence[Any]] | None = None) -> Denominator:
+    """Pick the column a rate should be weighted by, and say on what grounds.
 
     Pass ``series`` — column name to its values — whenever the data is at hand;
     the arithmetic check is far more reliable than anything based on names.
+
+    The basis travels with the answer because the two are not interchangeable:
+    a fitted denominator is arithmetic, a named one is a guess about what
+    somebody meant by a column heading. Returning only the column made those
+    look the same to every caller, and the guess went into the weighted mean
+    with nothing said.
     """
     candidates = list(candidates)
     counts = [c for c in candidates if c.get("semantic") == COUNT]
     if not counts:
-        return None
+        return Denominator(None, NONE)
 
     rate_info = next((c for c in candidates if c.get("column") == percent_column), None)
     if series:
         fitted = _fit_denominator(rate_info, counts, series)
         if fitted:
-            return fitted
+            return Denominator(fitted, FITTED)
 
     # naming is only a fallback, and then the largest match wins, because a
     # denominator is never smaller than its own numerator
@@ -464,7 +492,7 @@ def find_denominator(percent_column: str, candidates: Iterable[dict[str, Any]],
     best_overlap = max(s[0] for s in scored)
     if best_overlap >= 1:
         tier = [s for s in scored if s[0] == best_overlap]
-        return max(tier, key=lambda s: s[1])[2]
+        return Denominator(max(tier, key=lambda s: s[1])[2], BY_NAME)
 
     name = deaccent(percent_column)
     for trigger, hints in _DENOMINATOR_HINTS.items():
@@ -473,11 +501,17 @@ def find_denominator(percent_column: str, candidates: Iterable[dict[str, Any]],
         for hint in hints:
             for c in counts:
                 if hint in deaccent(c["column"]):
-                    return c["column"]
+                    return Denominator(c["column"], BY_HINT)
     for c in counts:
         if "dan so" in deaccent(c["column"]):
-            return c["column"]
-    return None
+            return Denominator(c["column"], BY_POPULATION)
+    return Denominator(None, NONE)
+
+
+def find_denominator(percent_column: str, candidates: Iterable[dict[str, Any]],
+                     series: dict[str, Sequence[Any]] | None = None) -> str | None:
+    """The column alone, for callers that have no use for the grounds."""
+    return denominator(percent_column, candidates, series).column
 
 
 # --- presentation ----------------------------------------------------------

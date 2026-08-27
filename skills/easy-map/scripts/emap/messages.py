@@ -435,6 +435,39 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                    "it is, tell the reader that only some units are named.",
         },
     },
+    "weight-guessed": {
+        "vi": {
+            "problem": "Các dòng trùng địa danh của '{column}' sẽ được lấy "
+                       "trung bình có trọng số theo '{weight}', nhưng cột "
+                       "trọng số này chỉ được khớp theo tên cột, chưa được "
+                       "kiểm chứng bằng số học.",
+            "why": "Cột trọng số của một tỷ lệ chính là mẫu số của nó. Khớp "
+                   "theo tên có thể chọn nhầm sang chính tử số — ví dụ lấy "
+                   "'Số người đang điều trị ARV' làm trọng số cho 'Tỷ lệ điều "
+                   "trị ARV'. Lấy trung bình có trọng số bằng tử số của chính "
+                   "nó cho ra một con số sai, không phải một con số kém chính "
+                   "xác.",
+            "fix": "Nếu biết mẫu số đúng thì nêu ra: --weight-column 'Tên cột "
+                   "mẫu số'. Nếu bảng không có cột mẫu số thì dùng "
+                   "--aggregate median để tránh phép trung bình có trọng số, "
+                   "hoặc bổ sung cột mẫu số vào bảng số liệu.",
+        },
+        "en": {
+            "problem": "Rows of '{column}' sharing a place name will be "
+                       "averaged weighted by '{weight}', but that weighting "
+                       "column was matched on the column heading and never "
+                       "checked against the numbers.",
+            "why": "A rate's weighting column is its denominator. A heading "
+                   "match can pick the rate's own numerator instead — taking "
+                   "'people currently on ART' as the weight for 'ART coverage'. "
+                   "Weighting a coverage rate by the people already covered "
+                   "gives a wrong number, not a less precise one.",
+            "fix": "If you know the right denominator, name it: "
+                   "--weight-column 'Denominator column'. If the sheet has no "
+                   "denominator, use --aggregate median to avoid the weighted "
+                   "mean, or add the denominator column to the data.",
+        },
+    },
     "needs-diverging-scale": {
         "vi": {
             WHAT: "Số liệu có cả giá trị tăng và giảm.",
@@ -917,6 +950,8 @@ TEXT: dict[str, dict[str, str]] = {
     "field.legend": {"vi": "Tiêu đề chú giải màu", "en": "Colour legend heading"},
     "field.symbol-legend": {"vi": "Tiêu đề chú giải vòng tròn",
                             "en": "Circle legend heading"},
+    "field.weight": {"vi": "Cột trọng số khi gộp dòng",
+                     "en": "Weighting column when rows are combined"},
     "field.category-order": {"vi": "Thứ tự các nhóm",
                              "en": "Order of the groups"},
     "field.labels": {"vi": "Nhãn trên bản đồ", "en": "Labels on the map"},
@@ -936,6 +971,10 @@ TEXT: dict[str, dict[str, str]] = {
     "table.class-count": {
         "vi": "{classes} nhóm",
         "en": {ONE: "{classes} class", "many": "{classes} classes"},
+    },
+    "table.no-weight": {
+        "vi": "không dùng trọng số",
+        "en": "no weighting",
     },
     "table.alphabetical": {
         "vi": "theo bảng chữ cái (không nhận ra thứ tự)",

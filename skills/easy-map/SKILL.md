@@ -473,6 +473,20 @@ say so, rather than fuzzy-matching district names into the commune list.
 | change map | màu hai chiều: một phía tăng, một phía giảm |
 | point map | chấm đúng vị trí từng cơ sở theo toạ độ |
 
+**A rate may warn that its weighting column was only guessed.** When rows
+share a place name, a rate is combined with a weighted mean, and the weight is
+the rate's denominator. Where the numbers allow it the engine *proves* the
+denominator — it reproduces the rate row by row — and says nothing. Where they
+do not, it matches column headings, and a heading match can pick the rate's own
+**numerator**: on a real provincial HIV sheet, four of seven rates were matched
+by name and two took their numerator as the weight. That is not a less precise
+answer, it is a wrong one — measured on 34 provinces, swapping the guessed
+column for the right one moved **every** province, by up to twelve percentage
+points. So it says which column it will weight by and on what grounds. If you
+know the denominator, pass `--weight-column 'Số người nhiễm HIV ước tính'`; if
+the sheet has none, `--aggregate median` avoids the weighted mean. The weighting
+column is a row of the plan, so changing it changes the confirmation code.
+
 **A categorised map may warn that it could not order the groups.** The engine
 knows the common scales in both languages (thấp/trung bình/cao, poor…excellent,
 a Likert row) and reads a rank the export wrote into the label itself (`1. Thấp`,

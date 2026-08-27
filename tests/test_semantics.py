@@ -511,3 +511,64 @@ class TestPuttingGroupsInTheirOwnOrder(unittest.TestCase):
         from emap import semantics as sem
 
         self.assertIsNone(sem.order_categories(["Cao"]))
+
+
+class TestOnWhatGroundsAWeightingColumnWasChosen(unittest.TestCase):
+    """``denominator``: the column, and whether it was proved or guessed.
+
+    A rate's weighting column is its denominator. Where the numbers are at hand
+    the engine reproduces the rate row by row and the answer is arithmetic;
+    where they are not it matches column headings, and a heading match can pick
+    the rate's own numerator. Measured on a real provincial HIV sheet: four of
+    seven rates were named-matched, and two of those took their numerator.
+
+    The grounds travel with the answer because the two are not interchangeable,
+    and returning only the column made them look the same to every caller.
+    """
+
+    def columns(self):
+        return [
+            {"column": "Tỷ lệ điều trị ARV (%)", "semantic": sem.PERCENT},
+            {"column": "Số người đang điều trị ARV", "semantic": sem.COUNT,
+             "total": 900},
+            {"column": "Số người nhiễm HIV ước tính", "semantic": sem.COUNT,
+             "total": 1200},
+            {"column": "Dân số", "semantic": sem.COUNT, "total": 100000},
+        ]
+
+    def test_arithmetic_that_reproduces_the_rate_is_proof(self):
+        """Two counts whose quotient is the rate, row by row. Nothing about the
+        headings enters into it."""
+        found = sem.denominator(
+            "Tỷ lệ điều trị ARV (%)", self.columns(),
+            {"Tỷ lệ điều trị ARV (%)": [50.0, 25.0, 80.0],
+             "Số người đang điều trị ARV": [50, 25, 80],
+             "Số người nhiễm HIV ước tính": [100, 100, 100],
+             "Dân số": [7, 13, 29]})
+        self.assertEqual(found.column, "Số người nhiễm HIV ước tính")
+        self.assertEqual(found.basis, sem.FITTED)
+        self.assertIn(found.basis, sem.PROVEN)
+
+    def test_without_the_numbers_it_falls_back_to_the_headings_and_says_so(self):
+        found = sem.denominator("Tỷ lệ điều trị ARV (%)", self.columns())
+        self.assertEqual(found.basis, sem.BY_NAME)
+        self.assertNotIn(found.basis, sem.PROVEN)
+
+    def test_the_named_match_can_pick_the_rates_own_numerator(self):
+        """Not a hypothetical: this is the case that prompted the warning. The
+        heading of a coverage rate shares its words with the count of people
+        already covered."""
+        found = sem.denominator("Tỷ lệ điều trị ARV (%)", self.columns())
+        self.assertEqual(found.column, "Số người đang điều trị ARV")
+
+    def test_a_sheet_with_no_counts_has_no_denominator_and_no_grounds(self):
+        found = sem.denominator("Tỷ lệ (%)",
+                                [{"column": "Tỷ lệ (%)", "semantic": sem.PERCENT}])
+        self.assertEqual(found, (None, sem.NONE))
+
+    def test_the_old_name_still_answers_with_the_column_alone(self):
+        """Callers that have no use for the grounds keep working, and there is
+        one implementation rather than two that can drift."""
+        columns = self.columns()
+        self.assertEqual(sem.find_denominator("Tỷ lệ điều trị ARV (%)", columns),
+                         sem.denominator("Tỷ lệ điều trị ARV (%)", columns).column)

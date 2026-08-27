@@ -15,6 +15,7 @@ its own copy of SKILL.md, which is why this only ever checks the source.
 from __future__ import annotations
 
 import re
+import pathlib
 import unittest
 from pathlib import Path
 
@@ -73,3 +74,49 @@ class TestNothingLeaksAMachine(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheUserGuideCountsTheWarningsCorrectly(unittest.TestCase):
+    """A number written into prose has nothing recomputing it.
+
+    The guide said seventeen checks. There were fifteen functions and
+    twenty-five warnings, and the sentence had been wrong for some time — the
+    same way ``slidedeck/README.md`` carried 0.41% long after the real figure
+    had moved to several per cent. Either the number is pinned or it should not
+    be a number.
+    """
+
+    GUIDE = (pathlib.Path(__file__).resolve().parents[1]
+             / "docs" / "HUONG-DAN-SU-DUNG.md")
+
+    @unittest.skipIf(not (pathlib.Path(__file__).resolve().parents[1]
+                          / "docs" / "HUONG-DAN-SU-DUNG.md").exists(),
+                     "the guide is not distributed with the skill")
+    def test_the_stated_number_is_the_number_of_warnings(self):
+        import re
+
+        from emap import messages as msg
+
+        text = self.GUIDE.read_text(encoding="utf-8")
+        stated = re.search(r"\*\*(\d+) cảnh báo\*\*", text)
+        self.assertIsNotNone(stated, "the guide no longer states a count")
+        self.assertEqual(int(stated.group(1)), len(msg.ISSUES))
+
+    @unittest.skipIf(not (pathlib.Path(__file__).resolve().parents[1]
+                          / "docs" / "HUONG-DAN-SU-DUNG.md").exists(),
+                     "the guide is not distributed with the skill")
+    def test_every_flag_the_guide_offers_is_one_the_command_accepts(self):
+        """A guide proposing a flag the command rejects is worse than silence:
+        the reader tries it and the run stops on a usage error."""
+        import re
+
+        import easy_map
+
+        # read the flags off the source rather than building a parser: the
+        # parser is assembled inside main() and there is no seam to call
+        source = pathlib.Path(easy_map.__file__).read_text(encoding="utf-8")
+        known = set(re.findall(r'add_argument\("(--[a-z-]+)"', source))
+        self.assertTrue(known, "no flags found in the command at all")
+        offered = set(re.findall(r"`(--[a-z-]+)", self.GUIDE.read_text(encoding="utf-8")))
+        self.assertTrue(offered, "the guide offers no flags at all")
+        self.assertEqual(sorted(offered - known), [])

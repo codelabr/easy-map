@@ -500,5 +500,102 @@ class TestEveryCheckIsActuallyCalled(unittest.TestCase):
         self.assertIn("summarize", self._called())
 
 
+class TestAWeightNobodyChecked(unittest.TestCase):
+    """``check_weighting``: a weighted mean is only as good as its weight.
+
+    Measured end to end on 34 provinces with two rows each: swapping the
+    guessed weighting column for the right one moved **every** province, by up
+    to twelve percentage points. A wrong weight does not blur the answer, it
+    moves it.
+    """
+
+    def info(self, basis, weight="Số người đang điều trị ARV"):
+        return {"column": "Tỷ lệ điều trị ARV (%)", "semantic": sem.PERCENT,
+                "weight_column": weight, "weight_basis": basis}
+
+    def test_a_guessed_weight_is_a_warning_once_rows_are_combined(self):
+        found = g.check_weighting(self.info(sem.BY_NAME), "weighted-mean", 3)
+        self.assertEqual(found[0]["id"], "weight-guessed")
+        self.assertEqual(found[0]["severity"], g.WARNING)
+
+    def test_a_weight_proved_by_arithmetic_is_quiet(self):
+        self.assertEqual(
+            g.check_weighting(self.info(sem.FITTED), "weighted-mean", 3), [])
+
+    def test_a_weight_the_caller_named_is_quiet(self):
+        """They have answered the question. Asking again teaches them to skip
+        warnings."""
+        self.assertEqual(
+            g.check_weighting(self.info("stated"), "weighted-mean", 3), [])
+
+    def test_nothing_to_combine_means_nothing_to_warn_about(self):
+        """One row per place never uses the weight, and warning there is noise
+        on every ordinary sheet."""
+        self.assertEqual(
+            g.check_weighting(self.info(sem.BY_NAME), "weighted-mean", 0), [])
+
+    def test_another_way_of_combining_does_not_use_the_weight(self):
+        for method in ("mean", "median", "sum", "max"):
+            with self.subTest(method=method):
+                self.assertEqual(
+                    g.check_weighting(self.info(sem.BY_NAME), method, 3), [])
+
+    def test_no_weight_at_all_is_not_a_guessed_weight(self):
+        """``aggregate`` falls back to a plain mean, which ``check_aggregation``
+        already speaks about. Two warnings for one situation is one too many."""
+        self.assertEqual(
+            g.check_weighting(self.info(sem.NONE, weight=None),
+                              "weighted-mean", 3), [])
+
+    def test_both_columns_are_named_so_the_reader_can_judge(self):
+        found = g.check_weighting(self.info(sem.BY_NAME), "weighted-mean", 3)[0]
+        self.assertIn("Tỷ lệ điều trị ARV (%)", found["problem"])
+        self.assertIn("Số người đang điều trị ARV", found["problem"])
+        self.assertEqual(found["weight_basis"], sem.BY_NAME)
+
+    def test_the_remedies_are_flags_that_exist(self):
+        for lang in msg.LANGUAGES:
+            with self.subTest(lang=lang):
+                fix = g.check_weighting(self.info(sem.BY_NAME), "weighted-mean",
+                                        3, lang=lang)[0]["fix"]
+                self.assertIn("--weight-column", fix)
+                self.assertIn("--aggregate median", fix)
+
+    def test_a_weight_the_caller_named_is_recorded_as_named(self):
+        """The tests above hand ``check_weighting`` a dict they built. None of
+        them proves the command fills that dict in — deleting the line that
+        marks a caller-supplied weight as stated left the whole suite green,
+        and the warning would then fire on the very answer it asked for.
+
+        Read the block that honours ``--weight-column`` and require it to set
+        both keys: the column without the grounds is what caused this.
+        """
+        import ast
+        import inspect
+        import textwrap
+
+        import easy_map
+
+        tree = ast.parse(textwrap.dedent(inspect.getsource(easy_map.command_render)))
+        blocks = [n for n in ast.walk(tree)
+                  if isinstance(n, ast.If)
+                  and isinstance(n.test, ast.Attribute)
+                  and n.test.attr == "weight_column"]
+        self.assertTrue(blocks, "nothing honours --weight-column")
+        written = {c.value for b in blocks for n in ast.walk(b)
+                   for t in getattr(n, "targets", [])
+                   for c in ast.walk(t) if isinstance(c, ast.Constant)}
+        self.assertIn("weight_column", written)
+        self.assertIn("weight_basis", written)
+
+    def test_the_quiet_bases_are_read_from_semantics_not_listed_here(self):
+        """A basis added to ``semantics`` later is unproven until somebody says
+        otherwise, rather than silently joining the quiet set."""
+        import inspect
+
+        source = inspect.getsource(g.check_weighting)
+        self.assertIn("sem.PROVEN", source)
+
+
 if __name__ == "__main__":
     unittest.main()

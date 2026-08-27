@@ -247,6 +247,70 @@ class TestLabelContract(unittest.TestCase):
         self.assertEqual(set(data["text"]), {"vi", "en"})
 
 
+class TestThereIsSomethingToZoomInTo(unittest.TestCase):
+    """The page lets the reader magnify the map. Detail has to exist for that.
+
+    Measured before this was fixed: the page caps its own width at 1180 CSS
+    pixels and the plate was embedded at 150 dpi, so 1519 image pixels covered
+    1180 — detail ran out at 1.29x, and on a 2x display the image was already
+    being enlarged at rest. The zoom went to a fixed 8x, so most of its range
+    magnified an image with nothing left to give.
+    """
+
+    def page_width(self) -> int:
+        """The widest the map is ever drawn, read from the page's own CSS."""
+        import re
+
+        from emap import webpage
+
+        found = re.search(r"\.wrap\s*{[^}]*max-width:\s*(\d+)px", webpage.PAGE)
+        self.assertIsNotNone(found, "the page no longer caps its width")
+        return int(found.group(1))
+
+    def test_the_embedded_plate_is_wider_than_the_page_can_show(self):
+        """The invariant, stated so it survives a change to either number: a
+        plate no wider than its own frame has nothing to reveal."""
+        from emap import layout, webpage
+
+        # a report plate is about ten inches across; the exact figure comes from
+        # the layout rather than being repeated here
+        inches = layout.COLUMN_IN + 0.30 + layout.MARGIN_IN * 2 + 7.0
+        pixels = inches * webpage.HTML_DPI
+        self.assertGreater(pixels, self.page_width() * 1.5,
+                           f"{webpage.HTML_DPI} dpi leaves nothing to zoom into")
+
+    def test_the_page_is_still_small_enough_to_send(self):
+        """The whole point of one self-contained file is that it can be
+        attached to an email. Detail is worth paying for; a page nobody can
+        send is not."""
+        from emap import webpage
+
+        self.assertLessEqual(webpage.HTML_DPI, 300)
+
+    def test_the_zoom_ceiling_is_read_from_the_image_not_fixed(self):
+        """A fixed ceiling cannot know how much detail this plate has, on this
+        window, on this display."""
+        from emap import webpage
+
+        self.assertIn("naturalWidth", webpage.PAGE)
+        self.assertIn("devicePixelRatio", webpage.PAGE)
+        self.assertNotIn("Math.min(8, Math.max(1, z * factor))", webpage.PAGE)
+
+    def test_the_ceiling_never_falls_below_a_useful_amount(self):
+        """A very wide window on a small plate would otherwise compute a
+        ceiling of 1 and leave the reader unable to zoom at all."""
+        import re
+
+        from emap import webpage
+
+        found = re.search(r"return Math\.max\((\d+), Math\.min\((\d+),",
+                          webpage.PAGE)
+        self.assertIsNotNone(found, "the ceiling is no longer clamped")
+        floor, cap = int(found.group(1)), int(found.group(2))
+        self.assertGreaterEqual(floor, 2)
+        self.assertGreater(cap, floor)
+
+
 if __name__ == "__main__":
     unittest.main()
 
