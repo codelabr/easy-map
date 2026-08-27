@@ -1603,6 +1603,15 @@ def _plan(args, excel, joined, value_column, scope, prepared, method, bins,
                        f"{wording.count('table.class-count', 'classes', bins['classes'])}"
                        if bins else unknown), "classification"),
         ("labels", wording.label("labels", args.labels), "labels"),
+    ]
+    if args.map_type == "categorized":
+        # Without this row the order is a setting nobody agreed to: the code is
+        # derived from the plan, so a flag outside the plan could be added after
+        # agreement and still draw.
+        rows.append(("category-order",
+                     args.category_order or messages.text("table.alphabetical"),
+                     "category_order"))
+    rows += [
         ("repeated-rows", (wording.label("aggregate", method)
                       if method in wording.VALUES["aggregate"] else unknown), "aggregate"),
         ("output", (f"{args.formats.upper()} {args.dpi} dpi"
@@ -2048,6 +2057,13 @@ def command_render(args: argparse.Namespace) -> None:
                                    args.aggregate)
         issues += guardrails.check_percent_range(values.tolist(), value_info)
         issues += guardrails.check_diverging(values.tolist(), value_info)
+        if args.map_type == "categorized":
+            groups = [v for v in values.tolist() if v is not None and v == v]
+            issues += guardrails.check_category_order(
+                groups,
+                recognised=sem.order_categories(
+                    [str(v) for v in groups]) is not None,
+                stated=bool(args.category_order))
 
     symbol_info = by_name.get(args.symbol_column, {}) if args.symbol_column else {}
     symbols = None
@@ -2295,6 +2311,10 @@ def _build_spec(args, ctx, value_column, value_info, symbol_info, bins,
         "symbol_info": symbol_info,
         "bins": bins, "symbol_scale": symbol_scale,
         "name_field": name_field,
+        "category_order": (classify.stated_order(args.category_order,
+                                                 frame["__value"])
+                           if args.category_order and "__value" in frame.columns
+                           else None),
         "labels": args.labels, "label_fontsize": args.label_fontsize,
         "legend_title": (args.legend_title
                          or (i18n.t(lang, "change_legend") if args.map_type == "change"
@@ -2436,6 +2456,11 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--value-column")
     r.add_argument("--symbol-column")
     r.add_argument("--category-column")
+    r.add_argument("--category-order", metavar="A,B,C",
+                   help="the order the groups of --category-column should be "
+                        "read in, low to high, e.g. --category-order "
+                        "\"Thấp,Trung bình,Cao\". Only needed when the engine "
+                        "says it did not recognise the scale")
     r.add_argument("--baseline-column")
     r.add_argument("--comparison-column")
     r.add_argument("--period-column")

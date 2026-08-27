@@ -300,3 +300,57 @@ class TestALegendCanTellItsOwnClassesApart(unittest.TestCase):
         """Edges too close to separate get the ceiling, not fifteen digits."""
         edges = [1.0, 1.0 + 1e-12, 1.0 + 2e-12]
         self.assertEqual(classify._decimals(edges), classify.MAX_DECIMALS)
+
+
+class TestTheOrderTheCallerWroteOut(unittest.TestCase):
+    """``stated_order``: the remedy the warning proposes."""
+
+    def test_the_groups_come_back_in_the_order_given(self):
+        from emap import classify
+
+        self.assertEqual(
+            classify.stated_order("Xanh,Vàng,Đỏ", ["Đỏ", "Xanh", "Vàng"]),
+            ["Xanh", "Vàng", "Đỏ"])
+
+    def test_spaces_around_the_commas_are_forgiven(self):
+        from emap import classify
+
+        self.assertEqual(classify.stated_order(" Xanh , Vàng ", ["Vàng", "Xanh"]),
+                         ["Xanh", "Vàng"])
+
+    def test_a_group_the_caller_forgot_keeps_its_place_at_the_end(self):
+        """A typo in one name should cost that group its rank, not drop it off
+        the legend - a unit with no colour is worse than one out of order."""
+        from emap import classify
+
+        self.assertEqual(
+            classify.stated_order("Xanh,Vàng", ["Đỏ", "Vàng", "Xanh"]),
+            ["Xanh", "Vàng", "Đỏ"])
+
+    def test_a_name_that_is_not_there_is_simply_ignored(self):
+        from emap import classify
+
+        self.assertEqual(classify.stated_order("Xanh,Tím,Vàng", ["Vàng", "Xanh"]),
+                         ["Xanh", "Vàng"])
+
+    def test_nothing_stated_means_nothing_imposed(self):
+        from emap import classify
+
+        self.assertIsNone(classify.stated_order(None, ["a", "b"]))
+        self.assertIsNone(classify.stated_order("", ["a", "b"]))
+        self.assertIsNone(classify.stated_order("  ,  ", ["a", "b"]))
+
+    def test_the_stated_order_overrides_a_scale_that_was_recognised(self):
+        """The caller is looking at their own data; the table is a guess."""
+        from emap import classify
+
+        cats, _ = classify.category_colours(["Cao", "Thấp"], ["Cao", "Thấp"])
+        self.assertEqual(cats, ["Cao", "Thấp"])
+
+    def test_an_ordered_scale_gets_the_ramp_and_an_unordered_one_does_not(self):
+        from emap import classify
+
+        _, ramp = classify.category_colours(["Cao", "Thấp", "Trung bình"])
+        _, flat = classify.category_colours(["Hà Nội", "Huế", "Đà Nẵng"])
+        self.assertEqual(len(set(ramp.values())), 3)
+        self.assertNotEqual(sorted(ramp.values()), sorted(flat.values()))

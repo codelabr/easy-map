@@ -376,6 +376,30 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                  "side by side.",
         },
     },
+    "categories-not-ordered": {
+        "vi": {
+            "problem": "Không nhận ra thứ tự của {count} nhóm trong cột phân "
+                       "loại: {groups}.",
+            "why": "Khi không nhận ra, các nhóm được xếp theo bảng chữ cái và "
+                   "tô bằng thang màu tăng dần. Chú giải sẽ trông như một thứ "
+                   "hạng, ví dụ 'Cao, Rất cao, Thường quy', trong khi thứ tự "
+                   "ấy chỉ là chữ cái.",
+            "fix": "Nếu các nhóm có thứ tự tự nhiên, nêu thứ tự ấy bằng "
+                   "--category-order \"Thấp,Trung bình,Cao\" (từ thấp đến "
+                   "cao). Nếu chúng thật sự không có thứ tự thì bỏ qua cảnh "
+                   "báo này.",
+        },
+        "en": {
+            "problem": "The order of {count} groups in the category column was "
+                       "not recognised: {groups}.",
+            "why": "Unrecognised groups are sorted alphabetically and shaded "
+                   "with a sequential ramp, so the legend reads as a ranking "
+                   "when the ranking is only the alphabet.",
+            "fix": "If the groups have a natural order, state it with "
+                   "--category-order \"Low,Medium,High\" (low to high). If "
+                   "they genuinely have no order, ignore this.",
+        },
+    },
     "needs-diverging-scale": {
         "vi": {
             WHAT: "Số liệu có cả giá trị tăng và giảm.",
@@ -858,6 +882,8 @@ TEXT: dict[str, dict[str, str]] = {
     "field.legend": {"vi": "Tiêu đề chú giải màu", "en": "Colour legend heading"},
     "field.symbol-legend": {"vi": "Tiêu đề chú giải vòng tròn",
                             "en": "Circle legend heading"},
+    "field.category-order": {"vi": "Thứ tự các nhóm",
+                             "en": "Order of the groups"},
     "field.labels": {"vi": "Nhãn trên bản đồ", "en": "Labels on the map"},
     "field.repeated-rows": {"vi": "Gộp dòng trùng", "en": "Repeated rows"},
     "field.output": {"vi": "Đầu ra", "en": "Output"},
@@ -875,6 +901,10 @@ TEXT: dict[str, dict[str, str]] = {
     "table.class-count": {
         "vi": "{classes} nhóm",
         "en": {ONE: "{classes} class", "many": "{classes} classes"},
+    },
+    "table.alphabetical": {
+        "vi": "theo bảng chữ cái (không nhận ra thứ tự)",
+        "en": "alphabetical (no order recognised)",
     },
     "table.from-the-column": {
         "vi": " — đang lấy nguyên tên cột, chưa phải tiêu đề",

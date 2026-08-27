@@ -439,3 +439,75 @@ class TestADiacriticIsTheOnlyDifference(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPuttingGroupsInTheirOwnOrder(unittest.TestCase):
+    """``order_categories``: a ranking the data has, not one the alphabet has.
+
+    The legend that prompted this read "Cao, Rất cao, Thường quy" - alphabetical
+    order shown with a low-to-high colour ramp, which is a ranking the map
+    invented. Recognising the scale is only half of it; the other half is
+    admitting when it has not been recognised, which ``guardrails`` now does.
+    """
+
+    def test_a_known_vietnamese_scale_is_ordered_by_meaning(self):
+        from emap import semantics as sem
+
+        self.assertEqual(sem.order_categories(["Cao", "Rất cao", "Thường quy"]),
+                         ["Thường quy", "Cao", "Rất cao"])
+
+    def test_english_scales_are_known_too(self):
+        """The map text can be either language, and "Good, High, Low, Medium"
+        is exactly as wrong as its Vietnamese equivalent."""
+        from emap import semantics as sem
+
+        self.assertEqual(sem.order_categories(["High", "Low", "Medium"]),
+                         ["Low", "Medium", "High"])
+        self.assertEqual(sem.order_categories(["Agree", "Strongly agree",
+                                               "Disagree"]),
+                         ["Disagree", "Agree", "Strongly agree"])
+
+    def test_accents_and_capitals_do_not_hide_a_known_scale(self):
+        from emap import semantics as sem
+
+        self.assertIsNotNone(sem.order_categories(["THẤP", "cao", "Trung Bình"]))
+
+    def test_a_rank_written_into_the_label_is_read_off_it(self):
+        """Whoever exported the column already stated the order. Reading it is
+        more reliable than any table of words can be."""
+        from emap import semantics as sem
+
+        self.assertEqual(
+            sem.order_categories(["3) Cao", "1. Thấp", "2 - Trung bình"]),
+            ["1. Thấp", "2 - Trung bình", "3) Cao"])
+        self.assertEqual(sem.order_categories(["C. Tốt", "A. Kém", "B. Khá"]),
+                         ["A. Kém", "B. Khá", "C. Tốt"])
+
+    def test_a_rank_that_repeats_is_not_a_rank(self):
+        """Two groups both numbered 1 cannot be ordered by their numbers, and
+        guessing which came first would be inventing the answer."""
+        from emap import semantics as sem
+
+        self.assertIsNone(sem.order_categories(["1. Thấp", "1. Cao"]))
+
+    def test_the_written_rank_wins_over_the_words(self):
+        """If the export says 1, 2, 3 and the words say otherwise, the export
+        is the one that knows this dataset."""
+        from emap import semantics as sem
+
+        self.assertEqual(sem.order_categories(["1. Cao", "2. Thấp"]),
+                         ["1. Cao", "2. Thấp"])
+
+    def test_genuinely_unordered_groups_return_nothing(self):
+        """Nothing, not a guess. The caller then uses the qualitative palette,
+        which does not imply a ranking."""
+        from emap import semantics as sem
+
+        self.assertIsNone(sem.order_categories(["Hà Nội", "Đà Nẵng", "Cần Thơ"]))
+        self.assertIsNone(sem.order_categories(["Vùng xanh", "Vùng đỏ",
+                                                "Vùng cam"]))
+
+    def test_one_group_is_not_a_scale(self):
+        from emap import semantics as sem
+
+        self.assertIsNone(sem.order_categories(["Cao"]))

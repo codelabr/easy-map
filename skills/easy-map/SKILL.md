@@ -467,11 +467,22 @@ say so, rather than fuzzy-matching district names into the commune list.
 | Instead of | Say |
 |---|---|
 | choropleth | tô màu từng xã theo mức độ, đậm là cao |
-| proportional symbol | vẽ vòng tròn, tròn to là số many |
+| proportional symbol | vẽ vòng tròn, tròn to là số lớn |
 | choropleth + symbol | màu cho biết mức độ, vòng tròn cho biết số lượng thật |
 | categorized | mỗi nhóm một màu riêng |
 | change map | màu hai chiều: một phía tăng, một phía giảm |
 | point map | chấm đúng vị trí từng cơ sở theo toạ độ |
+
+**A categorised map may warn that it could not order the groups.** The engine
+knows the common scales in both languages (thấp/trung bình/cao, poor…excellent,
+a Likert row) and reads a rank the export wrote into the label itself (`1. Thấp`,
+`A) Kém`). Anything else is sorted alphabetically and shaded with a low-to-high
+ramp, which shows a ranking the data does not have — so it says so, and names
+the groups. If they do have an order, pass it low to high:
+`--category-order "Vùng xanh,Vùng vàng,Vùng cam,Vùng đỏ"`. If they genuinely
+have none, say so to the user and leave it: the qualitative palette is then the
+right answer and the warning can be ignored. The order is a row of the plan, so
+changing it changes the confirmation code.
 
 A point map carries the same two channels as an area map, chosen by the same
 rule: `--point-color-column` takes a **category** (loại cơ sở, mức ưu tiên) and

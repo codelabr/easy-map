@@ -284,12 +284,41 @@ def _pack(semantic: str, column: str, unit: str, **extra: Any) -> dict[str, Any]
 
 #: Vietnamese scales that look like plain categories but are actually ordered.
 #: Showing these alphabetically ("Cao, Rất cao, Thường quy") misreads the data.
+#: Ordered scales, written low to high, accent-stripped. English rows sit
+#: beside the Vietnamese ones because the map text can be either and a column
+#: of English grades is no more orderable by alphabet than a Vietnamese one:
+#: "Good, High, Low, Medium" is what the fallback produces.
 ORDINAL_SCALES = [
     ["thuong quy", "rat thap", "thap", "trung binh", "kha", "cao", "rat cao", "khan cap"],
     ["chua dat", "dat", "vuot"],
     ["kem", "yeu", "trung binh", "kha", "tot", "rat tot"],
     ["khong", "mot phan", "toan bo"],
+    # how often, and how urgent — both common in programme reporting
+    ["khong bao gio", "hiem khi", "thinh thoang", "thuong xuyen", "luon luon"],
+    ["thap", "trung binh", "cao", "khan cap"],
+    # agreement, the shape most survey exports arrive in
+    ["rat khong dong y", "khong dong y", "trung lap", "dong y", "rat dong y"],
+    ["routine", "very low", "low", "medium", "high", "very high", "urgent"],
+    ["not met", "met", "exceeded"],
+    ["poor", "weak", "fair", "good", "very good", "excellent"],
+    ["none", "partial", "full"],
+    ["never", "rarely", "sometimes", "often", "always"],
+    ["strongly disagree", "disagree", "neutral", "agree", "strongly agree"],
 ]
+
+#: A label that opens with its own rank: ``1. Thấp``, ``2 - Trung bình``,
+#: ``A) Kém``. Whoever exported the column already stated the order; reading it
+#: off is more reliable than any table of words could be.
+_RANKED = re.compile(r"^\s*(\d{1,2}|[a-zA-Z])\s*[.)\-–:]\s*\S")
+
+
+def _rank(label: str) -> tuple[int, str] | None:
+    match = _RANKED.match(str(label))
+    if not match:
+        return None
+    mark = match.group(1)
+    return ((int(mark), "") if mark.isdigit()
+            else (ord(mark.lower()) - ord("a"), ""))
 
 
 def order_categories(values: Sequence[Any]) -> list[str] | None:
@@ -301,7 +330,14 @@ def order_categories(values: Sequence[Any]) -> list[str] | None:
     labels = [str(v) for v in dict.fromkeys(values)]
     if len(labels) < 2:
         return None
-    keys = {label: deaccent(label).strip() for label in labels}
+
+    # a rank the exporter wrote into the label itself outranks any guess
+    ranks = {label: _rank(label) for label in labels}
+    if all(r is not None for r in ranks.values()):
+        if len({r[0] for r in ranks.values()}) == len(labels):
+            return sorted(labels, key=lambda label: ranks[label][0])
+
+    keys = {label: deaccent(label).strip().lower() for label in labels}
     for scale in ORDINAL_SCALES:
         if all(keys[label] in scale for label in labels):
             return sorted(labels, key=lambda label: scale.index(keys[label]))

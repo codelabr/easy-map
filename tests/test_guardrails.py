@@ -339,5 +339,52 @@ class TestEveryWarningSpeaksBothLanguages(unittest.TestCase):
                                         f"{key}/{lang}: no {field}")
 
 
+class TestGroupsWhoseOrderNobodyKnows(unittest.TestCase):
+    """``check_category_order``: say so rather than shipping the alphabet."""
+
+    def test_an_unrecognised_scale_is_a_warning(self):
+        found = g.check_category_order(["Vùng xanh", "Vùng đỏ", "Vùng cam"],
+                                       recognised=False, stated=False)
+        self.assertEqual(found[0]["id"], "categories-not-ordered")
+        self.assertEqual(found[0]["severity"], g.WARNING)
+
+    def test_a_recognised_scale_is_quiet(self):
+        self.assertEqual(
+            g.check_category_order(["Thấp", "Trung bình", "Cao"],
+                                   recognised=True, stated=False), [])
+
+    def test_an_order_the_caller_stated_is_quiet(self):
+        """They have answered the question; repeating it would train them to
+        skip warnings."""
+        self.assertEqual(
+            g.check_category_order(["Vùng xanh", "Vùng đỏ", "Vùng cam"],
+                                   recognised=False, stated=True), [])
+
+    def test_two_groups_need_no_order(self):
+        """Any order of two is a pair, and the legend shows which is which."""
+        self.assertEqual(
+            g.check_category_order(["Có", "Không"], recognised=False,
+                                   stated=False), [])
+
+    def test_the_groups_are_named_so_the_reader_can_rank_them(self):
+        found = g.check_category_order(["Vùng xanh", "Vùng đỏ", "Vùng cam"],
+                                       recognised=False, stated=False)
+        self.assertEqual(found[0]["groups"],
+                         ["Vùng xanh", "Vùng đỏ", "Vùng cam"])
+        self.assertIn("Vùng xanh", found[0]["problem"])
+
+    def test_the_remedy_names_the_flag_that_exists(self):
+        for lang in msg.LANGUAGES:
+            with self.subTest(lang=lang):
+                found = g.check_category_order(["a", "b", "c"], recognised=False,
+                                               stated=False, lang=lang)
+                self.assertIn("--category-order", found[0]["fix"])
+
+    def test_repeats_are_counted_once(self):
+        found = g.check_category_order(["a", "b", "a", "c", "b"],
+                                       recognised=False, stated=False)
+        self.assertIn("3", found[0]["problem"])
+
+
 if __name__ == "__main__":
     unittest.main()

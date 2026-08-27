@@ -269,6 +269,29 @@ def check_symbol_occlusion(max_radius_m: float, median_unit_width_m: float,
     return [_issue("circles-hide-areas", WARNING, lang=lang)]
 
 
+def check_category_order(labels: Sequence[Any], recognised: bool,
+                         stated: bool, lang: str | None = None
+                         ) -> list[dict[str, Any]]:
+    """Groups the engine could not put in order, and did not say so.
+
+    A legend reading "Cao, Rất cao, Thường quy" is alphabetical order shown as
+    though it were a ranking, and it looks entirely deliberate — that exact
+    legend shipped once. The engine cannot know every scale a programme uses,
+    so where it does not recognise one it says which groups it could not
+    order, and how to state the order itself.
+
+    Two categories need no warning: any order of two is a pair, and the reader
+    can see which is which from the legend.
+    """
+    names = [str(v) for v in dict.fromkeys(labels)]
+    if recognised or stated or len(names) < 3:
+        return []
+    return [_issue("categories-not-ordered", WARNING, lang=lang,
+                   counts=len(names),
+                   fmt={"count": len(names), "groups": ", ".join(names[:6])},
+                   extra={"groups": names[:24]})]
+
+
 def check_diverging(values: Sequence[float], column_info: dict[str, Any],
                     lang: str | None = None) -> list[dict[str, Any]]:
     if column_info.get("semantic") != sem.POINT:

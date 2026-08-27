@@ -144,7 +144,8 @@ def draw(deps, *, frame, spec: dict[str, Any], fonts: dict[str, str],
         legend_pairs = list(zip(colours, classify.bin_labels(edges, info, lang)))
         remember(has_data, fills)
     elif map_type == "categorized" and len(has_data):
-        cats, mapping = classify.category_colours(has_data[value_col])
+        cats, mapping = classify.category_colours(has_data[value_col],
+                                                  spec.get("category_order"))
         fills = [mapping[str(v)] for v in has_data[value_col]]
         data_layer = paint(has_data, color=fills, edgecolor=INTERNAL_EDGE,
                            linewidth=0.55, zorder=2)

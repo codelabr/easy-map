@@ -51,7 +51,25 @@ def palette(classes: int, diverging: bool = False) -> list[str]:
     return list(table[classes])
 
 
-def category_colours(values) -> tuple[list[str], dict[str, str]]:
+def stated_order(setting: str | None, values) -> list[str] | None:
+    """The order the caller wrote out, matched against the groups present.
+
+    Names the caller did not mention keep alphabetical order after the ones
+    they did, rather than disappearing: a typo in one name should cost that
+    one group its place, not drop it off the legend.
+    """
+    if not setting:
+        return None
+    wanted = [w.strip() for w in str(setting).split(",") if w.strip()]
+    if not wanted:
+        return None
+    present = list(dict.fromkeys(str(v) for v in values))
+    rank = {name: i for i, name in enumerate(wanted)}
+    return sorted(present, key=lambda label: (rank.get(label, len(rank)), label))
+
+
+def category_colours(values, order: list[str] | None = None
+                     ) -> tuple[list[str], dict[str, str]]:
     """Colours for a set of category labels, in the order they should be read.
 
     A scale with an order — "thấp, trung bình, cao" — gets the sequential ramp
@@ -66,7 +84,7 @@ def category_colours(values) -> tuple[list[str], dict[str, str]]:
     from . import semantics as sem
 
     labels = [str(v) for v in values]
-    ordered = sem.order_categories(labels)
+    ordered = order or sem.order_categories(labels)
     if ordered:
         ramp = palette(len(ordered))
         return list(ordered), {c: ramp[i] for i, c in enumerate(ordered)}
