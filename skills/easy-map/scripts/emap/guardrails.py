@@ -269,6 +269,46 @@ def check_symbol_occlusion(max_radius_m: float, median_unit_width_m: float,
     return [_issue("circles-hide-areas", WARNING, lang=lang)]
 
 
+#: Below this share of units carrying a name, the map is not a labelled map
+#: with gaps — it is an unlabelled map with a few names on it, and the reader
+#: has no way to tell which rule chose them.
+NAMED_ENOUGH = 0.6
+
+
+def check_labels(report: dict[str, Any], in_frame: int,
+                 lang: str | None = None) -> list[dict[str, Any]]:
+    """Units the map could not name, and what to do instead.
+
+    Measured on 126 Hà Nội communes: 35 were lettered, 81 never reached the
+    placement because of the label ceiling, and 10 more found nowhere to sit.
+    Nothing said so. The reader gets a commune map where three quarters of the
+    units have no name and no indication that any are missing — and the ones
+    that *are* named look chosen, because a reader cannot see a ceiling.
+
+    This is not a placement bug to be optimised away. Inner Hà Nội holds some
+    thirty communes in a couple of hundred pixels, and a name is sixty pixels
+    wide: no arrangement fits them. The honest response is to say so and offer
+    the three things that do help — fewer names, smaller type, or a tighter
+    frame.
+    """
+    drawn = int(report.get("drawn", 0))
+    # an empty frame falls out here too: nothing can be drawn from no units
+    if drawn >= in_frame:
+        return []
+    share = drawn / in_frame
+    if share >= NAMED_ENOUGH:
+        return []
+    crowded = len(report.get("dropped_no_room", []))
+    return [_issue(
+        "few-labels", WARNING if share >= 0.25 else CRITICAL, lang=lang,
+        counts=drawn,
+        fmt={"drawn": drawn, "in_frame": in_frame, "share": f"{share:.0%}",
+             "crowded": crowded},
+        extra={"labels_drawn": drawn, "units_in_frame": in_frame,
+               "share_named": round(share, 4), "crowded_out": crowded},
+    )]
+
+
 def check_category_order(labels: Sequence[Any], recognised: bool,
                          stated: bool, lang: str | None = None
                          ) -> list[dict[str, Any]]:

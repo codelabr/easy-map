@@ -2199,6 +2199,11 @@ def command_render(args: argparse.Namespace) -> None:
             issues_ctx += guardrails.check_symbol_occlusion(
                 max(radii) if radii else 0.0, render.median_feature_width(frame))
 
+        # Only known once the labels have been placed: the placement measures
+        # the real text, so how many fitted cannot be predicted from the data.
+        if args.labels != "off":
+            issues_ctx += guardrails.check_labels(result["labels"], len(frame))
+
         family, base = map_basename(args, value_column, ctx)
         # the page needs the live axes, so capture before save() closes the figure
         if not args.no_html:

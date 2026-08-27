@@ -400,6 +400,41 @@ ISSUES: dict[str, dict[str, dict[str, str]]] = {
                    "they genuinely have no order, ignore this.",
         },
     },
+    "few-labels": {
+        "vi": {
+            "problem": "Chỉ {drawn}/{in_frame} đơn vị trong khung có tên trên "
+                       "bản đồ ({share}); {crowded} đơn vị nữa không tìm được "
+                       "chỗ đặt tên.",
+            "why": "Người đọc không nhìn thấy được trần số nhãn, nên các đơn vị "
+                   "có tên trông như đã được chọn ra vì một lý do nào đó. Ở khu "
+                   "vực dày đặc thì không có cách sắp xếp nào nhét vừa: một cái "
+                   "tên rộng chừng sáu mươi điểm ảnh, mà nội thành có hàng chục "
+                   "đơn vị trong vài trăm điểm ảnh.",
+            "fix": "Chọn một trong ba: (1) --labels off, một bản đồ không tên "
+                   "trung thực hơn một bản đồ có vài tên; (2) --label-fontsize "
+                   "6.5 để chữ nhỏ lại và vừa được nhiều hơn; (3) thu hẹp khung "
+                   "bản đồ, ví dụ --map-scope province-series hoặc "
+                   "single-province, để mỗi tấm có chỗ. Nếu chấp nhận như hiện "
+                   "tại thì nói rõ với người đọc rằng chỉ một phần đơn vị được "
+                   "ghi tên.",
+        },
+        "en": {
+            "problem": "Only {drawn} of the {in_frame} units in the frame carry "
+                       "a name ({share}); {crowded} more found nowhere to put "
+                       "one.",
+            "why": "A reader cannot see the label ceiling, so the units that do "
+                   "have names look as though they were chosen for a reason. In "
+                   "a dense area no arrangement fits them all: a name is some "
+                   "sixty pixels wide and an inner city packs dozens of units "
+                   "into a few hundred.",
+            "fix": "Pick one of three: (1) --labels off, since an unlabelled "
+                   "map is more honest than a partly labelled one; (2) "
+                   "--label-fontsize 6.5, so smaller type fits more; (3) a "
+                   "tighter frame, such as --map-scope province-series or "
+                   "single-province, so each sheet has room. If you keep it as "
+                   "it is, tell the reader that only some units are named.",
+        },
+    },
     "needs-diverging-scale": {
         "vi": {
             WHAT: "Số liệu có cả giá trị tăng và giảm.",

@@ -14,6 +14,7 @@ being marks on a map and start being the map.
 
 from __future__ import annotations
 
+import pathlib
 import unittest
 
 import context  # noqa: F401  (path bootstrap)
@@ -384,6 +385,119 @@ class TestGroupsWhoseOrderNobodyKnows(unittest.TestCase):
         found = g.check_category_order(["a", "b", "a", "c", "b"],
                                        recognised=False, stated=False)
         self.assertIn("3", found[0]["problem"])
+
+
+class TestAMapThatCouldNotNameItsUnits(unittest.TestCase):
+    """``check_labels``: the reader cannot see the ceiling, so say where it fell.
+
+    Measured on 126 Hà Nội communes: 35 lettered, 81 never reached placement
+    because of the label ceiling, 10 more found nowhere to sit — and the only
+    warning on that run was about colouring by a count. A reader gets a commune
+    map with three quarters of the units unnamed and nothing saying so, which
+    makes the named quarter look chosen.
+    """
+
+    def report(self, drawn, crowded=0):
+        return {"drawn": drawn, "moved": 0, "skipped": [],
+                "dropped_no_room": ["x"] * crowded, "name_only": []}
+
+    def test_a_fully_lettered_map_says_nothing(self):
+        self.assertEqual(g.check_labels(self.report(34), 34), [])
+
+    def test_a_map_naming_most_of_its_units_says_nothing(self):
+        """Some gaps are normal and the reader can see the map is crowded. The
+        line is where the named units stop looking like the rule and start
+        looking like a selection."""
+        self.assertEqual(g.check_labels(self.report(21), 34), [])
+
+    def test_naming_a_quarter_of_them_is_a_warning(self):
+        found = g.check_labels(self.report(35, crowded=10), 126)
+        self.assertEqual(found[0]["id"], "few-labels")
+        self.assertEqual(found[0]["severity"], g.WARNING)
+        self.assertEqual(found[0]["share_named"], round(35 / 126, 4))
+
+    def test_naming_almost_none_of_them_is_critical(self):
+        """Two different judgements, not one with a margin: a partly labelled
+        map is a caveat, a map with five names on two hundred units is a
+        different map."""
+        self.assertEqual(g.check_labels(self.report(5), 200)[0]["severity"],
+                         g.CRITICAL)
+        self.assertEqual(g.check_labels(self.report(50), 200)[0]["severity"],
+                         g.WARNING)
+
+    def test_the_sentence_carries_both_counts_and_the_share(self):
+        found = g.check_labels(self.report(35, crowded=10), 126)[0]
+        self.assertIn("35", found["problem"])
+        self.assertIn("126", found["problem"])
+        self.assertIn("28%", found["problem"])
+
+    def test_the_ones_that_found_nowhere_are_counted_separately(self):
+        """Hitting the ceiling and finding no room are different faults with
+        different answers: one wants fewer names, the other smaller type."""
+        found = g.check_labels(self.report(35, crowded=10), 126)[0]
+        self.assertEqual(found["crowded_out"], 10)
+
+    def test_an_empty_frame_is_not_a_division_by_zero(self):
+        """No separate guard for it: nothing can be drawn from no units, so
+        ``drawn >= in_frame`` returns before the division. Pinned because the
+        arithmetic is easy to rearrange into a crash."""
+        self.assertEqual(g.check_labels(self.report(0), 0), [])
+
+    def test_the_remedies_are_flags_that_exist(self):
+        """A warning proposing a flag the command does not accept is worse than
+        no warning: the reader tries it and the run stops."""
+        for lang in msg.LANGUAGES:
+            with self.subTest(lang=lang):
+                fix = g.check_labels(self.report(35, crowded=10), 126,
+                                     lang=lang)[0]["fix"]
+                for flag in ("--labels off", "--label-fontsize", "--map-scope"):
+                    self.assertIn(flag, fix)
+
+
+class TestEveryCheckIsActuallyCalled(unittest.TestCase):
+    """A guardrail nobody calls is a guardrail that never fires.
+
+    Every test above proves a check *would* fire. None of them proves the
+    command asks it to. Deleting the call site of ``check_labels`` left the
+    whole suite green — the same shape of hole as a test that restates a rule
+    and then checks only itself.
+    """
+
+    def _called(self) -> set:
+        """Every ``check_*`` called anywhere in the engine.
+
+        Not just from ``easy_map``: the first version of this looked there
+        alone and reported ``check_periods`` as dead, when it is called from
+        ``profile`` — the warning belongs to reading the workbook, not to
+        drawing. ``check_spread`` is called from inside ``guardrails`` itself.
+        A check is wired if *something* calls it.
+        """
+        import ast
+
+        root = pathlib.Path(g.__file__).resolve().parent
+        names = set()
+        for path in list(root.glob("*.py")) + [root.parent / "easy_map.py"]:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                func = node.func
+                if isinstance(func, ast.Attribute):
+                    names.add(func.attr)
+                elif isinstance(func, ast.Name):
+                    names.add(func.id)
+        return names
+
+    def test_no_check_is_written_and_left_unwired(self):
+        """A guardrail nobody calls is indistinguishable from one that never
+        fires, and it passes every test above."""
+        written = {name for name in dir(g) if name.startswith("check_")}
+        self.assertTrue(written)
+        missing = sorted(written - self._called())
+        self.assertEqual(missing, [], f"never called anywhere: {missing}")
+
+    def test_the_summary_is_what_the_run_reports_through(self):
+        self.assertIn("summarize", self._called())
 
 
 if __name__ == "__main__":
