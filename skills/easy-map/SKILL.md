@@ -504,9 +504,13 @@ rule: `--point-color-column` takes a **category** (loại cơ sở, mức ưu ti
 round — sizing dots by a category invents an order the data does not have.
 Dots use the same scale as their key, so the key is true for its own map.
 
-**Known defect**: with long category labels the colour key runs out of its
-column and lies across the map. `overflow` reports it; shorten the group names
-in the workbook, or leave `--point-color-column` off, until this is fixed.
+A point map's key is drawn into the same side column an area map uses. That
+column used to collapse to a hairline on point maps — the condition that keeps
+it had never been told about the two channels a point map uses — and the key
+landed across the map whatever its labels said. Fixed, and `overflow` now
+reports a collapsed column once, naming the column, rather than once per label:
+the old report read as "these captions are too long" and sent three attempts
+into shortening them.
 
 **If the user already states what they want** — "vẽ cho tôi bản đồ tỷ lệ tiêm chủng cấp xã của Nghệ An, khổ dọc, chú giải 4 nhóm" — do not walk them through the interview. Confirm the parts you could not infer, note anything scientifically risky, and render.
 
@@ -681,7 +685,7 @@ It does not touch the map, and it does not touch file names.
 
 ### `--language vi|en` — the map
 
-`--language vi|en` sets every string the script generates itself: the kicker, the automatic insight sentence, "Chưa có số liệu"/"No data", the source and method footer, and the north arrow letter (`B`/`N`). The chosen code is appended to every file name — `ten-ban-do_vi.png`, `map-name_en.png` — so both editions of one map can live in the same folder.
+`--language vi|en` sets every string the script generates itself: the kicker, the automatic insight sentence, "Chưa có số liệu"/"No data", the source and method footer, and the north arrow letter (`B`/`N`). The chosen code is appended to every file name, after the layout — `ten-ban-do_report_vi.png`, `map-name_banner_en.png` — so both editions of one map, in either layout, can live in the same folder without overwriting each other.
 
 It also sets **both digit separators**: Vietnamese groups thousands with a dot
 and marks the decimal with a comma (`35.156`, `99,74%`), English does the
@@ -889,14 +893,14 @@ than extent. Say so if a reader asks why the islands look bigger there.
 
 Do not fight these; they exist because each one was a real defect:
 
-- Merriweather for headlines and Open Sans for everything else, both bundled in `assets/fonts`. If a font fails to load the run **stops** rather than substituting Arial.
+- A serif for headlines and Open Sans for everything else, both bundled in `assets/fonts`. The serif's family name is **EasyMap Serif** — the subset may not carry its upstream name. If a font fails to load the run **stops** rather than substituting Arial.
 - One sequential blue ramp, light to dark, and a pink-to-blue diverging ramp for change. Never rainbow, never red/green.
 - Count legends use whole numbers only.
 - Percent and rate-per-capita are labelled differently; a rate per 100.000 never gets a `%`.
 - Class breaks that would be empty or meaninglessly narrow are merged, and the adjustment is reported.
 - All maps in one job share breaks and symbol scale, so the same blue and the same circle mean the same thing on every sheet.
 - Symbol area, not diameter, follows the value.
-- Labels are placed by measuring the real text box, trying eight positions, and drawing a leader only when the label had to move.
+- A label is tried **on its unit's own anchor point first**, then outward through five rings of eight positions, every one measured against the real rendered text box. A leader line is drawn when nothing else says which unit the name belongs to: when the text neither covers the anchor nor rests against a drawn symbol.
 - Grey always means "chưa có số liệu", stated in the footer.
 
 Read `references/cartographic-style.md` and `references/layout-system.md` before changing anything visual.
@@ -1019,7 +1023,7 @@ the unit. Escape, the close button or a click on the wash all fly it back.
 
 Two things follow from how it is built, and both are worth saying to the user rather than letting them discover it:
 
-- Embedded images are **150 dpi, sized for a screen**. The `.png` files beside the page are the print-quality ones. Zooming past roughly 3× starts to soften the map's own labels.
+- Embedded images are **300 dpi**, so the map holds up when zoomed. The zoom ceiling is computed from the image's own resolution against the window rather than fixed, and stops 1.5× past native — so the reader is stopped near where softening would begin instead of running into it. The `.png` files beside the page remain the ones to print.
 - Zoom magnifies the whole plate, title and legend included, because the page shows the rendered map rather than redrawing it. That is the cost of keeping the design and the bundled fonts exactly as they appear in print.
 
 ## Before you hand over

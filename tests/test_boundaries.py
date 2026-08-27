@@ -1154,7 +1154,13 @@ class TestNoticingLandFarFromTheRest(unittest.TestCase):
 
 
 class TestPrintingAMapInAnyLanguage(unittest.TestCase):
-    """Two languages are built in; any language can be printed."""
+    """Two languages are built in; any *Latin-script* language can be printed.
+
+    The limit is the packaged typeface, not this table: it holds no Greek,
+    Cyrillic, Thai or Han, and ``fonts.undrawable`` stops the run rather than
+    lettering a plate in empty boxes. The examples below are Romanian for that
+    reason.
+    """
 
     def tearDown(self):
         i18n.use(None)

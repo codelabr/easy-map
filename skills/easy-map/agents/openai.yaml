@@ -22,7 +22,7 @@ description: >-
   đề xuất loại bản đồ phù hợp bằng ngôn ngữ thường ngày, ghép tên địa danh không
   cần mã hành chính, cảnh báo khi lựa chọn sai về bản đồ học, rồi xuất ảnh PNG
   kèm một trang HTML tương tác tự chứa vào thư mục output/ theo dấu thời gian
-  của yêu cầu. Trò chuyện bằng tiếng Việt hoặc tiếng Anh; chữ in trên bản đồ thì
-  ngôn ngữ nào cũng được.
+  của yêu cầu. Trò chuyện bằng tiếng Việt hoặc tiếng Anh; chữ in trên bản đồ
+  dùng được mọi ngôn ngữ viết bằng chữ Latinh.
 instructions: SKILL.md
 entrypoint: scripts/easy_map.py

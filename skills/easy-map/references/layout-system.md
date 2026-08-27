@@ -15,7 +15,7 @@ encodes data, decodes the encoding, or credits the source.
 
 ## `report`
 
-Print-first. Thin primary-blue rule across the top, Merriweather headline, legend
+Print-first. Thin primary-blue rule across the top, serif headline, legend
 column on the left, map right-aligned beside it.
 
 Use for documents that will be printed or pasted into a report.
@@ -53,17 +53,26 @@ and the locator overlap.
 - "Chưa có số liệu" is always the last row when any area is unfilled.
 - Symbol keys are drawn with `scatter`, not circle patches, so they stay circular
   on a non-square axes.
-- The locator is sized to Vietnam's 1:2.2 bounding box and clamped above the
-  footer rule; if there is no room it is dropped rather than drawn over text.
+- The locator box takes its shape from the country being drawn, measured from
+  the frame and clamped to between 0.2 and 5.0 tall for its width. It used to be
+  a fixed 2.2, called Vietnam's bounding box: Vietnam's own frame is 1.10, so the
+  box was twice as tall as its contents even for the country it was measured for.
+  It is clamped above the footer rule; if there is no room it is dropped rather
+  than drawn over text.
 
 ## Labels
 
 - Default to labelling only units that carry data, with the value under the name.
-- Eight candidate positions per label, measured against the real rendered text
-  box, then three distance rings.
-- A leader line is drawn only when the label could not stay adjacent to its
-  feature, and it ends on the edge of the text box nearest the feature.
-- Beyond ~45 labels the lowest-ranked ones are dropped and reported rather than
+- **The name is tried on the unit's own anchor point first**, centred, the way an
+  atlas sets it — a name sitting on its unit needs no explaining. Only if that
+  collides does it step outward through five rings of eight candidate positions
+  each, every one measured against the real rendered text box.
+- **A leader line is drawn when nothing else says which unit the name belongs
+  to** — that is, when the text box neither covers the anchor nor rests against a
+  drawn symbol. Where a proportional circle is drawn, the circle marks the place
+  and a name against it reads as its own. The line ends on the edge of the text
+  box nearest the feature.
+- Beyond 45 labels the lowest-ranked ones are dropped and reported rather than
   overplotted.
 
 ## Suppression

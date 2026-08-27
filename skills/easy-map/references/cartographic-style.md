@@ -16,10 +16,12 @@ Use this reference whenever rendering a final map. It translates official CDC we
 
 ## Typography
 
-- CDC pairs **Merriweather** for headlines with **Open Sans** for everything else.
-  Both are bundled in `assets/fonts` (Open Sans Regular/SemiBold/Bold, Merriweather
-  Regular/Bold), instantiated from the upstream variable fonts with full Vietnamese
-  coverage.
+- The house style pairs a serif for headlines with **Open Sans** for everything
+  else. Both are bundled in `assets/fonts` (Open Sans Regular/SemiBold/Bold, and
+  the serif as `EasyMapSerif-Regular/Bold`), instantiated from the upstream
+  variable fonts with full Vietnamese coverage. **Ask for the family by the name
+  the file carries — `EasyMap Serif`, not the upstream name.** The subset may not
+  use the upstream name; see `THIRD-PARTY-NOTICES.md`.
 - There is **no fallback chain**. If the packaged fonts cannot be registered the run
   raises instead of substituting Arial — silently shipping the wrong typeface is what
   made earlier output look generic.
