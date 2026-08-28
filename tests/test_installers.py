@@ -49,6 +49,42 @@ class TestTheTwoStayInStep(unittest.TestCase):
     defect that only shows up on the platform nobody tested on.
     """
 
+    def test_neither_asserts_the_pre_migration_folder_names(self):
+        """A correct install must not be told it is broken.
+
+        Both installers used to check that the boundary root held folders called
+        ``provinces`` and ``communes`` -- the layout from before one folder per
+        country. Run against a correct install of ``viet-nam/province`` and
+        ``viet-nam/commune``, both reported *neither* folder present, in yellow,
+        as the last thing the user saw before being told the install had
+        succeeded. Measured on this machine, not reasoned about.
+
+        Those names are still legitimate elsewhere: ``dataio.LEGACY_TIERS``
+        knows them because it migrates them. What is wrong is treating them as
+        the shape a boundary root *must* have, when tier folder names are the
+        user's to choose and the engine decides the tier by counting features.
+        """
+        for path in (POWERSHELL, SHELL):
+            text = path.read_text(encoding="utf-8")
+            # comments explain the old check; the code must not perform it
+            code = "\n".join(line for line in text.splitlines()
+                             if not line.lstrip().startswith(("#", "//")))
+            with self.subTest(installer=path.name):
+                for legacy in ("'provinces'", '"provinces"', "provinces communes"):
+                    self.assertNotIn(
+                        legacy, code,
+                        f"{path.name} still requires a folder called "
+                        f"'provinces'. Check for a boundary file instead.")
+
+    def test_both_look_for_a_boundary_file_instead(self):
+        """The replacement, pinned: the check is about file types, not names."""
+        for path in (POWERSHELL, SHELL):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(installer=path.name):
+                for suffix in (".shp", ".geojson", ".kml"):
+                    self.assertIn(suffix, text,
+                                  f"{path.name} does not look for {suffix}")
+
     def test_they_want_the_same_python(self):
         ps = re.search(r"\$WantPython\s*=\s*'([\d.]+)'", POWERSHELL.read_text(encoding="utf-8"))
         sh = re.search(r'WANT_PYTHON="([\d.]+)"', SHELL.read_text(encoding="utf-8"))

@@ -296,17 +296,25 @@ fi
 
 if [ -z "$SHAPEFILES" ] && [ "$QUIET" = 0 ]; then
   printf '\nWhere are the administrative boundary shapefiles?\n'
-  printf '  A folder holding provinces/ and communes/. Press Enter to skip;\n'
-  printf '  see shapefiles/README.md for what is needed and where to get it.\n'
+  printf '  The root holding one folder per country, e.g. viet-nam/province/.\n'
+  printf '  Press Enter to skip; see shapefiles/README.md for what is needed.\n'
   read -r -p "Path: " SHAPEFILES
 fi
 
 if [ -n "$SHAPEFILES" ]; then
   SHAPEFILES="${SHAPEFILES/#\~/$HOME}"
   SHAPEFILES="$(cd "$SHAPEFILES" 2>/dev/null && pwd || echo "$SHAPEFILES")"
-  for sub in provinces communes; do
-    [ -d "$SHAPEFILES/$sub" ] || printf '  warning: %s has no %s subfolder. Recorded anyway.\n' "$SHAPEFILES" "$sub"
-  done
+  # Look for a boundary FILE, not for two particular folder names. This used to
+  # test for 'provinces' and 'communes', which were the folder names before the
+  # layout became one folder per country: a correct install of viet-nam/province
+  # and viet-nam/commune was told it had neither, as the last thing the user
+  # saw. Tier folder names are the user's to choose anyway -- the engine decides
+  # which tier is the coarser one by counting features, never by reading the
+  # name -- so a name is not a thing worth asserting.
+  if ! find "$SHAPEFILES" -maxdepth 3 \( -iname '*.shp' -o -iname '*.geojson' \
+       -o -iname '*.json' -o -iname '*.kml' \) 2>/dev/null | read -r _; then
+    printf '  warning: no boundary file (.shp, .geojson or .kml) under %s. Recorded anyway; the engine will say so when it draws.\n' "$SHAPEFILES"
+  fi
   # A login shell reads one of these; append to whichever exists, else the one
   # the platform's default shell uses.
   profile="$HOME/.zshrc"

@@ -330,17 +330,24 @@ if (-not $Shapefiles -and -not $SkipShapefiles) {
 if (-not $Shapefiles -and -not $Quiet) {
   Write-Host ''
   Write-Host "Where are the administrative boundary shapefiles?"
-  Write-Host "  A folder holding provinces\ and communes\. Press Enter to skip;"
-  Write-Host "  see shapefiles\README.md for what is needed and where to get it."
+  Write-Host "  The root holding one folder per country, e.g. viet-nam\province\."
+  Write-Host "  Press Enter to skip; see shapefiles\README.md for what is needed."
   $Shapefiles = (Read-Host "Path").Trim('"', ' ')
 }
 if ($Shapefiles) {
   $Shapefiles = [IO.Path]::GetFullPath($Shapefiles)
-  $missing = @('provinces', 'communes') |
-             Where-Object { -not (Test-Path (Join-Path $Shapefiles $_)) }
-  if ($missing) {
-    Write-Host ("  warning: {0} has no {1} subfolder. Recorded anyway; the engine will say so when it draws." -f
-                $Shapefiles, ($missing -join ' or ')) -ForegroundColor Yellow
+  # Look for a boundary FILE, not for two particular folder names. This used to
+  # test for 'provinces' and 'communes', which were the folder names before the
+  # layout became one folder per country: a correct install of viet-nam\province
+  # and viet-nam\commune was told it had neither, in yellow, as the last thing
+  # the user saw. Tier folder names are the user's to choose anyway -- the
+  # engine decides which tier is the coarser one by counting features, never by
+  # reading the name -- so a name is not a thing worth asserting.
+  $layers = Get-ChildItem $Shapefiles -Recurse -Depth 2 -File -ErrorAction SilentlyContinue |
+            Where-Object { @('.shp', '.geojson', '.json', '.kml') -contains $_.Extension.ToLower() }
+  if (-not $layers) {
+    Write-Host ("  warning: no boundary file (.shp, .geojson or .kml) under {0}. Recorded anyway; the engine will say so when it draws." -f
+                $Shapefiles) -ForegroundColor Yellow
   }
   [Environment]::SetEnvironmentVariable('EASY_MAP_SHAPEFILES', $Shapefiles, 'User')
   $env:EASY_MAP_SHAPEFILES = $Shapefiles
