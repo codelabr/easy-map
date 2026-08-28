@@ -1923,6 +1923,10 @@ def command_render(args: argparse.Namespace) -> None:
 
     country = getattr(args, "country", None)
     tier = dataio.resolve_tier(root, args.admin_level, country=country)
+    # the resolved name, not the flag: with one country installed the flag is
+    # allowed to be absent, and everything downstream needs a name rather than
+    # None. Reading it back off the tier also costs no second lookup.
+    country = tier["country"]
     admin_level = tier["role"]
     # Set before a single string is looked up, so nothing is drawn in one
     # language and labelled in another.
@@ -2041,6 +2045,18 @@ def command_render(args: argparse.Namespace) -> None:
     if args.map_type == "change":
         if not (args.baseline_column and args.comparison_column):
             raise SystemExit(messages.text("error.change-needs-two-columns"))
+        # Named but absent is the mistake people actually make, and it used to
+        # reach pandas: `KeyError: '2026'`, which tells a reader nothing. A
+        # table with a period column especially invites writing a year here,
+        # because a year is what the two figures differ by -- but these flags
+        # take columns, and the period is chosen with --period.
+        for flag, column in (("--baseline-column", args.baseline_column),
+                             ("--comparison-column", args.comparison_column)):
+            if column not in joined.columns:
+                raise SystemExit(messages.text(
+                    "error.change-unknown-column", flag=flag, column=column,
+                    available=", ".join(str(c) for c in joined.columns
+                                        if not str(c).startswith("__"))))
         value_column = i18n.t(args.language, "change_title",
                               comparison=args.comparison_column,
                               baseline=args.baseline_column)

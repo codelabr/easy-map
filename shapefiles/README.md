@@ -58,9 +58,12 @@ place already holds something, the old folder is left alone and reported.
 With more than one country present, a command has to say which to draw —
 `--country viet-nam`. With one, it does not.
 
-The engine looks for the root in this order: the `--shapefile-root` flag, then
-`EASY_MAP_SHAPEFILES`, then `shapefiles/` inside the working folder. Check what
-it resolved, and what countries and tiers it found:
+The engine looks for the root in two places, in this order: the
+`EASY_MAP_SHAPEFILES` environment variable, then `shapefiles/` inside the
+working folder. (`dataio.shapefile_root` also takes an `override` argument, but
+no command-line flag supplies it — it is a seam for the tests. Set the
+environment variable to point somewhere else.) Check what it resolved, and what
+countries and tiers it found:
 
 ```bash
 python skills/easy-map/scripts/easy_map.py list --project-root .

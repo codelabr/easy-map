@@ -884,7 +884,7 @@ def _profile_key(root: Path, country: str) -> list[str]:
     return key
 
 
-def read_country(deps: Deps, root: Path, country: str,
+def read_country(deps: Deps, root: Path, country: str | None = None,
                  rebuild: bool = False) -> dict[str, Any]:
     """Everything inferred about one country, computed once and kept.
 
@@ -898,7 +898,21 @@ def read_country(deps: Deps, root: Path, country: str,
     evidence is not decoration: an agent reading "34/34 of the finer tier's
     parents are known names" can keep quiet, and one reading "26/34" has to
     ask, and nothing but the evidence separates those two.
+
+    ``country`` may be omitted, exactly as it may be for :func:`load_shapes` and
+    :func:`resolve_tier`, and it is resolved here the same way. It used not to
+    be, and the asymmetry was a trap rather than a saving: ``render`` and
+    ``profile`` both read the flag into a local, let the *other* functions
+    resolve it, and passed the unresolved ``None`` straight to this one. On the
+    documented default path — one country installed, ``--country`` omitted —
+    that reached ``root / None`` and the command died with a ``TypeError``
+    naming ``WindowsPath``, which tells a user nothing at all.
+
+    The whole test suite missed it because the repository grew a second and
+    third country, so every test began naming one; naming it is precisely what
+    hides this.
     """
+    country = resolve_country(root, country)
     store = root / PROFILE
     try:
         saved = json.loads(store.read_text(encoding="utf-8"))

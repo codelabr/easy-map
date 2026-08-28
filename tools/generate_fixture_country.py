@@ -10,11 +10,15 @@ currently assumes it is.
 
 Fictavia is invented. Its ISO code ``XFA`` comes from the user-assigned
 ``XAA``–``XZZ`` range precisely so it can never collide with a real country.
-Four properties are deliberate, and each one breaks a pinned constant:
+Four properties are deliberate, and each one was chosen to break a constant the
+engine had pinned to Vietnam. **All four constants have since been removed** —
+which is what the fixture was for. They are named below in the past tense so
+that a reader meeting one in an old commit can find out what became of it;
+``tests/fixtures/countries/README.md`` tabulates what replaced each.
 
 * **Landscape, not portrait.** Roughly 27 degrees wide by 7 tall, where Vietnam
-  is 8.5 by 16. ``furniture.LOCATOR_ASPECT = 2.2`` would squash it by a factor
-  of eight.
+  is 8.5 by 16. The former ``furniture.LOCATOR_ASPECT = 2.2`` would have
+  squashed it by a factor of eight.
 * **Nowhere near Vietnam.** Latitudes in the forties, so the coordinate rule in
   ``semantics.py`` — ``lon 100..115``, ``lat 7..24`` — silently declines to
   recognise a coordinate column.
@@ -248,7 +252,7 @@ def main() -> int:
           file=log)
     print(f"  mainland aspect (height / width)  : "
           f"{(mb[3] - mb[1]) / (mb[2] - mb[0]):.4f}  "
-          f"(Vietnam 1.9032, LOCATOR_ASPECT 2.2)", file=log)
+          f"(Vietnam 1.9032; the retired LOCATOR_ASPECT was 2.2)", file=log)
     log.flush()
     return 0
 

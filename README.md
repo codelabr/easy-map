@@ -108,6 +108,13 @@ arithmetic lives in `skills/easy-map/scripts/emap/`, under more than 900
 automated tests. Both numbers in this section are counted from the source by
 `tests/test_readme_numbers.py`, so they cannot quietly go stale.
 
+Separately, `tools/sweep_maps.py` draws more than 500 maps end to end — seven
+public-health programmes crossed with both administrative levels, every map
+type, both layouts, both languages, every classification, and time series — and
+reports any that failed. It runs on invented data over the real boundaries, and
+it is run deliberately rather than on every change: one province map costs about
+28 seconds of geometry.
+
 ## Limitations
 
 - **The only boundaries published with the project are post-reform Vietnam.**

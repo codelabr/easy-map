@@ -72,8 +72,70 @@ class TestNothingLeaksAMachine(unittest.TestCase):
                              f"  Describe what went wrong, not where.")
 
 
-if __name__ == "__main__":
-    unittest.main()
+class TestEveryDocumentedFlagIsARealFlag(unittest.TestCase):
+    """A flag a document offers has to be one the command accepts.
+
+    There is a check like this for the Vietnamese user guide, and it did its
+    job. It covered one file, so it never saw ``--shapefile-root``, which
+    ``shapefiles/README.md`` and the handoff both offered as the first place the
+    engine looks for boundaries. No such flag has ever existed: the override is
+    an argument of ``dataio.shapefile_root`` that only the tests pass. A reader
+    following that sentence gets ``unrecognized arguments`` and no map.
+
+    So this one reads every document that ships, not one of them.
+    """
+
+    ROOT = Path(context.ENGINE).parents[2]
+
+    #: Documents a user or an agent reads as instruction. ``docs/`` is
+    #: deliberately absent: it is not distributed, and its guide has its own
+    #: check in this file.
+    DOCUMENTS = ("README.md", "shapefiles/README.md",
+                 "skills/easy-map/SKILL.md",
+                 "skills/easy-map/references/*.md",
+                 "skills/easy-map/assets/fonts/README.md")
+
+    #: Flags belonging to other programs, named on purpose: uv, pip, fontTools,
+    #: and the installers, which parse their own arguments.
+    FOREIGN = {"--with", "--no-cache-dir", "--name-IDs", "--targets", "--quiet",
+               "--ref", "--skip-python", "--skip-shapefiles", "--help"}
+
+    def documents(self) -> list[Path]:
+        found: list[Path] = []
+        for pattern in self.DOCUMENTS:
+            found.extend(sorted(self.ROOT.glob(pattern)))
+        return found
+
+    def accepted(self) -> set[str]:
+        """The flags the command declares, read off its own source.
+
+        The parser is assembled inside ``main()`` and there is no seam to call,
+        so this reads the source rather than building a second parser that could
+        drift from the first.
+        """
+        source = (Path(context.ENGINE) / "easy_map.py").read_text(encoding="utf-8")
+        return set(re.findall(r'add_argument\(\s*"(--[a-z0-9-]+)"', source))
+
+    def test_there_are_documents_and_flags_to_check(self):
+        """Either glob coming back empty would make the test below vacuous."""
+        self.assertGreater(len(self.documents()), 4)
+        self.assertGreater(len(self.accepted()), 20)
+
+    def test_no_document_offers_a_flag_the_command_rejects(self):
+        known = self.accepted() | self.FOREIGN
+        for path in self.documents():
+            relative = path.relative_to(self.ROOT).as_posix()
+            for number, line in enumerate(
+                    path.read_text(encoding="utf-8").splitlines(), start=1):
+                # letters after the first may be capitals: fontTools spells
+                # its flag --name-IDs, and stopping at the capital reported a
+                # flag called "--name-" that nobody ever wrote
+                for flag in re.findall(r"`(--[a-z][A-Za-z0-9-]*)", line):
+                    self.assertIn(
+                        flag, known,
+                        f"{relative}:{number} offers {flag}, which "
+                        f"easy_map.py does not accept. Either add the flag or "
+                        f"stop offering it.")
 
 
 class TestTheUserGuideCountsTheWarningsCorrectly(unittest.TestCase):
@@ -120,3 +182,7 @@ class TestTheUserGuideCountsTheWarningsCorrectly(unittest.TestCase):
         offered = set(re.findall(r"`(--[a-z-]+)", self.GUIDE.read_text(encoding="utf-8")))
         self.assertTrue(offered, "the guide offers no flags at all")
         self.assertEqual(sorted(offered - known), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

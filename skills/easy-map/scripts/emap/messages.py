@@ -1441,6 +1441,18 @@ TEXT: dict[str, dict[str, str]] = {
         "vi": "Không tìm thấy workbook: {file}",
         "en": "No such workbook: {file}",
     },
+    # A change map subtracts one column from another. Naming a column that is
+    # not there used to reach pandas and come back as ``KeyError: '2026'`` --
+    # the same shape of unhelpfulness as the two above, and met the same way.
+    # The mistake it catches is a real one: the two flags take *column names*,
+    # and a table with a period column invites somebody to write a year.
+    "error.change-unknown-column": {
+        "vi": "{flag} trỏ vào cột không có: {column}. Hai cờ này nhận TÊN CỘT, "
+              "không nhận giá trị kỳ báo cáo. Các cột hiện có: {available}",
+        "en": "{flag} names a column that is not there: {column}. Both flags "
+              "take COLUMN NAMES, not a period value. Columns present: "
+              "{available}",
+    },
     "error.where-unknown-column": {
         "vi": "--where trỏ vào cột không có: {column}. Các cột hiện có: {available}",
         "en": "--where names a column that is not there: {column}. Columns present: {available}",
