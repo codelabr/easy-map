@@ -59,22 +59,24 @@ class TestTheTwoStayInStep(unittest.TestCase):
         as the last thing the user saw before being told the install had
         succeeded. Measured on this machine, not reasoned about.
 
-        Those names are still legitimate elsewhere: ``dataio.LEGACY_TIERS``
-        knows them because it migrates them. What is wrong is treating them as
-        the shape a boundary root *must* have, when tier folder names are the
-        user's to choose and the engine decides the tier by counting features.
+        Naming those folders is not itself the fault, and the first version of
+        this test said it was -- then failed the moment the installers began
+        naming them again in the opposite sense, as a layout they *accept*,
+        because the engine migrates it. What must not come back is the
+        construct that made their absence a complaint.
         """
+        forbidden = {
+            "install.ps1": "$missing = @('provinces', 'communes')",
+            "install.sh": "for sub in provinces communes",
+        }
         for path in (POWERSHELL, SHELL):
             text = path.read_text(encoding="utf-8")
-            # comments explain the old check; the code must not perform it
-            code = "\n".join(line for line in text.splitlines()
-                             if not line.lstrip().startswith(("#", "//")))
             with self.subTest(installer=path.name):
-                for legacy in ("'provinces'", '"provinces"', "provinces communes"):
-                    self.assertNotIn(
-                        legacy, code,
-                        f"{path.name} still requires a folder called "
-                        f"'provinces'. Check for a boundary file instead.")
+                self.assertNotIn(
+                    forbidden[path.name], text,
+                    f"{path.name} once again treats the absence of "
+                    f"'provinces'/'communes' as a fault. Those are the "
+                    f"pre-migration names; check for a boundary file instead.")
 
     def test_both_look_for_a_boundary_file_instead(self):
         """The replacement, pinned: the check is about file types, not names."""
@@ -84,6 +86,103 @@ class TestTheTwoStayInStep(unittest.TestCase):
                 for suffix in (".shp", ".geojson", ".kml"):
                     self.assertIn(suffix, text,
                                   f"{path.name} does not look for {suffix}")
+
+    def test_both_look_where_boundaries_might_already_be(self):
+        """Downloading 88 MB the machine already holds is the wrong default.
+
+        Three places are checked, in order: the environment variable a previous
+        install set, the standard location, and the package folder. A clone that
+        already carries boundaries therefore installs without fetching anything.
+        """
+        for path in (POWERSHELL, SHELL):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(installer=path.name):
+                self.assertIn("EASY_MAP_SHAPEFILES", text)
+                for token in ("boundary_root", "find_boundaries") \
+                        if path is SHELL else ("Test-BoundaryRoot", "Find-Boundaries"):
+                    self.assertIn(token, text, f"{path.name} lost {token}")
+
+    def test_neither_searches_the_whole_disk(self):
+        """A search would cost minutes and would sooner or later adopt somebody
+        else's unrelated shapefiles - worse than fetching a known-good copy. The
+        candidates are a fixed list, so no recursive walk from a drive root."""
+        forbidden = ("-Recurse -Filter *.shp", "Get-PSDrive", "find / ",
+                     "find $HOME ", 'find "$HOME" ')
+        for path in (POWERSHELL, SHELL):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(installer=path.name):
+                for token in forbidden:
+                    self.assertNotIn(token, text,
+                                     f"{path.name} appears to scan rather than "
+                                     f"check a fixed list of candidates")
+
+    def test_the_check_matches_what_the_engine_will_accept(self):
+        """The installer must not approve a root the engine then refuses.
+
+        The engine's rule is a country folder holding a tier folder holding a
+        file of one of four types; ``dataio.BOUNDARY_SUFFIXES`` states which.
+        Reading that list here rather than repeating it means the two cannot
+        drift apart silently.
+        """
+        from emap import dataio
+
+        for path in (POWERSHELL, SHELL):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(installer=path.name):
+                for suffix in dataio.BOUNDARY_SUFFIXES:
+                    self.assertIn(suffix, text,
+                                  f"{path.name} does not accept {suffix}, which "
+                                  f"the engine does")
+
+    def test_the_part_file_still_ends_in_zip(self):
+        """``Expand-Archive`` refuses any extension but ``.zip``.
+
+        The download was written to ``.<name>.zip.part``, whose extension is
+        ``.part``, and PowerShell stopped with ".part is not a supported archive
+        file format" *after* fetching the whole 13 MB. install.sh never had the
+        fault: it unpacks with python, which reads the file rather than its name
+        -- so the two halves failed differently on the same filename, which is
+        exactly the asymmetry this class exists to catch.
+
+        Reported by a user running the published installer, on the one code path
+        nothing here had ever executed end to end.
+        """
+        for path in (POWERSHELL, SHELL):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(installer=path.name):
+                self.assertNotIn(
+                    ".zip.part", text,
+                    f"{path.name} writes a partial download to a name ending "
+                    f"'.part'. Expand-Archive refuses it; end the name '.zip'.")
+                self.assertIn(".part.zip", text,
+                              f"{path.name} no longer names a partial download")
+
+    def test_the_download_reports_progress(self):
+        """88 MB with no output reads as a hang.
+
+        Invoke-WebRequest's own bar repaints the console on every buffer, which
+        on PowerShell 5.1 costs more than the transfer, so it had been switched
+        off entirely and nothing took its place.
+        """
+        powershell = POWERSHELL.read_text(encoding="utf-8")
+        self.assertIn("Save-WithProgress", powershell,
+                      "install.ps1 downloads without showing progress")
+        self.assertNotIn("Invoke-WebRequest -Uri \"$ReleaseUrl", powershell,
+                         "install.ps1 is back on Invoke-WebRequest, whose "
+                         "progress bar is the reason there was none")
+        shell = SHELL.read_text(encoding="utf-8")
+        self.assertIn("--progress-bar", shell, "install.sh downloads silently")
+        self.assertIn("--show-progress", shell,
+                      "install.sh's wget branch downloads silently")
+
+    def test_the_download_still_fails_loudly_on_an_http_error(self):
+        """Turning the quiet flag off must not turn error handling off with it:
+        ``curl`` without ``-f`` writes GitHub's 404 page to the file and exits
+        zero, and the installer would unpack an HTML page."""
+        shell = SHELL.read_text(encoding="utf-8")
+        self.assertRegex(shell, r"curl -fL --progress-bar",
+                         "install.sh lost -f, so an HTTP error would be saved "
+                         "as if it were the archive")
 
     def test_they_want_the_same_python(self):
         ps = re.search(r"\$WantPython\s*=\s*'([\d.]+)'", POWERSHELL.read_text(encoding="utf-8"))

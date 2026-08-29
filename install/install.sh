@@ -239,21 +239,58 @@ fetch_asset() {   # $1 asset name, $2 destination file. Returns 1 if unavailable
   fi
   printf '  downloading %s
 ' "$name.zip"
+  # A progress bar, not silence: this is 75 MB on a connection nobody has
+  # promised anything about, and a minute of no output reads as a hang. -f
+  # still fails on an HTTP error and -L still follows the redirect GitHub
+  # answers with; only the quiet flag goes.
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$RELEASE_URL/$name.zip" -o "$dest" && return 0
+    curl -fL --progress-bar "$RELEASE_URL/$name.zip" -o "$dest" && return 0
   elif command -v wget >/dev/null 2>&1; then
-    wget -q "$RELEASE_URL/$name.zip" -O "$dest" && return 0
+    wget -q --show-progress "$RELEASE_URL/$name.zip" -O "$dest" && return 0
   fi
+  return 1
+}
+
+# Does this folder hold boundaries the engine will actually accept?
+#
+# The engine's rule is a country folder holding a tier folder holding one of
+# four file types. A folder with a shapefile loose inside it is not the same
+# thing, and accepting one would record a path the engine then refuses. The
+# pre-migration layout - provinces/ and communes/ directly under the root -
+# counts as well, because the engine moves it into place on first use.
+boundary_root() {
+  [ -n "$1" ] && [ -d "$1" ] || return 1
+  for pattern in "$1"/*/*/*.shp "$1"/*/*/*.geojson "$1"/*/*/*.json "$1"/*/*/*.kml \
+                 "$1"/provinces/*.shp "$1"/communes/*.shp; do
+    for hit in $pattern; do
+      [ -f "$hit" ] && return 0
+    done
+  done
+  return 1
+}
+
+# The first place on this machine that already holds a usable set. A short
+# ordered list, not a search of the disk: scanning every filesystem would cost
+# minutes and would sooner or later adopt somebody's unrelated shapefiles,
+# which is worse than downloading a known-good copy.
+find_boundaries() {
+  for candidate in "${EASY_MAP_SHAPEFILES:-}" "$1" "$BUNDLE_DIR"; do
+    if boundary_root "$candidate"; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
   return 1
 }
 
 if [ -z "$SHAPEFILES" ] && [ "$SKIP_SHAPEFILES" = 0 ]; then
   TARGET="$HOME/.easy-map/shapefiles"
-  if ls "$TARGET"/*/*/*.shp >/dev/null 2>&1; then
+  if EXISTING="$(find_boundaries "$TARGET")"; then
     printf '
-  [found]     boundaries already unpacked at %s
-' "$TARGET"
-    SHAPEFILES="$TARGET"
+  [found]     boundaries already present at %s
+              nothing to download
+' "$EXISTING"
+    SHAPEFILES="$EXISTING"
   else
     UNPACK=1
     if [ "$QUIET" = 0 ]; then
@@ -269,7 +306,7 @@ Vietnam's administrative boundaries are needed to draw a map.
       mkdir -p "$TARGET"
       GOT=0
       for name in $ASSETS; do
-        tmp="$TARGET/.$name.zip.part"
+        tmp="$TARGET/.$name.part.zip"
         if fetch_asset "$name" "$tmp"; then
           # python3 rather than unzip: it is already required by the step that
           # rewrites SKILL.md, so this adds no tool that has to be present.

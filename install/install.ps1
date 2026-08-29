@@ -265,6 +265,51 @@ $BundleDir  = Join-Path $Root 'shapefiles'
 # is extraction into the root and nothing here needs to know the folder names.
 $Assets = @('viet-nam-province', 'viet-nam-commune')
 
+function Save-WithProgress {
+  <#
+    Download to a file, showing how far along it is.
+
+    Not Invoke-WebRequest. Its own progress bar repaints the whole console on
+    every buffer, which on PowerShell 5.1 costs more than the transfer itself,
+    so this script used to switch the bar off - leaving 88 MB of silence with
+    nothing to tell the user whether anything was happening.
+
+    Copying the response stream by hand costs nothing and allows the line to be
+    rewritten only when the whole percentage changes, which is about a hundred
+    updates for the whole file rather than one per 64 KB.
+  #>
+  param([string] $Uri, [string] $Destination, [string] $Label)
+
+  $request = [Net.HttpWebRequest]::Create($Uri)
+  $request.UserAgent = 'easy-map-installer'
+  $response = $request.GetResponse()
+  $total = $response.ContentLength
+  $source = $response.GetResponseStream()
+  $target = [IO.File]::Create($Destination)
+  try {
+    $buffer = New-Object byte[] 262144
+    $done = 0
+    $shown = -1
+    while (($read = $source.Read($buffer, 0, $buffer.Length)) -gt 0) {
+      $target.Write($buffer, 0, $read)
+      $done += $read
+      if ($total -gt 0) {
+        $percent = [int](100 * $done / $total)
+        if ($percent -ne $shown) {
+          $shown = $percent
+          Write-Host ("`r  downloading {0}  {1,3}%  ({2:N1} of {3:N1} MB)" -f
+                      $Label, $percent, ($done / 1MB), ($total / 1MB)) -NoNewline
+        }
+      }
+    }
+  } finally {
+    $target.Close()
+    $source.Close()
+    $response.Close()
+  }
+  Write-Host ''
+}
+
 function Get-BoundaryAsset {
   param([string]$Name, [string]$Destination)
   $local = Join-Path $BundleDir "$Name.zip"
@@ -273,26 +318,82 @@ function Get-BoundaryAsset {
     Copy-Item $local $Destination -Force
     return $true
   }
-  Write-Host ("  downloading {0}.zip" -f $Name)
   try {
-    $previous = $ProgressPreference
-    $ProgressPreference = 'SilentlyContinue'
-    Invoke-WebRequest -Uri "$ReleaseUrl/$Name.zip" -OutFile $Destination -UseBasicParsing
-    $ProgressPreference = $previous
+    Save-WithProgress -Uri "$ReleaseUrl/$Name.zip" -Destination $Destination `
+                      -Label "$Name.zip"
     return $true
   } catch {
+    Write-Host ''
+    Write-Host ("  could not download {0}.zip: {1}" -f $Name, $_.Exception.Message) -ForegroundColor Yellow
     return $false
   }
 }
 
+function Test-BoundaryRoot {
+  <#
+    Does this folder hold boundaries the engine will actually accept?
+
+    The engine's rule is a country folder holding a tier folder holding one of
+    four file types. A folder with a shapefile loose inside it is not the same
+    thing, and accepting one would record a path the engine then refuses.
+
+    The pre-migration layout - provinces\ and communes\ directly under the root
+    - counts as well, because the engine moves it into place on first use.
+  #>
+  param([string] $Path)
+
+  if (-not $Path -or -not (Test-Path $Path)) { return $false }
+  $types = @('.shp', '.geojson', '.json', '.kml')
+
+  function Test-Layer([string] $Folder) {
+    $files = Get-ChildItem $Folder -File -ErrorAction SilentlyContinue
+    return [bool] ($files | Where-Object { $types -contains $_.Extension.ToLower() })
+  }
+
+  foreach ($country in Get-ChildItem $Path -Directory -ErrorAction SilentlyContinue) {
+    if (@('provinces', 'communes') -contains $country.Name) {
+      if (Test-Layer $country.FullName) { return $true }
+      continue
+    }
+    foreach ($tier in Get-ChildItem $country.FullName -Directory -ErrorAction SilentlyContinue) {
+      if (Test-Layer $tier.FullName) { return $true }
+    }
+  }
+  return $false
+}
+
+function Find-Boundaries {
+  <#
+    The first place on this machine that already holds a usable set.
+
+    A short ordered list, not a search of the disk. Scanning every drive would
+    cost minutes and would sooner or later adopt somebody's unrelated
+    shapefiles, which is worse than downloading a known-good copy.
+  #>
+  param([string] $Target)
+
+  $candidates = @(
+    @{ Why = 'EASY_MAP_SHAPEFILES'; Path = $env:EASY_MAP_SHAPEFILES },
+    @{ Why = 'the default location'; Path = $Target },
+    @{ Why = 'the package folder';   Path = $BundleDir }
+  )
+  foreach ($candidate in $candidates) {
+    if (Test-BoundaryRoot $candidate.Path) {
+      return [pscustomobject]@{ Path = $candidate.Path; Why = $candidate.Why }
+    }
+  }
+  return $null
+}
+
 if (-not $Shapefiles -and -not $SkipShapefiles) {
   $target = Join-Path ([Environment]::GetFolderPath('UserProfile')) '.easy-map\shapefiles'
-  $unpacked = Get-ChildItem $target -Recurse -Filter *.shp -ErrorAction SilentlyContinue
+  $existing = Find-Boundaries -Target $target
 
-  if ($unpacked) {
+  if ($existing) {
     Write-Host ''
-    Write-Host ("  [found]     boundaries already unpacked at {0}" -f $target) -ForegroundColor Green
-    $Shapefiles = $target
+    Write-Host ("  [found]     boundaries already present at {0}" -f $existing.Path) -ForegroundColor Green
+    Write-Host ("              found through {0}; nothing to download" -f $existing.Why) -ForegroundColor DarkGray
+    $Shapefiles = $existing.Path
   } else {
     $unpack = $true
     if (-not $Quiet) {
@@ -306,7 +407,12 @@ if (-not $Shapefiles -and -not $SkipShapefiles) {
       New-Item -ItemType Directory -Force $target | Out-Null
       $got = 0
       foreach ($name in $Assets) {
-        $tmp = Join-Path $target ".$name.zip.part"
+        # The suffix has to be .zip, not .part: Expand-Archive refuses any other
+        # extension outright ("`.part` is not a supported archive file format"),
+        # so the download succeeded and the unpacking failed. install.sh did not
+        # have the fault because it unpacks with python, which reads the file
+        # rather than its name.
+        $tmp = Join-Path $target ".$name.part.zip"
         if (Get-BoundaryAsset -Name $name -Destination $tmp) {
           Expand-Archive -LiteralPath $tmp -DestinationPath $target -Force
           $got++
