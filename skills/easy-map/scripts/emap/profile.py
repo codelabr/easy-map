@@ -51,7 +51,32 @@ def describe_columns(deps, df, dictionary: dict[str, str] | None = None) -> list
 def location_candidates(df, columns: Sequence[dict[str, Any]], province_names: Sequence[str],
                         commune_names: Sequence[str],
                         affixes=None) -> dict[str, list[dict[str, Any]]]:
-    """Score text columns by how many of their values exist in the shapefile."""
+    """Score text columns by how many of their values exist in the shapefile.
+
+    Hit rate alone is not enough to rank them. A commune-level report written by
+    one province repeats that province's name on every row, and a good many
+    province names are also the name of a commune somewhere else: measured on
+    the 2026 boundary set, a column holding "Thanh Hoa" 166 times scores a
+    commune match rate of 1.0 and sorts level with the column of 166 different
+    commune names beside it. Two of the eleven training workbooks were drawn
+    from the wrong column that way, and both produced an image - a plausible
+    map built from a column of one repeated value, which is worse than a
+    refusal because nothing about it looks wrong.
+
+    So candidates carry their distinct count, and a commune candidate holding a
+    single repeated value is ranked below every candidate that holds more than
+    one. Ranking by the count instead would be wrong: a column matching 40% of
+    the time with a hundred distinct values is a worse commune column than one
+    matching 99% of the time with ninety, and hit rate has to keep deciding
+    between genuine candidates. What a single repeated value cannot be is the
+    commune column of a table with more than one commune in it, whatever it
+    scores - Quang Tri's file made that concrete, where the province column
+    matched 1.0 and the commune column 0.987, and the tie-break on count was
+    not enough to save it.
+
+    The rule is not applied to provinces. A commune-level table for one province
+    legitimately holds that province's name and nothing else.
+    """
     affixes = affixes if affixes is not None else matching.NOTHING
     provinces = {matching.normalize(n, affixes) for n in province_names}
     communes = {matching.normalize(n, affixes) for n in commune_names}
@@ -67,12 +92,19 @@ def location_candidates(df, columns: Sequence[dict[str, Any]], province_names: S
         keys = [matching.normalize(v, affixes) for v in values]
         p_hit = sum(1 for k in keys if k in provinces) / len(keys)
         c_hit = sum(1 for k in keys if k in communes) / len(keys)
+        distinct = len(set(keys))
         if p_hit >= 0.35:
-            result["province"].append({"column": info["column"], "match_rate": round(p_hit, 3)})
+            result["province"].append({"column": info["column"],
+                                       "match_rate": round(p_hit, 3),
+                                       "distinct_values": distinct})
         if c_hit >= 0.35:
-            result["commune"].append({"column": info["column"], "match_rate": round(c_hit, 3)})
-    result["province"].sort(key=lambda d: -d["match_rate"])
-    result["commune"].sort(key=lambda d: -d["match_rate"])
+            result["commune"].append({"column": info["column"],
+                                      "match_rate": round(c_hit, 3),
+                                      "distinct_values": distinct})
+    result["province"].sort(key=lambda d: (-d["match_rate"], -d["distinct_values"]))
+    result["commune"].sort(key=lambda d: (d["distinct_values"] < 2,
+                                          -d["match_rate"],
+                                          -d["distinct_values"]))
     return result
 
 
